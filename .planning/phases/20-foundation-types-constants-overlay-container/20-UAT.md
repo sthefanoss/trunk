@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 20-foundation-types-constants-overlay-container
 source: 20-01-SUMMARY.md, 20-02-SUMMARY.md
 started: 2026-03-13T22:00:00Z
@@ -53,7 +53,7 @@ skipped: 0
 ## Gaps
 
 - truth: "SVG overlay visible as a barely-visible red tint across the graph area"
-  status: failed
+  status: resolved
   reason: "User reported: sorry I can't see it, maybe make it more visible."
   severity: minor
   test: 5

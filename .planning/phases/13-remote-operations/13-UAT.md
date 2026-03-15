@@ -1,5 +1,5 @@
 ---
-status: resolved
+status: complete
 phase: 13-remote-operations
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md]
 started: 2026-03-12T13:00:00Z

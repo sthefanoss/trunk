@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 23-svg-rendering
 source: 23-01-SUMMARY.md, 23-02-SUMMARY.md
 started: 2026-03-14T04:50:00Z
@@ -51,7 +51,7 @@ skipped: 0
 ## Gaps
 
 - truth: "SVG overlay renders on top of the existing commit graph rendering"
-  status: failed
+  status: resolved
   reason: "User reported: it's to the side, not on top"
   severity: major
   test: 1
@@ -64,7 +64,7 @@ skipped: 0
   debug_session: ".planning/debug/overlay-positioned-to-side.md"
 
 - truth: "Commit dots and branch lines remain visible while scrolling through the graph"
-  status: failed
+  status: resolved
   reason: "User reported: for some reason commit dots are disappearing when I scroll (branch lines as well)"
   severity: major
   test: 6
