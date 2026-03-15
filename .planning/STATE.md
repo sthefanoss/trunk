@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: UI Polish & Core Ops
 status: executing
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-03-15T22:36:17.452Z"
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-03-15T22:37:30.182Z"
 last_activity: 2026-03-15 - Completed 29-02 (button colors & 50/50 layout)
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -52,6 +52,7 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 | Phase 28-destructive-operations P03 | 3min | 2 tasks | 4 files |
 | Phase 28-destructive-operations P04 | 1min | 1 tasks | 1 files |
 | Phase 29-staging-commit-ux P02 | 2min | 2 tasks | 2 files |
+| Phase 29-staging-commit-ux P01 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 - [Phase 28-destructive-operations]: Pill context menus wired on rect, icon g, and text span for full click coverage
 - [Phase 28-destructive-operations]: showOverflowRefContextMenu as separate function from showPillContextMenu — uses RefLabel fields instead of OverlayRefPill to avoid union type refactor
 - [Phase 29-staging-commit-ux]: Used inline conditional flex: 1 for 50/50 split instead of CSS classes
+- [Phase 29-staging-commit-ux]: Mode state as string union instead of boolean flags — cleaner discrimination, extensible
+- [Phase 29-staging-commit-ux]: clearRedoStack skipped for stash — stash doesnt modify commit history
 
 ### Roadmap Evolution
 
@@ -107,7 +110,7 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 
 ## Session Continuity
 
-Last session: 2026-03-15T22:36:17.449Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-03-15T22:37:30.179Z
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None
 Next action: Discuss Phase 29

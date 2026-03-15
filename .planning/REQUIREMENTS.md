@@ -22,8 +22,8 @@ Requirements for milestone v0.6 UI Polish & Core Ops. Each maps to roadmap phase
 
 ### Staging & Commit UX
 
-- [ ] **STAGE-01**: Commit form has a three-way selector (commit / amend / stash) replacing the amend checkbox
-- [ ] **STAGE-02**: In stash mode, commit form subject auto-populates as the stash name
+- [x] **STAGE-01**: Commit form has a three-way selector (commit / amend / stash) replacing the amend checkbox
+- [x] **STAGE-02**: In stash mode, commit form subject auto-populates as the stash name
 - [x] **STAGE-03**: "Stage all changes" button is styled green
 - [x] **STAGE-04**: "Unstage all changes" button is styled red
 - [x] **STAGE-05**: Unstaged and staged file lists render at equal height when both expanded
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GITOP-04 | Phase 28 | Complete |
 | GITOP-05 | Phase 28 | Complete |
 | GITOP-06 | Phase 28 | Complete |
-| STAGE-01 | Phase 29 | Pending |
-| STAGE-02 | Phase 29 | Pending |
+| STAGE-01 | Phase 29 | Complete |
+| STAGE-02 | Phase 29 | Complete |
 | STAGE-03 | Phase 29 | Complete |
 | STAGE-04 | Phase 29 | Complete |
 | STAGE-05 | Phase 29 | Complete |

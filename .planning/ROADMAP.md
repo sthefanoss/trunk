@@ -81,7 +81,7 @@ Full details: [milestones/v0.5-ROADMAP.md](milestones/v0.5-ROADMAP.md)
 
 - [x] **Phase 27: Foundation — Icons, Toast & Bug Fixes** — Icon system, toast notifications, and critical bug fixes that unblock all subsequent phases (5 plans) (completed 2026-03-15)
 - [x] **Phase 28: Destructive Operations** — Discard changes, branch/tag delete, branch rename, and reset — all with confirmation dialogs (completed 2026-03-15)
-- [ ] **Phase 29: Staging & Commit UX** — Three-way commit/amend/stash selector, colored stage/unstage buttons, equal-height file lists
+- [x] **Phase 29: Staging & Commit UX** — Three-way commit/amend/stash selector, colored stage/unstage buttons, equal-height file lists (completed 2026-03-15)
 - [ ] **Phase 30: Graph Polish & Navigation** — Graph padding, column overflow/shrink, sidebar ref navigation, and right pane auto-open
 - [ ] **Phase 31: Layout Polish** — Merge window top bar with tab/actions bar into unified bar
 
@@ -196,7 +196,7 @@ Plans:
 | 26. SVG Ref Pills | v0.5 | 2/2 | Complete | 2026-03-14 |
 | 27. Foundation — Icons, Toast & Bug Fixes | 4/4 | Complete    | 2026-03-15 | - |
 | 28. Destructive Operations | 4/4 | Complete    | 2026-03-15 | - |
-| 29. Staging & Commit UX | 1/2 | In Progress|  | - |
+| 29. Staging & Commit UX | 2/2 | Complete   | 2026-03-15 | - |
 | 30. Graph Polish & Navigation | v0.6 | 0/? | Not started | - |
 | 31. Layout Polish | v0.6 | 0/? | Not started | - |
 
