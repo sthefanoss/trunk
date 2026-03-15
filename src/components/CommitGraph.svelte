@@ -50,6 +50,16 @@
   let columnWidths = $state<ColumnWidths>({ ref: 120, graph: 120, author: 120, date: 100, sha: 80 });
   let columnVisibility = $state<ColumnVisibility>({ ref: true, graph: true, message: true, author: true, date: true, sha: true });
 
+  const ORDERED_COLUMNS = ['ref', 'graph', 'message', 'author', 'date', 'sha'] as const;
+  type ColumnKey = typeof ORDERED_COLUMNS[number];
+
+  const visibleColumns = $derived(
+    ORDERED_COLUMNS.filter(k => columnVisibility[k])
+  );
+  const lastVisibleColumn = $derived(
+    visibleColumns[visibleColumns.length - 1] as ColumnKey | undefined
+  );
+
   $effect(() => {
     getColumnWidths().then((w) => { columnWidths = w; });
   });
@@ -460,20 +470,25 @@
       <div class="flex-shrink-0 relative px-2" style="width: {columnWidths.ref}px;">
         Branch/Tag
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="col-resize-handle" onmousedown={(e) => startColumnResize('ref', e)}></div>
+        {#if 'ref' !== lastVisibleColumn}
+          <div class="col-resize-handle" onmousedown={(e) => startColumnResize('ref', e)}></div>
+        {/if}
       </div>
     {/if}
     {#if columnVisibility.graph}
       <div class="flex-shrink-0 relative px-2" style="width: {columnWidths.graph}px;">
         Graph
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="col-resize-handle" onmousedown={(e) => startColumnResize('graph', e)}></div>
+        {#if 'graph' !== lastVisibleColumn}
+          <div class="col-resize-handle" onmousedown={(e) => startColumnResize('graph', e)}></div>
+        {/if}
       </div>
     {/if}
     {#if columnVisibility.message}
       <div class="flex-1 relative px-2">
         Message
         <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- message handle is always rendered — it is the LEFT edge of the author column, not a trailing right edge -->
         <div class="col-resize-handle" onmousedown={(e) => startColumnResize('author', e, true)}></div>
       </div>
     {/if}
@@ -481,19 +496,27 @@
       <div class="flex-shrink-0 relative px-2" style="width: {columnWidths.author}px;">
         Author
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="col-resize-handle" onmousedown={(e) => startColumnResize('date', e, true)}></div>
+        {#if 'author' !== lastVisibleColumn}
+          <div class="col-resize-handle" onmousedown={(e) => startColumnResize('date', e, true)}></div>
+        {/if}
       </div>
     {/if}
     {#if columnVisibility.date}
       <div class="flex-shrink-0 relative px-2" style="width: {columnWidths.date}px;">
         Date
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="col-resize-handle" onmousedown={(e) => startColumnResize('sha', e, true)}></div>
+        {#if 'date' !== lastVisibleColumn}
+          <div class="col-resize-handle" onmousedown={(e) => startColumnResize('sha', e, true)}></div>
+        {/if}
       </div>
     {/if}
     {#if columnVisibility.sha}
       <div class="flex-shrink-0 px-2" style="width: {columnWidths.sha}px;">
         SHA
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        {#if 'sha' !== lastVisibleColumn}
+          <div class="col-resize-handle" onmousedown={(e) => startColumnResize('sha', e, true)}></div>
+        {/if}
       </div>
     {/if}
   </div>
