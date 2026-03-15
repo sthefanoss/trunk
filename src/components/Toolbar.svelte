@@ -6,6 +6,7 @@
   import { listen } from '@tauri-apps/api/event';
   import PullDropdown from './PullDropdown.svelte';
   import InputDialog from './InputDialog.svelte';
+  import { Undo2, Redo2, ArrowDown, ArrowUp, GitBranch, Archive, PackageOpen } from '@lucide/svelte';
 
   interface Props {
     repoPath: string;
@@ -176,34 +177,34 @@
 <div class="toolbar">
   <div class="toolbar-group">
     <button class="toolbar-btn" disabled={!canUndo} onclick={handleUndo}>
-      &#8617; Undo
+      <Undo2 size={14} /> Undo
     </button>
     <button class="toolbar-btn" disabled={undoRedoState.redoStack.length === 0} onclick={handleRedo}>
-      &#8618; Redo
+      <Redo2 size={14} /> Redo
     </button>
   </div>
 
   <div class="toolbar-group">
     <div class="btn-group">
       <button class="toolbar-btn" disabled={remoteState.isRunning} onclick={handlePull}>
-        &#8595; Pull
+        <ArrowDown size={14} /> Pull
       </button>
       <PullDropdown {repoPath} disabled={remoteState.isRunning} />
     </div>
     <button class="toolbar-btn" disabled={remoteState.isRunning} onclick={handlePush}>
-      &#8593; Push
+      <ArrowUp size={14} /> Push
     </button>
   </div>
 
   <div class="toolbar-group">
     <button class="toolbar-btn" onclick={handleBranch}>
-      &#9095; Branch
+      <GitBranch size={14} /> Branch
     </button>
     <button class="toolbar-btn" onclick={handleStash}>
-      &#128230; Stash
+      <Archive size={14} /> Stash
     </button>
     <button class="toolbar-btn" onclick={handlePop}>
-      &#128229; Pop
+      <PackageOpen size={14} /> Pop
     </button>
   </div>
 </div>

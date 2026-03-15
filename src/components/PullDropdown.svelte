@@ -2,6 +2,7 @@
   import { safeInvoke } from '../lib/invoke.js';
   import type { TrunkError } from '../lib/invoke.js';
   import { remoteState } from '../lib/remote-state.svelte.js';
+  import { ChevronDown } from '@lucide/svelte';
 
   interface Props {
     repoPath: string;
@@ -135,7 +136,7 @@
 
 <div class="pull-dropdown">
   <button class="chevron-btn" onclick={toggle} disabled={disabled} title="Pull options">
-    &#9662;
+    <ChevronDown size={12} />
   </button>
 
   {#if open}
