@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { X } from '@lucide/svelte';
+
   interface Props {
     repoName: string;
     onclose: () => void;
@@ -22,6 +24,6 @@
     aria-label="Close repository"
     title="Close repository"
   >
-    ×
+    <X size={12} />
   </button>
 </div>

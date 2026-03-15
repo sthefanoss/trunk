@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { ChevronDown, ChevronRight, Plus } from '@lucide/svelte';
 
   interface Props {
     label: string;
@@ -40,8 +41,8 @@
       user-select: none;
     "
   >
-    <span style="color: var(--color-text-muted); font-size: 10px; margin-right: 4px;">
-      {expanded ? '▼' : '▶'}
+    <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">
+      {#if expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
     </span>
     <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
       {label} ({count})
@@ -49,10 +50,10 @@
     {#if showCreateButton}
       <button
         onclick={(e) => { e.stopPropagation(); oncreate?.(); }}
-        style="color: var(--color-text-muted); font-size: 14px; background: none; border: none; cursor: pointer; padding: 0 4px;"
+        style="color: var(--color-text-muted); background: none; border: none; cursor: pointer; padding: 0 4px; display: inline-flex; align-items: center;"
         aria-label="Create new branch"
       >
-        +
+        <Plus size={12} />
       </button>
     {/if}
   </div>

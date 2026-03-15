@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { ArrowDown, ArrowUp } from '@lucide/svelte';
+
   interface Props {
     name: string;
     isHead?: boolean;
@@ -54,9 +56,9 @@
       flex: 1;
     ">{name}{isLoading ? ' …' : ''}</span>
     {#if behind > 0 || ahead > 0}
-      <span style="flex-shrink: 0; font-size: 11px; color: var(--color-text-muted); margin-left: 4px;">
-        {#if behind > 0}<span>{'\u2193'}{behind}</span>{/if}
-        {#if ahead > 0}<span style="margin-left: 2px;">{'\u2191'}{ahead}</span>{/if}
+      <span style="flex-shrink: 0; font-size: 11px; color: var(--color-text-muted); margin-left: 4px; display: inline-flex; align-items: center; gap: 2px;">
+        {#if behind > 0}<span style="display: inline-flex; align-items: center;"><ArrowDown size={11} />{behind}</span>{/if}
+        {#if ahead > 0}<span style="display: inline-flex; align-items: center; margin-left: 2px;"><ArrowUp size={11} />{ahead}</span>{/if}
       </span>
     {/if}
   </div>

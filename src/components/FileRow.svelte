@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { FileStatus, FileStatusType } from '../lib/types.js';
+  import { FilePlus, FilePen, FileMinus, FileSymlink, FileType2, FileWarning, Plus, Minus } from '@lucide/svelte';
+  import type { Component } from 'svelte';
 
   interface Props {
     file: FileStatus;
@@ -19,21 +21,18 @@
 
   let hovered = $state(false);
 
-  interface StatusIcon {
-    symbol: string;
-    color: string;
-  }
+  type StatusIconConfig = { component: Component<any>; color: string };
 
-  const STATUS_ICONS: Record<FileStatusType, StatusIcon> = {
-    New:        { symbol: '+',  color: '#4ade80' },
-    Modified:   { symbol: '✎', color: '#fb923c' },
-    Deleted:    { symbol: '−', color: '#f87171' },
-    Renamed:    { symbol: '→', color: '#60a5fa' },
-    Typechange: { symbol: '⇄', color: '#c084fc' },
-    Conflicted: { symbol: '!', color: '#facc15' },
+  const STATUS_ICON_COMPONENTS: Record<FileStatusType, StatusIconConfig> = {
+    New:        { component: FilePlus,     color: '#22c55e' },
+    Modified:   { component: FilePen,      color: '#fb923c' },
+    Deleted:    { component: FileMinus,    color: '#f87171' },
+    Renamed:    { component: FileSymlink,  color: '#60a5fa' },
+    Typechange: { component: FileType2,    color: '#a78bfa' },
+    Conflicted: { component: FileWarning,  color: '#facc15' },
   };
 
-  let icon = $derived(STATUS_ICONS[file.status] ?? { symbol: '?', color: 'var(--color-text-muted)' });
+  let iconConfig = $derived(STATUS_ICON_COMPONENTS[file.status] ?? { component: FilePen, color: 'var(--color-text-muted)' });
 </script>
 
 <div
@@ -54,15 +53,14 @@
 >
   <!-- Status icon -->
   <span style="
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 14px;
     min-width: 14px;
-    font-size: 12px;
-    font-weight: 700;
-    color: {isLoading ? 'var(--color-text-muted)' : icon.color};
-    text-align: center;
+    color: {isLoading ? 'var(--color-text-muted)' : iconConfig.color};
   ">
-    {icon.symbol}
+    <svelte:component this={iconConfig.component} size={12} color={isLoading ? 'var(--color-text-muted)' : iconConfig.color} />
   </span>
 
   <!-- Filename -->
@@ -86,12 +84,17 @@
         border: none;
         cursor: pointer;
         color: var(--color-accent);
-        font-size: 14px;
+        display: flex;
+        align-items: center;
         padding: 0 4px;
         line-height: 1;
       "
     >
-      {actionLabel}
+      {#if actionLabel === '+'}
+        <Plus size={11} />
+      {:else}
+        <Minus size={11} />
+      {/if}
     </button>
   {/if}
 </div>

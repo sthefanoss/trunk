@@ -4,6 +4,7 @@
   import type { WorkingTreeStatus } from '../lib/types.js';
   import FileRow from './FileRow.svelte';
   import CommitForm from './CommitForm.svelte';
+  import { ChevronDown, ChevronRight } from '@lucide/svelte';
 
   interface Props {
     repoPath: string;
@@ -143,8 +144,8 @@
           user-select: none;
         "
       >
-        <span style="color: var(--color-text-muted); font-size: 10px; margin-right: 4px;">
-          {unstaged_expanded ? '▼' : '▶'}
+        <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">
+          {#if unstaged_expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
         </span>
         <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
           Unstaged Files ({(status?.unstaged.length ?? 0) + (status?.conflicted.length ?? 0)})
@@ -209,8 +210,8 @@
           user-select: none;
         "
       >
-        <span style="color: var(--color-text-muted); font-size: 10px; margin-right: 4px;">
-          {staged_expanded ? '▼' : '▶'}
+        <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">
+          {#if staged_expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
         </span>
         <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
           Staged Files ({status?.staged.length ?? 0})
