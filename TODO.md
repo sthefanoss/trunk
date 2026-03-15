@@ -40,3 +40,13 @@
 ## Commit Graph
 - Branch overflow pill is behind the commit graph. We should adjust the Z index
 - The graph column header currently has a divider to the right, even when there is no other columns selected. For example, I currently have branch/tag, graph, and commit message. And to the right of message it has a divider even though it has no other fields after it.
+
+# Testing
+
+## Test Harness
+- Create an end-to-end test harness in the style of "Growing Object-Oriented Software, Guided by Tests" that drives the application from the outside in, enabling test-driven development by exercising the system through its real entry points
+
+# Performance
+
+## Benchmarks
+- Build a robust set of benchmarks covering core algorithms and critical paths so we can measure baseline performance, identify bottlenecks, and iterate on optimizations to make the application feel snappier
