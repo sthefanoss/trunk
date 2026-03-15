@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildRefPillData, sortRefs } from './ref-pill-data.js';
-import { PILL_HEIGHT, PILL_PADDING_X, PILL_GAP, PILL_MARGIN_LEFT, ICON_WIDTH, LANE_WIDTH, ROW_HEIGHT } from './graph-constants.js';
+import { PILL_HEIGHT, PILL_PADDING_X, PILL_GAP, PILL_MARGIN_LEFT, ICON_WIDTH, ICON_GAP, LANE_WIDTH, ROW_HEIGHT } from './graph-constants.js';
 import type { GraphCommit, OverlayNode, RefLabel } from './types.js';
 
 /** Mock measure: each char = 7px */
@@ -118,8 +118,8 @@ describe('buildRefPillData', () => {
     expect(pill.x).toBe(PILL_MARGIN_LEFT);
     expect(pill.y).toBe(cy(0));
     expect(pill.height).toBe(PILL_HEIGHT);
-    // "main" = 4 chars * 7 = 28px text + PILL_PADDING_X*2 + ICON_WIDTH = 50px (icon included for all types)
-    expect(pill.width).toBe(28 + PILL_PADDING_X * 2 + ICON_WIDTH);
+    // "main" = 4 chars * 7 = 28px text + PILL_PADDING_X*2 + ICON_WIDTH + ICON_GAP (icon + gap included for all types)
+    expect(pill.width).toBe(28 + PILL_PADDING_X * 2 + ICON_WIDTH + ICON_GAP);
   });
 
   it('HEAD branch pill has isHead=true', () => {
@@ -209,32 +209,32 @@ describe('buildRefPillData', () => {
     expect(result[0].truncatedLabel).not.toBe('longbranchname');
   });
 
-  it('pill width = textWidth + PILL_PADDING_X*2 + ICON_WIDTH for branches', () => {
+  it('pill width = textWidth + PILL_PADDING_X*2 + ICON_WIDTH + ICON_GAP for branches', () => {
     const ref = makeRef({ short_name: 'dev', is_head: true });
     const nodes = [makeNode({ x: 0, y: 0 })];
     const commits = [makeCommit({ refs: [ref] })];
     const result = buildRefPillData(nodes, commits, 200, mockMeasure);
-    // "dev" = 3*7 = 21px text + ICON_WIDTH for all ref types
-    expect(result[0].width).toBe(21 + PILL_PADDING_X * 2 + ICON_WIDTH);
+    // "dev" = 3*7 = 21px text + ICON_WIDTH + ICON_GAP for all ref types
+    expect(result[0].width).toBe(21 + PILL_PADDING_X * 2 + ICON_WIDTH + ICON_GAP);
   });
 
-  it('pill width includes ICON_WIDTH for Tag refs', () => {
+  it('pill width includes ICON_WIDTH + ICON_GAP for Tag refs', () => {
     const ref = makeRef({ short_name: 'v1.0', ref_type: 'Tag' });
     const nodes = [makeNode({ x: 0, y: 0 })];
     const commits = [makeCommit({ refs: [ref] })];
     const result = buildRefPillData(nodes, commits, 200, mockMeasure);
-    // "v1.0" = 4*7 = 28px text + ICON_WIDTH + PILL_PADDING_X*2
-    expect(result[0].width).toBe(28 + ICON_WIDTH + PILL_PADDING_X * 2);
+    // "v1.0" = 4*7 = 28px text + ICON_WIDTH + ICON_GAP + PILL_PADDING_X*2
+    expect(result[0].width).toBe(28 + ICON_WIDTH + ICON_GAP + PILL_PADDING_X * 2);
   });
 
-  it('pill width includes ICON_WIDTH for Stash refs', () => {
+  it('pill width includes ICON_WIDTH + ICON_GAP for Stash refs', () => {
     const ref = makeRef({ short_name: 'stash@{0}', ref_type: 'Stash' });
     const nodes = [makeNode({ x: 0, y: 0 })];
     const commits = [makeCommit({ refs: [ref] })];
     // Note: stash nodes are skipped (isStash=true), but a non-stash node
     // might have a stash-type ref in edge cases
     const result = buildRefPillData(nodes, commits, 200, mockMeasure);
-    // "stash@{0}" = 9*7 = 63px text + ICON_WIDTH + PILL_PADDING_X*2
-    expect(result[0].width).toBe(63 + ICON_WIDTH + PILL_PADDING_X * 2);
+    // "stash@{0}" = 9*7 = 63px text + ICON_WIDTH + ICON_GAP + PILL_PADDING_X*2
+    expect(result[0].width).toBe(63 + ICON_WIDTH + ICON_GAP + PILL_PADDING_X * 2);
   });
 });

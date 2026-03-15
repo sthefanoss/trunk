@@ -29,3 +29,4 @@ export const PILL_MARGIN_LEFT = 4;
 export const BADGE_HEIGHT = 16;
 export const BADGE_FONT_SIZE = 10;
 export const ICON_WIDTH = 10;
+export const ICON_GAP = 2; // flex gap between icon and text in pill foreignObject
