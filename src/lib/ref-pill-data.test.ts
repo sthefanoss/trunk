@@ -118,7 +118,7 @@ describe('buildRefPillData', () => {
     expect(pill.x).toBe(PILL_MARGIN_LEFT);
     expect(pill.y).toBe(cy(0));
     expect(pill.height).toBe(PILL_HEIGHT);
-    // "main" = 4 chars * 7 = 28px text + PILL_PADDING_X*2 + ICON_WIDTH + ICON_GAP (icon + gap included for all types)
+    // "main" = 4 chars * 7 = 28px text, ceil(28) = 28 + PILL_PADDING_X*2 + ICON_WIDTH + ICON_GAP
     expect(pill.width).toBe(28 + PILL_PADDING_X * 2 + ICON_WIDTH + ICON_GAP);
   });
 

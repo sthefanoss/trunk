@@ -5,7 +5,7 @@
   import { clearRedoStack } from '../lib/undo-redo.svelte.js';
   import type { GraphCommit, GraphResponse, EdgeType, StashEntry } from '../lib/types.js';
   import { getColumnWidths, setColumnWidths, type ColumnWidths, getColumnVisibility, setColumnVisibility, type ColumnVisibility } from '../lib/store.js';
-  import { DEFAULT_GRAPH_SETTINGS, PILL_HEIGHT, PILL_PADDING_X, PILL_FONT_SIZE, PILL_GAP, BADGE_HEIGHT, BADGE_FONT_SIZE, ICON_WIDTH } from '../lib/graph-constants.js';
+  import { DEFAULT_GRAPH_SETTINGS, PILL_HEIGHT, PILL_PADDING_X, PILL_FONT_SIZE, PILL_GAP, BADGE_HEIGHT, BADGE_FONT_SIZE, ICON_WIDTH, ICON_GAP } from '../lib/graph-constants.js';
   import { buildGraphData } from '../lib/active-lanes.js';
   import { buildOverlayPaths } from '../lib/overlay-paths.js';
   import { getVisibleOverlayElements } from '../lib/overlay-visible.js';
@@ -644,33 +644,34 @@
                   onmouseleave={pillMouseLeave}
                 />
 
-                <!-- Pill icon + text (foreignObject for crisp HTML text rendering) -->
+                <!-- Icon rendered directly in SVG at a fixed position (no CSS layout) -->
+                {#if PILL_ICONS[pill.refType]}
+                  {@const PillIcon = PILL_ICONS[pill.refType]}
+                  <g transform="translate({pill.x + PILL_PADDING_X}, {pill.y - ICON_WIDTH / 2})" opacity="0.9">
+                    <PillIcon size={ICON_WIDTH} />
+                  </g>
+                {/if}
+
+                <!-- Text in its own foreignObject sized to exactly the canvas-measured text width.
+                     No flex layout — icon is positioned separately so the text width is unambiguous. -->
                 <foreignObject
-                  x={pill.x + PILL_PADDING_X}
+                  x={pill.x + PILL_PADDING_X + ICON_WIDTH + ICON_GAP}
                   y={pill.y - PILL_HEIGHT / 2}
-                  width={pill.width - PILL_PADDING_X * 2}
+                  width={Math.ceil(pill.textWidth)}
                   height={PILL_HEIGHT}
                 >
                   <span
                     style="
-                      display: flex;
-                      align-items: center;
-                      gap: 2px;
-                      height: {PILL_HEIGHT}px;
+                      display: block;
+                      line-height: {PILL_HEIGHT}px;
                       color: white;
                       font-size: {PILL_FONT_SIZE}px;
                       font-family: var(--font-sans);
                       font-weight: {pill.isHead ? 700 : 500};
-                      overflow: hidden;
                       white-space: nowrap;
+                      overflow: hidden;
                     "
-                  >
-                    {#if PILL_ICONS[pill.refType]}
-                      {@const PillIcon = PILL_ICONS[pill.refType]}
-                      <PillIcon size={ICON_WIDTH} style="flex-shrink: 0; opacity: 0.9;" />
-                    {/if}
-                    <span style="overflow: hidden; text-overflow: ellipsis;">{pill.truncatedLabel}</span>
-                  </span>
+                  >{pill.truncatedLabel}</span>
                 </foreignObject>
 
                 <!-- Overflow +N badge -->

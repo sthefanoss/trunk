@@ -107,13 +107,14 @@ export function buildRefPillData(
       measureFn,
     );
 
-    // Compute pill width
-    const pillWidth = textWidth + PILL_PADDING_X * 2 + iconWidth + ICON_GAP;
+    // Compute pill width — ceil textWidth to avoid sub-pixel rounding gaps
+    const pillWidth = Math.ceil(textWidth) + PILL_PADDING_X * 2 + iconWidth + ICON_GAP;
 
     pills.push({
       x: PILL_MARGIN_LEFT,
       y: cy(node.y),
       width: pillWidth,
+      textWidth,
       height: PILL_HEIGHT,
       label: primary.short_name,
       truncatedLabel,

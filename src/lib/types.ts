@@ -180,6 +180,7 @@ export interface OverlayRefPill {
   x: number;              // left edge of pill in SVG space
   y: number;              // vertical center (cy(rowIndex))
   width: number;          // computed from text measurement + padding
+  textWidth: number;      // raw canvas-measured text width (for precise foreignObject sizing)
   height: number;         // PILL_HEIGHT constant
   label: string;          // original ref short_name
   truncatedLabel: string; // possibly truncated with "…"
