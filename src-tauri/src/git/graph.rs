@@ -148,10 +148,17 @@ pub fn walk_commits(
     // Edges at these columns (pass-through, fork-in) are marked dashed.
     let mut stash_lanes: HashSet<usize> = HashSet::new();
 
-    // Pre-compute HEAD's first-parent chain
+    // Inline stash tracking: when a stash is placed inline (same column as its
+    // parent), we track the column and parent OID so pass-through edges at that
+    // column are marked dashed until the parent is processed.
+    let mut inline_stash_parent: Option<(usize, git2::Oid)> = None;
+
+    // Pre-compute HEAD's first-parent chain and tip OID
     let mut head_chain: HashSet<git2::Oid> = HashSet::new();
+    let mut head_tip: Option<git2::Oid> = None;
     if let Ok(head_ref) = repo.head() {
         if let Some(oid) = head_ref.target() {
+            head_tip = Some(oid);
             let mut current = Some(oid);
             while let Some(c_oid) = current {
                 head_chain.insert(c_oid);
@@ -174,6 +181,13 @@ pub fn walk_commits(
     }
 
     for &oid in &oids {
+        // Clear inline stash tracking when its parent is reached
+        if let Some((_, parent_oid)) = inline_stash_parent {
+            if oid == parent_oid {
+                inline_stash_parent = None;
+            }
+        }
+
         let commit = repo.find_commit(oid)?;
         let is_stash = stash_oid_set.contains(&oid);
         // Stash commits have 2-3 parents (base, index, untracked) but are NOT merges
@@ -184,24 +198,51 @@ pub fn walk_commits(
             pending_parents.remove(&oid);
             c
         } else {
-            // New chain (regular branch tip OR stash) — find a free column
-            // near the first parent's column for compact graph placement.
+            // New chain (regular branch tip OR stash).
             let min_col = if !head_chain.is_empty() { 1 } else { 0 };
-            let target = commit
+            let parent_col = commit
                 .parent_id(0)
                 .ok()
-                .and_then(|pid| pending_parents.get(&pid).copied())
-                .unwrap_or(0)
-                .max(min_col);
-            let c = find_free_column_near(&mut active_lanes, target, min_col);
-            // New branch gets a new color
-            lane_colors.insert(c, next_color);
-            next_color += 1;
-            // Stash lanes: mark column so edges are dashed
-            if is_stash {
-                stash_lanes.insert(c);
+                .and_then(|pid| pending_parents.get(&pid).copied());
+            let parent_oid = commit.parent_id(0).ok();
+
+            // Inline stash placement: if the stash's parent column is free and
+            // no intermediate commits will occupy it, place inline (same column
+            // as parent) with a straight dashed line — like GitKraken.
+            // Safe when: parent is HEAD tip (no HEAD chain members between stash
+            // and parent) or parent is not in the HEAD chain (no pre-reserved
+            // commits at that column).
+            let can_inline = is_stash
+                && parent_col.is_some()
+                && parent_oid.map_or(false, |p| !head_chain.contains(&p) || head_tip == Some(p))
+                && parent_col.map_or(false, |pcol| {
+                    pcol >= active_lanes.len() || active_lanes[pcol].is_none()
+                });
+
+            if can_inline {
+                let c = parent_col.unwrap();
+                if c >= active_lanes.len() {
+                    active_lanes.resize(c + 1, None);
+                }
+                // Inline: inherit parent's color, don't add to stash_lanes.
+                // Track for dashed pass-throughs on intermediate rows.
+                if let Some(pid) = parent_oid {
+                    inline_stash_parent = Some((c, pid));
+                }
+                c
+            } else {
+                // Normal placement: find free column near parent's column.
+                let target = parent_col.unwrap_or(0).max(min_col);
+                let c = find_free_column_near(&mut active_lanes, target, min_col);
+                // New branch gets a new color
+                lane_colors.insert(c, next_color);
+                next_color += 1;
+                // Stash lanes: mark column so edges are dashed
+                if is_stash {
+                    stash_lanes.insert(c);
+                }
+                c
             }
-            c
         };
 
         // Ensure active_lanes is large enough for this column
@@ -224,6 +265,8 @@ pub fn walk_commits(
         for (other_col, slot) in active_lanes.iter().enumerate() {
             if other_col != col {
                 if let Some(&occupant) = slot.as_ref() {
+                    let is_dashed = stash_lanes.contains(&other_col)
+                        || inline_stash_parent.map_or(false, |(c, _)| c == other_col);
                     if occupant == oid {
                         // Fork-in: a child kept this lane alive pointing to us.
                         // Emit fork-out edge from our column to the branch column.
@@ -239,7 +282,7 @@ pub fn walk_commits(
                             to_column: other_col,
                             edge_type,
                             color_index: edge_color,
-                            dashed: stash_lanes.contains(&other_col),
+                            dashed: is_dashed,
                         });
                     } else {
                         // Normal pass-through
@@ -249,7 +292,7 @@ pub fn walk_commits(
                             to_column: other_col,
                             edge_type: EdgeType::Straight,
                             color_index: edge_color,
-                            dashed: stash_lanes.contains(&other_col),
+                            dashed: is_dashed,
                         });
                     }
                 }
@@ -289,7 +332,7 @@ pub fn walk_commits(
                             to_column: col,
                             edge_type: EdgeType::Straight,
                             color_index: edge_color,
-                            dashed: stash_lanes.contains(&col),
+                            dashed: stash_lanes.contains(&col) || is_stash,
                         });
                         active_lanes[col] = Some(parent_oid);
                         col_reoccupied = true;
@@ -305,7 +348,7 @@ pub fn walk_commits(
                             to_column: col,
                             edge_type: EdgeType::Straight,
                             color_index: edge_color,
-                            dashed: stash_lanes.contains(&col),
+                            dashed: stash_lanes.contains(&col) || is_stash,
                         });
                     }
                 } else if is_stash && !base_oid_set.contains(&parent_oid) {
@@ -328,7 +371,7 @@ pub fn walk_commits(
                         to_column: col,
                         edge_type: EdgeType::Straight,
                         color_index: edge_color,
-                        dashed: stash_lanes.contains(&col),
+                        dashed: stash_lanes.contains(&col) || is_stash,
                     });
                 }
             } else {
@@ -1491,10 +1534,10 @@ mod tests {
     }
 
     #[test]
-    fn stash_branches_right_like_regular_branch() {
-        // Create a repo with main (C0→C1→C2), then stash on top of C2.
-        // Stash should behave like a regular branch tip: own column, own color,
-        // dashed edges, ForkRight on parent.
+    fn stash_inline_on_head_tip() {
+        // Create a repo with main (C0→C1→C2), then stash on top of C2 (HEAD tip).
+        // Since the parent IS HEAD tip and col 0 is free above it, the stash
+        // should be placed INLINE at col 0 with a dashed Straight connection.
         let dir = tempfile::tempdir().unwrap();
         {
             let repo = git2::Repository::init(dir.path()).unwrap();
@@ -1566,7 +1609,7 @@ mod tests {
         let result = walk_commits(&mut repo, 0, usize::MAX).unwrap();
         let commits = &result.commits;
 
-        // Find C2 (the parent of the stash)
+        // Find C2 (the parent of the stash = HEAD tip)
         let c2 = commits
             .iter()
             .find(|c| c.summary == "C2")
@@ -1579,12 +1622,11 @@ mod tests {
             .find(|c| c.is_stash)
             .expect("no stash commit found");
 
-        // Stash should be at its own column (branched right, like a regular branch tip)
-        assert!(
-            stash.column > c2.column,
-            "stash should branch right to its own column (> {}), got {}",
-            c2.column,
-            stash.column
+        // Stash should be INLINE at the same column as its parent (col 0)
+        assert_eq!(
+            stash.column, c2.column,
+            "stash should be inline at parent's column {}, got {}",
+            c2.column, stash.column
         );
         assert!(stash.is_branch_tip, "stash should be a branch tip");
         assert!(stash.is_stash, "stash should have is_stash=true");
@@ -1597,14 +1639,14 @@ mod tests {
             "stash should have exactly 1 parent_oid"
         );
 
-        // Stash should have its own color (different from parent's HEAD chain color 0)
-        assert_ne!(
+        // Inline stash inherits parent's color (HEAD chain color 0)
+        assert_eq!(
             stash.color_index, c2.color_index,
-            "stash should have its own color, not parent's color {}",
-            c2.color_index
+            "inline stash should inherit parent's color {}, got {}",
+            c2.color_index, stash.color_index
         );
 
-        // Stash should have a dashed Straight edge at its column (lane to parent)
+        // Stash should have a dashed Straight edge at col 0 (inline connection to parent)
         let stash_straight = stash.edges.iter().find(|e| {
             matches!(e.edge_type, EdgeType::Straight)
                 && e.from_column == stash.column
@@ -1617,32 +1659,18 @@ mod tests {
         );
         assert!(
             stash_straight.unwrap().dashed,
-            "stash Straight edge should be dashed, edges: {:?}",
+            "inline stash Straight edge should be dashed, edges: {:?}",
             stash.edges
         );
-        // Stash's Straight edge color should be the stash's own color
-        assert_eq!(
-            stash_straight.unwrap().color_index,
-            stash.color_index,
-            "stash Straight edge should use stash's color {}, got {}",
-            stash.color_index,
-            stash_straight.unwrap().color_index
-        );
 
-        // C2 should have a ForkRight edge (stash branches right, parent detects fork-in)
+        // C2 should NOT have a ForkRight edge (stash is inline, no fork)
         let c2_fork = c2
             .edges
             .iter()
             .find(|e| matches!(e.edge_type, EdgeType::ForkRight));
         assert!(
-            c2_fork.is_some(),
-            "C2 should have ForkRight edge for stash, edges: {:?}",
-            c2.edges
-        );
-        // The fork-in edge should be dashed (stash lane)
-        assert!(
-            c2_fork.unwrap().dashed,
-            "C2 ForkRight to stash should be dashed, edges: {:?}",
+            c2_fork.is_none(),
+            "C2 should NOT have ForkRight for inline stash, edges: {:?}",
             c2.edges
         );
 
@@ -1658,13 +1686,11 @@ mod tests {
             c2.edges
         );
 
-        // No ghost lanes: C1 should NOT have stash pass-through
+        // No ghost lanes: C1 should only have edges at column 0
         let c1 = commits
             .iter()
             .find(|c| c.summary == "C1")
             .expect("C1 not found");
-        // C1 should only have edges at column 0 (the HEAD chain) — stash lane
-        // was cleaned up at C2's fork-in
         for e in &c1.edges {
             assert_eq!(
                 e.from_column, 0,
@@ -1676,9 +1702,9 @@ mod tests {
 
     #[test]
     fn multiple_stashes_on_same_parent() {
-        // Create repo with main (C0→C1), stash twice on C1.
-        // Both stashes should branch right (each at its own column), just like
-        // regular branch tips. Each produces a ForkRight on the parent.
+        // Create repo with main (C0→C1), stash twice on C1 (HEAD tip).
+        // The newest stash goes inline (col 0, same as parent).
+        // The older stash branches right (col 1) since col 0 is now occupied.
         let dir = tempfile::tempdir().unwrap();
         {
             let repo = git2::Repository::init(dir.path()).unwrap();
@@ -1756,36 +1782,41 @@ mod tests {
             .find(|c| c.summary == "C1")
             .expect("C1 not found");
 
-        // Both stashes should be branch tips at their own columns (> parent's column)
+        // Both stashes should be branch tips
         for s in &stashes {
             assert!(s.is_branch_tip, "stash should be branch tip");
-            assert!(
-                s.column > c1.column,
-                "stash should branch right (col > {}), got col {}",
-                c1.column,
-                s.column
-            );
         }
 
-        // Both stashes should have different columns
-        assert_ne!(
-            stashes[0].column, stashes[1].column,
-            "two stashes should be at different columns"
+        // One stash should be inline (col 0), one branched right (col > 0)
+        let inline_count = stashes.iter().filter(|s| s.column == c1.column).count();
+        let branched_count = stashes.iter().filter(|s| s.column > c1.column).count();
+        assert_eq!(
+            inline_count,
+            1,
+            "exactly 1 stash should be inline at parent col {}, stash cols: {:?}",
+            c1.column,
+            stashes.iter().map(|s| s.column).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            branched_count,
+            1,
+            "exactly 1 stash should branch right, stash cols: {:?}",
+            stashes.iter().map(|s| s.column).collect::<Vec<_>>()
         );
 
-        // Both stashes produce a ForkRight on the parent
+        // Only the branched stash produces a ForkRight on the parent
         let fork_count = c1
             .edges
             .iter()
             .filter(|e| matches!(e.edge_type, EdgeType::ForkRight))
             .count();
         assert_eq!(
-            fork_count, 2,
-            "C1 should have 2 ForkRight edges (one per stash), edges: {:?}",
+            fork_count, 1,
+            "C1 should have 1 ForkRight edge (branched stash only), edges: {:?}",
             c1.edges
         );
 
-        // All fork edges should be dashed (stash lanes)
+        // The fork edge should be dashed (stash lane)
         let dashed_forks: Vec<_> = c1
             .edges
             .iter()
@@ -1793,8 +1824,8 @@ mod tests {
             .collect();
         assert_eq!(
             dashed_forks.len(),
-            2,
-            "both ForkRight edges should be dashed, edges: {:?}",
+            1,
+            "ForkRight edge should be dashed, edges: {:?}",
             c1.edges
         );
     }
@@ -1922,10 +1953,11 @@ mod tests {
     }
 
     #[test]
-    fn stash_branches_right_with_topic_branch() {
-        // Stash on HEAD with a topic branch from C0 at another column.
-        // Stash should still branch right (its own column), just like any branch tip.
-        // Setup: C0 -> C1 (HEAD on main), topic branch from C0 at col 1.
+    fn stash_inline_with_topic_branch() {
+        // Stash on HEAD tip with a topic branch from C0 at another column.
+        // Stash should be inline at col 0 (parent's column is free above).
+        // The topic branch doesn't affect col 0.
+        // Setup: C0 -> C1 (HEAD on main), topic branch from C0.
         let dir = tempfile::tempdir().unwrap();
         {
             let repo = git2::Repository::init(dir.path()).unwrap();
@@ -2002,27 +2034,21 @@ mod tests {
             .expect("C1 not found");
         let stash = commits.iter().find(|c| c.is_stash).expect("no stash found");
 
-        // Stash branches right — it's a regular branch tip, gets its own column
-        assert!(
-            stash.column > c1.column,
-            "stash should branch right (col > {}), got col {}",
-            c1.column,
-            stash.column
+        // Stash should be inline at parent's column (col 0)
+        assert_eq!(
+            stash.column, c1.column,
+            "stash should be inline at parent's column {}, got col {}",
+            c1.column, stash.column
         );
 
-        // C1 should have a ForkRight edge for the stash
+        // C1 should NOT have a ForkRight for the inline stash
         let c1_fork = c1
             .edges
             .iter()
             .find(|e| matches!(e.edge_type, EdgeType::ForkRight));
         assert!(
-            c1_fork.is_some(),
-            "C1 should have ForkRight for stash, edges: {:?}",
-            c1.edges
-        );
-        assert!(
-            c1_fork.unwrap().dashed,
-            "ForkRight to stash should be dashed, edges: {:?}",
+            c1_fork.is_none(),
+            "C1 should NOT have ForkRight for inline stash, edges: {:?}",
             c1.edges
         );
     }
