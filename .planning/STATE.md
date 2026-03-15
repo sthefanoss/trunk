@@ -4,7 +4,7 @@ milestone: v0.6
 milestone_name: UI Polish & Core Ops
 status: completed
 stopped_at: Completed 28-03-PLAN.md
-last_updated: "2026-03-15T20:22:34.991Z"
+last_updated: "2026-03-15T20:26:43.275Z"
 last_activity: 2026-03-15 - Completed 28-03 branch/tag frontend context menus
 progress:
   total_phases: 6
