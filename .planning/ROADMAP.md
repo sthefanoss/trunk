@@ -109,7 +109,7 @@ Plans:
 **Goal:** All four ref pill types (local branch, remote branch, tag, stash) in the commit graph SVG overlay display Lucide icons matching their sidebar/toolbar counterparts, replacing hand-drawn SVG path icons
 **Requirements**: PILL-ICON-01
 **Depends on:** Phase 27
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 27.1-01-PLAN.md — Add Lucide icons to all pill types, remove hand-drawn SVG paths

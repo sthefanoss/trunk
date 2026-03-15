@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: UI Polish & Core Ops
 status: planning
-stopped_at: Phase 27.1 context gathered
-last_updated: "2026-03-15T17:37:54.033Z"
+stopped_at: Completed 27.1-01-PLAN.md
+last_updated: "2026-03-15T18:53:17.779Z"
 last_activity: 2026-03-15 - v0.6 roadmap created (phases 27-31)
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
@@ -46,6 +46,7 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 | Phase 27-foundation-icons-toast-bug-fixes P02 | 6min | 2 tasks | 6 files |
 | Phase 27-foundation-icons-toast-bug-fixes P01 | 8 min | 2 tasks | 2 files |
 | Phase 27-foundation-icons-toast-bug-fixes P05 | 3min | 1 tasks | 1 files |
+| Phase 27.1-add-icons-to-commit-graph-pills P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 - [Phase 27-foundation-icons-toast-bug-fixes]: _resetToasts() helper added to toast store for Vitest test isolation of Svelte 5 module-level state
 - [Phase 27-foundation-icons-toast-bug-fixes]: Wave 0 test scaffolds — tests written before implementation for TOAST-01 and FIX-01 — Verifies Nyquist compliance: RED tests exist before Wave 1 implementations
 - [Phase 27-foundation-icons-toast-bug-fixes]: Preserved startColumnResize('author', e, true) handler inside the guard — Handler resizes author column from message's right edge; must remain when author is visible
+- [Phase 27.1-add-icons-to-commit-graph-pills]: All ref types unconditionally use ICON_WIDTH — removes hasIcon() branching and makes pill widths uniform — Removes conditional branching (Tag/Stash only) in favor of uniform icon handling for all ref types
 
 ### Roadmap Evolution
 
@@ -92,7 +94,7 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:37:54.030Z
-Stopped at: Phase 27.1 context gathered
-Resume file: .planning/phases/27.1-add-icons-to-commit-graph-pills/27.1-CONTEXT.md
+Last session: 2026-03-15T18:53:12.191Z
+Stopped at: Completed 27.1-01-PLAN.md
+Resume file: None
 Next action: `/gsd-plan-phase 27`
