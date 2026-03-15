@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 28-destructive-operations
 source: [28-01-SUMMARY.md, 28-02-SUMMARY.md, 28-03-SUMMARY.md]
 started: 2026-03-15T20:30:00Z
@@ -66,7 +66,14 @@ skipped: 0
   reason: "User reported: when the pill has multiple branches with the overflow and it expands, I can't click on the branch and have that context menu pop up. Context menu is wired only to the single pill. With overflow pills, we should be able to hover over the branch name on the bigger pill that has the multiple branches, and have the same options available."
   severity: major
   test: 9
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Overflow pill expansion overlay (CommitGraph.svelte ~line 824) renders each ref as a plain <div> with no oncontextmenu handler. showPillContextMenu is only wired to single-pill SVG elements (rect, icon g, text span). The expanded {#each hoveredPill.allRefs as ref} loop has zero event handlers."
+  artifacts:
+    - path: "src/components/CommitGraph.svelte"
+      issue: "Overflow expansion div elements (lines 824-831) have no oncontextmenu handler"
+    - path: "src/components/CommitGraph.svelte"
+      issue: "showPillContextMenu (line 366) accepts OverlayRefPill but needs to also accept RefLabel for overflow items"
+  missing:
+    - "Add oncontextmenu handler to each ref div in the overflow expansion {#each} block"
+    - "Adapt showPillContextMenu to accept RefLabel (ref_type, short_name, is_head) or create a thin wrapper"
+    - "Add cursor: context-menu styling to overflow ref divs"
+  debug_session: ".planning/debug/overflow-pill-context-menu.md"
