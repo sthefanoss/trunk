@@ -9,6 +9,7 @@
     actionLabel: string;
     onaction: () => void;
     onclick?: () => void;
+    oncontextmenu?: (e: MouseEvent) => void;
   }
 
   let {
@@ -17,6 +18,7 @@
     actionLabel,
     onaction,
     onclick,
+    oncontextmenu,
   }: Props = $props();
 
   let hovered = $state(false);
@@ -40,6 +42,7 @@
   onmouseenter={() => (hovered = true)}
   onmouseleave={() => (hovered = false)}
   onclick={() => onclick?.()}
+  oncontextmenu={(e) => { if (oncontextmenu) { e.preventDefault(); oncontextmenu(e); } }}
   style="
     height: 26px;
     padding: 0 8px;

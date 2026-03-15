@@ -1,7 +1,8 @@
 <script lang="ts">
   import { listen } from '@tauri-apps/api/event';
-  import { safeInvoke } from '../lib/invoke.js';
-  import type { WorkingTreeStatus } from '../lib/types.js';
+  import { safeInvoke, type TrunkError } from '../lib/invoke.js';
+  import type { WorkingTreeStatus, FileStatusType } from '../lib/types.js';
+  import { showToast } from '../lib/toast.svelte.js';
   import FileRow from './FileRow.svelte';
   import CommitForm from './CommitForm.svelte';
   import { ChevronDown, ChevronRight } from '@lucide/svelte';
@@ -66,6 +67,57 @@
   async function unstageAll() {
     await safeInvoke('unstage_all', { path: repoPath });
     await loadStatus();
+  }
+
+  async function handleDiscardFile(filePath: string, fileStatus: FileStatusType) {
+    const { ask } = await import('@tauri-apps/plugin-dialog');
+    const isUntracked = fileStatus === 'New';
+    const msg = isUntracked
+      ? `Delete ${filePath}? This file is untracked and will be permanently removed. This cannot be undone.`
+      : `Discard changes to ${filePath}? This cannot be undone.`;
+    const confirmed = await ask(msg, { title: isUntracked ? 'Delete File' : 'Discard Changes', kind: 'warning' });
+    if (!confirmed) return;
+    try {
+      await safeInvoke('discard_file', { path: repoPath, filePath });
+      await loadStatus();
+      showToast(`Discarded ${filePath}`, 'success');
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Discard failed', 'error');
+    }
+  }
+
+  async function showFileContextMenu(e: MouseEvent, filePath: string, fileStatus: FileStatusType) {
+    const { Menu, MenuItem } = await import('@tauri-apps/api/menu');
+    const isUntracked = fileStatus === 'New';
+    const menu = await Menu.new({
+      items: [
+        await MenuItem.new({
+          text: isUntracked ? 'Delete File' : 'Discard Changes',
+          action: () => { handleDiscardFile(filePath, fileStatus).catch(() => {}); },
+        }),
+      ],
+    });
+    await menu.popup();
+  }
+
+  async function handleDiscardAll() {
+    const count = (status?.unstaged.length ?? 0) + (status?.conflicted.length ?? 0);
+    if (count === 0) return;
+    const { ask } = await import('@tauri-apps/plugin-dialog');
+    const confirmed = await ask(
+      `Discard all changes to ${count} file${count === 1 ? '' : 's'}? This cannot be undone.`,
+      { title: 'Discard All Changes', kind: 'warning' }
+    );
+    if (!confirmed) return;
+    try {
+      await safeInvoke('discard_all', { path: repoPath });
+      await loadStatus();
+      showToast(`Discarded all changes (${count} files)`, 'success');
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Discard all failed', 'error');
+    }
   }
 
   // Initial load on mount
@@ -152,6 +204,21 @@
         </span>
         {#if (status?.unstaged.length ?? 0) > 0 || (status?.conflicted.length ?? 0) > 0}
           <button
+            onclick={(e) => { e.stopPropagation(); handleDiscardAll(); }}
+            style="
+              color: var(--color-text-muted);
+              font-size: 11px;
+              background: none;
+              border: none;
+              cursor: pointer;
+              padding: 0 4px;
+              white-space: nowrap;
+            "
+            aria-label="Discard all changes"
+          >
+            Discard All
+          </button>
+          <button
             onclick={(e) => { e.stopPropagation(); stageAll(); }}
             style="
               color: var(--color-text-muted);
@@ -178,6 +245,7 @@
               isLoading={loadingFiles.has(f.path)}
               onaction={() => stageFile(f.path)}
               onclick={() => onfileselect?.(f.path, 'unstaged')}
+              oncontextmenu={(e) => showFileContextMenu(e, f.path, f.status)}
             />
           {/each}
           {#each status?.conflicted ?? [] as f (f.path)}
@@ -187,6 +255,7 @@
               isLoading={loadingFiles.has(f.path)}
               onaction={() => stageFile(f.path)}
               onclick={() => onfileselect?.(f.path, 'unstaged')}
+              oncontextmenu={(e) => showFileContextMenu(e, f.path, f.status)}
             />
           {/each}
         </div>
