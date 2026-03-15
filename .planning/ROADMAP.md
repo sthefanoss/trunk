@@ -141,7 +141,10 @@ Plans:
   2. When stash mode is selected, the subject field auto-populates with the current commit form message as the default stash name
   3. "Stage all changes" button is visually green and "Unstage all changes" button is visually red, clearly distinguishable at a glance
   4. When both unstaged and staged file lists have files, they render at equal height (50/50 split of available space)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 29-01-PLAN.md — Three-way tab selector (Commit/Amend/Stash) in CommitForm + stash submit
+- [ ] 29-02-PLAN.md — Colored stage/unstage/discard buttons, green/red icon tints, 50/50 file list layout
 
 ### Phase 30: Graph Polish & Navigation
 **Goal**: Commit graph handles dense histories gracefully and users can jump to any ref from the sidebar
