@@ -125,7 +125,11 @@ Plans:
   4. User can right-click a tag in the commit graph or sidebar, choose Delete, confirm, and the tag is removed
   5. User can right-click a local branch, choose Rename, enter a new name, and the branch is renamed in place
   6. User can right-click any commit, choose Reset, pick soft/mixed/hard mode, confirm, and the current branch tip moves to that commit
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 28-01-PLAN.md — Backend commands: discard file/all, delete branch/tag, rename branch + unit tests
+- [ ] 28-02-PLAN.md — Discard frontend: file context menu + Discard All button in StagingPanel
+- [ ] 28-03-PLAN.md — Branch/Tag frontend: sidebar + graph pill context menus for delete/rename
 
 ### Phase 29: Staging & Commit UX
 **Goal**: Users have a unified "save my work" workflow through a three-way selector and polished staging controls
