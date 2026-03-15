@@ -8,6 +8,7 @@
   import StagingPanel from './components/StagingPanel.svelte';
   import DiffPanel from './components/DiffPanel.svelte';
   import CommitDetail from './components/CommitDetail.svelte';
+  import Toast from './components/Toast.svelte';
   import { safeInvoke } from './lib/invoke.js';
   import { getZoomLevel, setZoomLevel, getLeftPaneWidth, setLeftPaneWidth, getRightPaneWidth, setRightPaneWidth, getLeftPaneCollapsed, setLeftPaneCollapsed, getRightPaneCollapsed, setRightPaneCollapsed, getOpenRepo, setOpenRepo } from './lib/store.js';
   import type { FileDiff, CommitDetail as CommitDetailType } from './lib/types.js';
@@ -365,4 +366,5 @@
     </main>
     <StatusBar repoPath={repoPath!} />
   {/if}
+  <Toast />
 </div>

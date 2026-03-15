@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { RefsResponse, StashEntry } from '../lib/types.js';
   import { safeInvoke, type TrunkError } from '../lib/invoke.js';
+  import { showToast } from '../lib/toast.svelte.js';
   import BranchSection from './BranchSection.svelte';
   import BranchRow from './BranchRow.svelte';
   import RemoteGroup from './RemoteGroup.svelte';
@@ -113,6 +114,7 @@
       await safeInvoke<void>('checkout_branch', { path: repoPath, branchName });
       await loadRefs(repoPath);
       onrefreshed?.();
+      showToast('Checked out ' + branchName, 'success');
     } catch (e) {
       const err = e as TrunkError;
       if (err.code === 'dirty_workdir') {
@@ -121,6 +123,7 @@
           message: 'Cannot checkout — working tree has uncommitted changes. Commit or stash your changes first.'
         };
       }
+      showToast('Checkout failed', 'error');
     } finally {
       checkingOutBranch = null;
     }

@@ -3,6 +3,7 @@
   import type { TrunkError } from '../lib/invoke.js';
   import { remoteState } from '../lib/remote-state.svelte.js';
   import { undoRedoState, pushToRedoStack, popFromRedoStack } from '../lib/undo-redo.svelte.js';
+  import { showToast } from '../lib/toast.svelte.js';
   import { listen } from '@tauri-apps/api/event';
   import PullDropdown from './PullDropdown.svelte';
   import InputDialog from './InputDialog.svelte';
@@ -70,7 +71,12 @@
     }
   }
 
-  async function runRemote(cmd: string, extra: Record<string, unknown> = {}) {
+  async function runRemote(
+    cmd: string,
+    successMsg: string,
+    errorMsg: string,
+    extra: Record<string, unknown> = {}
+  ) {
     remoteState.isRunning = true;
     remoteState.error = null;
     remoteState.progressLine = '';
@@ -78,33 +84,39 @@
       await safeInvoke(cmd, { path: repoPath, ...extra });
       remoteState.isRunning = false;
       remoteState.progressLine = '';
+      showToast(successMsg, 'success');
     } catch (e: unknown) {
       remoteState.isRunning = false;
       remoteState.error = e as TrunkError;
+      showToast(errorMsg, 'error');
     }
   }
 
   function handlePull() {
-    runRemote('git_pull');
+    runRemote('git_pull', 'Pulled successfully', 'Pull failed');
   }
 
   function handlePush() {
-    runRemote('git_push');
+    runRemote('git_push', 'Pushed successfully', 'Push failed');
   }
 
   async function handleStash() {
     try {
       await safeInvoke('stash_save', { path: repoPath, message: '' });
+      showToast('Stash created', 'success');
     } catch (e) {
       console.error('stash_save failed:', e);
+      showToast('Failed to create stash', 'error');
     }
   }
 
   async function handlePop() {
     try {
       await safeInvoke('stash_pop', { path: repoPath, index: 0 });
+      showToast('Stash applied', 'success');
     } catch (e) {
       console.error('stash_pop failed:', e);
+      showToast('Failed to apply stash', 'error');
     }
   }
 
@@ -118,8 +130,9 @@
     if (!name) return;
     try {
       await safeInvoke('create_branch', { path: repoPath, name, checkout: true });
+      showToast('Branch created', 'success');
     } catch {
-      // branch create errors are non-fatal for UI
+      showToast('Failed to create branch', 'error');
     }
   }
 </script>
