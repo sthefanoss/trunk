@@ -45,14 +45,33 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 ### Active
 
-(None — between milestones, run `/gsd-new-milestone` to define next)
+<!-- v0.6 UI Polish & Core Ops -->
+
+- [ ] Add icon set and use throughout the whole application UI
+- [ ] Find a better icon for the tag pill
+- [ ] Discard changes (revert working tree files)
+- [ ] Branch delete action
+- [ ] Tag delete action
+- [ ] Three-way selector: commit / amend / stash (replacing amend checkbox)
+- [ ] Green "stage all" button, red "unstage all" button
+- [ ] Equal height for unstaged and staged file lists when not collapsed
+- [ ] Stash name defaults to commit form message
+- [ ] Add top/bottom padding to commit graph
+- [ ] Commit graph overflow/shrink with sticky right-side commits
+- [ ] Click references in left pane to navigate graph
+- [ ] Fix: branch overflow pill z-index behind graph
+- [ ] Fix: trailing header divider on last visible column
+- [ ] Fix: new untracked files not showing WIP row or diff
+- [ ] Dialog system for errors/warnings/notifications
+- [ ] Right pane auto-opens when content changes
+- [ ] Merge window top bar with tab+actions bar
 
 ### Planned
 
-- **v0.6**: UI Polish — icons, discard, branch/tag delete, dialog system, staging panel improvements, graph overflow, bug fixes
-- **v0.7**: Hunk Staging & Search — stage/unstage individual hunks, cmd+f search
+- **v0.7**: Hunk Staging & Search — stage/unstage individual hunks, cmd+f search on commit graph
 - **v0.8**: Conflict & Rebase — conflict diffs, conflict resolution, interactive rebase
-- **v0.9**: Multi-tab — functional multi-repo tabs
+- **v0.9**: Multi-tab & Views — multiple tabs, list/preview toggle for file lists
+- **v1.0**: Infrastructure — E2E test harness (GOOS-style), performance benchmarks
 
 ### Out of Scope
 
@@ -64,7 +83,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 ## Context
 
 - **Stack**: Tauri 2 + Svelte 5 (Vite SPA, not SvelteKit) + Rust with `git2` crate (libgit2 bindings)
-- **Current state**: Shipped v0.5 with ~6,038 LOC Rust, ~4,417 LOC Svelte, ~1,102 LOC TypeScript, ~1,463 LOC Tests. 26 phases complete across 5 milestones.
+- **Current state**: Shipped v0.5 with ~6,038 LOC Rust, ~4,417 LOC Svelte, ~1,102 LOC TypeScript, ~1,463 LOC Tests. 26 phases complete across 5 milestones. Starting v0.6 UI Polish & Core Ops.
 - **Architecture**: Svelte UI communicates with Rust backend via Tauri `invoke` (commands) and `listen` (events). Rust holds `RepoState` (path-keyed PathBuf registry), `CommitCache` (cached GraphResult with max_columns), `WatcherState` (filesystem watchers), and `RunningOp` (active remote process PID) in managed state.
 - **Remote ops**: `git2` for all local read/write; git CLI subprocess for remote operations (fetch/pull/push) and cherry-pick/revert with `GIT_TERMINAL_PROMPT=0` + `GIT_SSH_COMMAND=ssh -o BatchMode=yes`
 - **Graph rendering (v0.5)**: Single SVG overlay spanning full graph height inside virtual list scroll container. Rust lane algorithm (O(n), ~5ms for 10k commits) outputs GraphCommit[]; TypeScript Active Lanes transformation computes global grid coordinates with edge coalescing. Cubic bezier curves for cross-lane connections, continuous vertical rails for same-lane. Three-layer z-ordered `<g>` groups (rails → edges → dots). Virtualized element filtering with O(1) range-intersection. SVG ref pills with Canvas text measurement and hover expansion.
@@ -119,5 +138,17 @@ A developer can open any Git repository, browse its full commit history as a vis
 | Canvas measureText for SVG ref pills | OffscreenCanvas for DOM-free text measurement with injectable mock for testing | ✓ Good — deterministic tests, accurate text sizing |
 | SVG ref pills with HTML hover overlay | SVG handles static pills, HTML sibling handles hover expansion for reliable multi-ref display | ✓ Good — avoids SVG text layout complexity |
 
+## Current Milestone: v0.6 UI Polish & Core Ops
+
+**Goal:** Make the app feel polished and complete — icon set, missing core git ops (discard, branch/tag delete), staging UX improvements, graph polish, bug fixes, and a dialog system.
+
+**Target features:**
+- Icon set throughout the application
+- Discard changes, branch delete, tag delete
+- Three-way commit/amend/stash selector and staging UX improvements
+- Commit graph polish (padding, overflow, ref navigation) and bug fixes
+- Dialog system for errors/warnings
+- Layout improvements (merged bars, auto-open right pane)
+
 ---
-*Last updated: 2026-03-15 after v0.5 milestone*
+*Last updated: 2026-03-15 after v0.6 milestone started*

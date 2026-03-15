@@ -1,38 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.5
-milestone_name: Graph Overlay
-status: complete
-stopped_at: Milestone v0.5 complete
-last_updated: "2026-03-15T03:30:00.000Z"
-last_activity: "2026-03-15 - Completed v0.5 Graph Overlay milestone"
+milestone: v0.6
+milestone_name: UI Polish & Core Ops
+status: defining_requirements
+stopped_at: Defining requirements
+last_updated: "2026-03-15"
+last_activity: "2026-03-15 - Milestone v0.6 started"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 12
-  completed_plans: 12
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-15 after v0.5 milestone)
+See: .planning/PROJECT.md (updated 2026-03-15 after v0.6 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Planning next milestone
+**Current focus:** v0.6 UI Polish & Core Ops
 
 ## Current Position
 
-Phase: N/A — between milestones
-Plan: N/A
-Status: Milestone v0.5 complete
-Last activity: 2026-03-15 - Completed v0.5 Graph Overlay milestone
-
-```
-v0.5 Graph Overlay
-[████████████████████] 12/12 plans (100%) — SHIPPED
-```
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-15 — Milestone v0.6 started
 
 ## Performance Metrics
 
