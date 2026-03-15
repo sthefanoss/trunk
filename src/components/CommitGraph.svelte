@@ -12,7 +12,7 @@
   import { getVisibleOverlayElements } from '../lib/overlay-visible.js';
   import { buildRefPillData } from '../lib/ref-pill-data.js';
   import { measureTextWidth } from '../lib/text-measure.js';
-  import type { OverlayRefPill } from '../lib/types.js';
+  import type { OverlayRefPill, RefLabel } from '../lib/types.js';
 
   import { Menu, MenuItem, Submenu, PredefinedMenuItem, CheckMenuItem } from '@tauri-apps/api/menu';
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -389,6 +389,39 @@
           await MenuItem.new({
             text: 'Delete',
             action: () => { handleDeleteTag(pill.label).catch(() => {}); },
+          }),
+        ],
+      });
+      await menu.popup();
+    }
+  }
+
+  async function showOverflowRefContextMenu(e: MouseEvent, ref: RefLabel) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (ref.ref_type === 'LocalBranch') {
+      const menu = await Menu.new({
+        items: [
+          await MenuItem.new({
+            text: 'Rename…',
+            action: () => { handleRenameBranch(ref.short_name); },
+          }),
+          await PredefinedMenuItem.new({ item: 'Separator' }),
+          await MenuItem.new({
+            text: 'Delete',
+            enabled: !ref.is_head,
+            action: () => { handleDeleteBranch(ref.short_name).catch(() => {}); },
+          }),
+        ],
+      });
+      await menu.popup();
+    } else if (ref.ref_type === 'Tag') {
+      const menu = await Menu.new({
+        items: [
+          await MenuItem.new({
+            text: 'Delete',
+            action: () => { handleDeleteTag(ref.short_name).catch(() => {}); },
           }),
         ],
       });
@@ -822,7 +855,11 @@
               onmouseleave={overlayMouseLeave}
             >
               {#each hoveredPill.allRefs as ref}
-                <div style="display: flex; align-items: center; gap: 3px;" class="text-[11px] leading-5 font-medium text-white whitespace-nowrap">
+                <div
+                  style="display: flex; align-items: center; gap: 3px; cursor: context-menu; border-radius: 4px;"
+                  class="text-[11px] leading-5 font-medium text-white whitespace-nowrap hover:bg-white/15 px-1 -mx-1"
+                  oncontextmenu={(e) => showOverflowRefContextMenu(e, ref)}
+                >
                   {#if PILL_ICONS[ref.ref_type]}
                     {@const RefIcon = PILL_ICONS[ref.ref_type]}
                     <RefIcon size={10} style="flex-shrink: 0; opacity: 0.85;" />
