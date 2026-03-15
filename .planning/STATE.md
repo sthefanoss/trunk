@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: UI Polish & Core Ops
-status: roadmap_complete
-stopped_at: Roadmap created, ready for phase planning
-last_updated: "2026-03-15"
-last_activity: "2026-03-15 - v0.6 roadmap created (phases 27-31)"
+status: planning
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-03-15T04:26:05.097Z"
+last_activity: 2026-03-15 - v0.6 roadmap created (phases 27-31)
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 4
+  completed_plans: 2
 ---
 
 # Project State
@@ -41,6 +41,8 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 | Plans | 27 | 9 | 14 | 5 | 12 | — |
 | Commits | 155 | 76 | 88 | ~30 | 111 | — |
 | Days | 7 | 2 | 3 | 1 | 2 | — |
+| Phase 27-foundation-icons-toast-bug-fixes P03 | 3min | 2 tasks | 9 files |
+| Phase 27-foundation-icons-toast-bug-fixes P04 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -51,6 +53,9 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 | LAYOUT-01 in Phase 30 (not 31) | Right pane auto-open is triggered by ref navigation (GRAPH-03) — natural companion |
 | 5 phases (standard granularity) | 20 requirements cluster into 5 natural delivery boundaries; no artificial splits |
 | Phase 27 includes bug fixes | FIX-01/FIX-02 are trivial (1-line fixes), high-value, and unblock clean testing |
+- [Phase 27-foundation-icons-toast-bug-fixes]: Used @lucide/svelte (Svelte 5 package) not lucide-svelte for Svelte 5 compatibility — Svelte 5 requires @lucide/svelte; lucide-svelte causes SvelteComponent type errors
+- [Phase 27-foundation-icons-toast-bug-fixes]: Extracted get_dirty_counts_inner as sync fn for testability (mirrors get_status_inner pattern) — Enables unit tests to call inner fn directly without Tauri async runtime
+- [Phase 27-foundation-icons-toast-bug-fixes]: message column resize handle is never guarded by lastVisibleColumn — It targets author column width from the left edge; suppressing it would break author column resizing
 
 ### Pending Todos
 
@@ -77,7 +82,7 @@ v0.6 Progress: [░░░░░░░░░░░░░░░░░░░░] 0/
 
 ## Session Continuity
 
-Last session: 2026-03-15
-Stopped at: v0.6 roadmap created (phases 27-31)
+Last session: 2026-03-15T04:25:56.151Z
+Stopped at: Completed 27-03-PLAN.md
 Resume file: None
 Next action: `/gsd-plan-phase 27`

@@ -9,7 +9,7 @@ Requirements for milestone v0.6 UI Polish & Core Ops. Each maps to roadmap phase
 
 ### Icons
 
-- [ ] **ICON-01**: App uses Lucide SVG icons replacing Unicode symbols across all components (Toolbar, FileRow, StagingPanel, CommitForm, BranchSidebar, TabBar)
+- [x] **ICON-01**: App uses Lucide SVG icons replacing Unicode symbols across all components (Toolbar, FileRow, StagingPanel, CommitForm, BranchSidebar, TabBar)
 
 ### Git Operations
 
@@ -94,7 +94,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ICON-01 | Phase 27 | Pending |
+| ICON-01 | Phase 27 | Complete |
 | GITOP-01 | Phase 28 | Pending |
 | GITOP-02 | Phase 28 | Pending |
 | GITOP-03 | Phase 28 | Pending |
