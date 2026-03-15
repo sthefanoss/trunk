@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "after switching branches via the sidebar, the commit graph remounts correctly (via {#key graphKey}) but does not scroll to the new HEAD commit. If the HEAD is far down the history, it's not visible."
 created: 2026-03-04T00:00:00Z
 updated: 2026-03-04T00:01:00Z

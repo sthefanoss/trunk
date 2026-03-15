@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Investigate why lane colors switch at batch boundaries in the commit graph"
 created: 2026-03-08T00:00:00Z
 updated: 2026-03-08T00:00:00Z

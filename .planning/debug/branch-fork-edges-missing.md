@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Investigate why branch lane lines in the commit graph don't fork from the parent commit row"
 created: 2026-03-08T00:00:00Z
 updated: 2026-03-08T00:00:00Z

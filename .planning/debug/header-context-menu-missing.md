@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Right-clicking on the header row of the commit list does nothing. There should be a context menu that allows toggling the visibility of each column."
 created: 2026-03-09T00:00:00Z
 updated: 2026-03-09T00:00:00Z

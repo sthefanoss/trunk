@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "SVG overlay appears beside the graph instead of positioned on top of it"
 created: 2026-03-14T05:10:00Z
 updated: 2026-03-14T05:15:00Z

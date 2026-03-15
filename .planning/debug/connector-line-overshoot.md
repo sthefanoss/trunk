@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Connector line from ref pills to commit dot overshoots to end of pane; overflow count (+2) is plain text"
 created: 2026-03-09T00:00:00Z
 updated: 2026-03-09T00:00:00Z

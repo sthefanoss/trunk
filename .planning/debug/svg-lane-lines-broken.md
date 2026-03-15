@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "SVG lane lines in the commit graph are completely broken. Commits show dots but no lane lines connecting them."
 created: 2026-03-08T00:00:00Z
 updated: 2026-03-08T00:01:00Z

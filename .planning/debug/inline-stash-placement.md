@@ -1,5 +1,5 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "When a stash's parent commit is directly below it in the same column, the stash should render as a straight vertical dashed line going up from the parent — not branch off to the right into its own column"
 created: 2026-03-14T00:00:00Z
 updated: 2026-03-14T00:00:00Z

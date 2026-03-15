@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "HEAD row hover background covers dotted WIP line extending from WIP row above"
 created: 2026-03-09T00:00:00Z
 updated: 2026-03-09T00:00:00Z

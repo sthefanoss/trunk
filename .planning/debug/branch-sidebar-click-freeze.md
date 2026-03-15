@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "the collapsible section headers in the branch sidebar intermittently stop responding to clicks (won't toggle open/closed). Restarting the app fixes it. Same repo, same session."
 created: 2026-03-04T00:00:00Z
 updated: 2026-03-04T00:01:00Z

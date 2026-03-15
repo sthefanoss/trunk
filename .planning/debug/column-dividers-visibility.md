@@ -1,5 +1,5 @@
 ---
-status: investigating
+status: resolved
 trigger: "Column resize dividers/handles are not consistently visible. They should ALWAYS show as subtle vertical lines (not just on hover). Also, the dividers need padding so text content doesn't rub against them."
 created: 2026-03-09T22:00:00-03:00
 updated: 2026-03-09T22:00:00-03:00

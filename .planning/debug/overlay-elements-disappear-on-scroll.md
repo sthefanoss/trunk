@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Commit dots and branch lines disappear when scrolling through the graph"
 created: 2026-03-14T05:30:00Z
 updated: 2026-03-14T05:45:00Z

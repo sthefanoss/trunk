@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Remote-only ref pills are correctly dimmed at 50% opacity, but the horizontal connector line from the pill to the commit dot is NOT dimmed"
 created: 2026-03-09T00:00:00Z
 updated: 2026-03-09T00:00:00Z
