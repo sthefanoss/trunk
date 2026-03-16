@@ -5,7 +5,7 @@ milestone_name: null
 status: idle
 stopped_at: null
 last_updated: "2026-03-16T01:00:00.000Z"
-last_activity: 2026-03-16 - Cleaned up v0.6 milestone artifacts
+last_activity: 2026-03-16 - Completed quick task 260316-1j6: Remove the bottom bar and use the new notification system for state updates
 progress:
   total_phases: 0
   completed_phases: 0
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v0.6 milestone started)
 
 Phase: All complete
 Status: Milestone v0.6 complete
-Last activity: 2026-03-16 - Completed Phase 31 (Layout Polish)
+Last activity: 2026-03-16 - Completed quick task 260316-1j6: Remove the bottom bar and use the new notification system for state updates
 
 ```
 v0.6 Progress: [████████████░░░░░░░░] 3/5 phases
@@ -102,10 +102,11 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 9 | Revert commit graph row height to more packed style, keep lane width, increase commit dot radius by 2px | 2026-03-14 | 901f73a | [9-revert-commit-graph-row-height-to-more-p](./quick/9-revert-commit-graph-row-height-to-more-p/) |
-| 10 | Make the pill connector line thinner (1.5px → 1px) | 2026-03-15 | a2b7b95 | [10-make-the-pill-line-thinner](./quick/10-make-the-pill-line-thinner/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 9 | Revert commit graph row height to more packed style, keep lane width, increase commit dot radius by 2px | 2026-03-14 | 901f73a | | [9-revert-commit-graph-row-height-to-more-p](./quick/9-revert-commit-graph-row-height-to-more-p/) |
+| 10 | Make the pill connector line thinner (1.5px → 1px) | 2026-03-15 | a2b7b95 | | [10-make-the-pill-line-thinner](./quick/10-make-the-pill-line-thinner/) |
+| 260316-1j6 | Remove the bottom bar and use the new notification system for state updates | 2026-03-16 | 5b7b6fa | Verified | [260316-1j6-remove-the-bottom-bar-and-use-the-new-no](./quick/260316-1j6-remove-the-bottom-bar-and-use-the-new-no/) |
 
 ## Session Continuity
 
