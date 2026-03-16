@@ -186,7 +186,7 @@
 
 </style>
 
-<div class="toolbar">
+<div data-tauri-drag-region class="toolbar">
   <div class="toolbar-group">
     <button class="toolbar-btn" disabled={!canUndo} onclick={handleUndo}>
       <Undo2 size={14} /> Undo

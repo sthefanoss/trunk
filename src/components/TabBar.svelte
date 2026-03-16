@@ -10,6 +10,7 @@
 </script>
 
 <div
+  data-tauri-drag-region
   class="flex items-center gap-1 h-full px-3 text-xs font-medium flex-shrink-0"
   style="
     color: var(--color-text);
