@@ -573,8 +573,19 @@
 
     if (idx < 0 || !listRef) return;
 
-    // Scroll to the row — use 'auto' alignment (nearest supported by VirtualList)
-    await listRef.scroll({ index: idx, smoothScroll: true, align: 'auto' });
+    // Center the row in the viewport by computing the scroll offset manually.
+    // VirtualList doesn't support 'center' alignment, so we calculate:
+    //   scrollTop = rowTop - (viewportHeight / 2) + (rowHeight / 2)
+    const rowTop = idx * displaySettings.rowHeight;
+    const viewport = document.querySelector('.virtual-list-viewport') as HTMLElement | null;
+    if (viewport) {
+      const viewportHeight = viewport.clientHeight;
+      const centerOffset = Math.max(0, rowTop - viewportHeight / 2 + displaySettings.rowHeight / 2);
+      viewport.scrollTo({ top: centerOffset, behavior: 'smooth' });
+    } else {
+      // Fallback: use VirtualList's scroll with 'auto' alignment
+      await listRef.scroll({ index: idx, smoothScroll: true, align: 'auto' });
+    }
   }
 
   async function refresh() {
