@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.6
 milestone_name: UI Polish & Core Ops
-status: executing
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-03-16T01:15:24.400Z"
-last_activity: 2026-03-15 - Completed 29-02 (button colors & 50/50 layout)
+status: complete
+stopped_at: null
+last_updated: "2026-03-16T00:35:00.000Z"
+last_activity: 2026-03-16 - Milestone v0.6 complete (all 6 phases done)
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  completed_phases: 6
+  total_plans: 16
+  completed_plans: 16
 ---
 
 # Project State
@@ -20,14 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15 after v0.6 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** v0.6 UI Polish & Core Ops
+**Current focus:** v0.6 UI Polish & Core Ops — COMPLETE
 
 ## Current Position
 
-Phase: 29 — Staging & Commit UX
-Plan: 02 complete, next 03
-Status: In Progress
-Last activity: 2026-03-15 - Completed 29-02 (button colors & 50/50 layout)
+Phase: All complete
+Status: Milestone v0.6 complete
+Last activity: 2026-03-16 - Completed Phase 31 (Layout Polish)
 
 ```
 v0.6 Progress: [████████████░░░░░░░░] 3/5 phases
