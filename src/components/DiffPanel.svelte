@@ -10,20 +10,6 @@
 
   let { fileDiffs, commitDetail, selectedPath = null, onclose }: Props = $props();
 
-  let authorTimestamp = $derived(
-    commitDetail ? new Date(commitDetail.author_timestamp * 1000).toLocaleString() : ''
-  );
-
-  let committerTimestamp = $derived(
-    commitDetail ? new Date(commitDetail.committer_timestamp * 1000).toLocaleString() : ''
-  );
-
-  let committerDiffers = $derived(
-    commitDetail !== null &&
-    (commitDetail.committer_name !== commitDetail.author_name ||
-     commitDetail.committer_email !== commitDetail.author_email)
-  );
-
   function lineBackground(origin: string): string {
     if (origin === 'Add') return 'rgba(74, 222, 128, 0.1)';
     if (origin === 'Delete') return 'rgba(248, 113, 113, 0.1)';
@@ -61,18 +47,14 @@
     flex-shrink: 0;
     gap: 4px;
   ">
-    {#if selectedPath}
-      <span style="
-        flex: 1;
-        font-size: 11px;
-        color: var(--color-text-muted);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      ">{selectedPath}</span>
-    {:else}
-      <span style="flex: 1;"></span>
-    {/if}
+    <span style="
+      flex: 1;
+      font-size: 11px;
+      color: var(--color-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    ">{#if commitDetail}<span style="font-family: monospace;">{commitDetail.short_oid}</span> — {selectedPath}{:else if selectedPath}{selectedPath}{/if}</span>
     <button
       onclick={onclose}
       aria-label="Close diff"
@@ -93,76 +75,7 @@
   <!-- Scrollable content area -->
   <div style="flex: 1; overflow-y: auto; min-height: 0;">
 
-  {#if commitDetail}
-    <!-- SECTION 1: Commit metadata header -->
-    <div style="
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--color-border);
-      flex-shrink: 0;
-    ">
-      <!-- OID -->
-      <div style="
-        font-family: monospace;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-text-muted);
-        margin-bottom: 2px;
-      ">
-        {commitDetail.short_oid}
-      </div>
-      <div style="
-        font-family: monospace;
-        font-size: 10px;
-        color: var(--color-text-muted);
-        margin-bottom: 8px;
-        word-break: break-all;
-      ">
-        {commitDetail.oid}
-      </div>
-
-      <!-- Author -->
-      <div style="font-size: 12px; color: var(--color-text); margin-bottom: 2px;">
-        <span style="color: var(--color-text-muted); font-size: 11px;">Author: </span>
-        {commitDetail.author_name} &lt;{commitDetail.author_email}&gt;
-      </div>
-      <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 6px;">
-        {authorTimestamp}
-      </div>
-
-      <!-- Committer (only when differs from author) -->
-      {#if committerDiffers}
-        <div style="font-size: 12px; color: var(--color-text); margin-bottom: 2px;">
-          <span style="color: var(--color-text-muted); font-size: 11px;">Committer: </span>
-          {commitDetail.committer_name} &lt;{commitDetail.committer_email}&gt;
-        </div>
-        <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 6px;">
-          {committerTimestamp}
-        </div>
-      {/if}
-
-      <!-- Commit message -->
-      <div style="
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-text);
-        margin-top: 4px;
-      ">
-        {commitDetail.summary}
-      </div>
-      {#if commitDetail.body}
-        <div style="
-          font-size: 12px;
-          color: var(--color-text-muted);
-          margin-top: 4px;
-          white-space: pre-wrap;
-        ">
-          {commitDetail.body}
-        </div>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- SECTION 2: Empty state -->
+  <!-- Empty state -->
   {#if fileDiffs.length === 0 && commitDetail === null}
     <div style="
       flex: 1;
@@ -176,21 +89,25 @@
     </div>
   {/if}
 
-  <!-- SECTION 3: File diff list -->
+  <!-- File diff list -->
   {#each fileDiffs as fd (fd.path)}
     <div>
-      <!-- File header bar -->
-      <div style="
-        background: var(--color-surface);
-        border-bottom: 1px solid var(--color-border);
-        font-size: 12px;
-        font-weight: 500;
-        padding: 4px 8px;
-        color: var(--color-text);
-        flex-shrink: 0;
-      ">
-        {fd.path}
-      </div>
+      <!-- File header bar (hidden for single-file view since top bar shows the path) -->
+      {#if !selectedPath}
+        <div style="
+          background: var(--color-surface);
+          border-bottom: 1px solid var(--color-border);
+          font-size: 12px;
+          font-weight: 500;
+          padding: 4px 8px;
+          color: var(--color-text);
+          position: sticky;
+          top: 0;
+          z-index: 1;
+        ">
+          {fd.path}
+        </div>
+      {/if}
 
       {#if fd.is_binary}
         <!-- Binary file fallback -->

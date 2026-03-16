@@ -41,7 +41,7 @@
 
   <!-- Toolbar -->
   <div style="
-    height: 32px;
+    height: 24px;
     border-bottom: 1px solid var(--color-border);
     padding: 0 8px;
     display: flex;
