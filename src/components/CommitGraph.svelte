@@ -78,6 +78,23 @@
     getColumnVisibility().then((v) => { columnVisibility = v; });
   });
 
+  // GRAPH-02: horizontal panning offset for the graph column.
+  // When graphColWidth < naturalGraphWidth, graphScrollX tracks which portion of the
+  // graph lanes are visible. Controlled by trackpad/wheel horizontal gestures.
+  let graphScrollX = $state(0);
+
+  // Derived: natural graph width based on actual lane count
+  const naturalGraphWidth = $derived(Math.max(maxColumns, 1) * displaySettings.laneWidth);
+  // Derived: maximum horizontal scroll within the graph column
+  const maxGraphScrollX = $derived(
+    columnVisibility.graph ? Math.max(0, naturalGraphWidth - columnWidths.graph) : 0
+  );
+
+  // Clamp graphScrollX when maxGraphScrollX shrinks (e.g. column widened or fewer lanes)
+  $effect(() => {
+    if (graphScrollX > maxGraphScrollX) graphScrollX = maxGraphScrollX;
+  });
+
   let stashOidToIndex = $state<Map<string, number>>(new Map());
 
   async function loadStashMap() {
@@ -106,7 +123,7 @@
     };
     const maxWidths: Record<keyof ColumnWidths, number> = {
       ref: 400,
-      graph: 2000, // GRAPH-02: graph column can be as wide as needed for many lanes
+      graph: naturalGraphWidth, // GRAPH-02: cap at natural content width — can't be wider than needed
       author: 400,
       date: 400,
       sha: 400,
@@ -676,7 +693,13 @@
   </div>
 
   <!-- Content area (grows to fill remaining space) -->
-  <div class="flex-1 overflow-hidden">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="flex-1 overflow-hidden" onwheel={(e) => {
+    // GRAPH-02: horizontal pan on trackpad swipe or shift+wheel
+    if (maxGraphScrollX > 0 && e.deltaX !== 0) {
+      graphScrollX = Math.max(0, Math.min(maxGraphScrollX, graphScrollX + e.deltaX));
+    }
+  }}>
     {#if commits.length === 0 && loading}
       <!-- Initial skeleton loading -->
       {#each { length: SKELETON_COUNT } as _}
@@ -705,23 +728,24 @@
       {#snippet graphOverlay(contentHeight: number, visibleStart: number, visibleEnd: number)}
         {@const refOffset = columnVisibility.ref ? columnWidths.ref : 0}
         {@const visible = getVisibleOverlayElements(paths, graphData.nodes, visibleStart, visibleEnd, pillData)}
-        {@const naturalGraphWidth = Math.max(maxColumns, 1) * displaySettings.laneWidth}
         {@const graphColWidth = columnVisibility.graph ? columnWidths.graph : naturalGraphWidth}
+        {@const scrollX = Math.min(graphScrollX, Math.max(0, naturalGraphWidth - graphColWidth))}
         <svg
           class="absolute top-0"
-          width={refOffset + naturalGraphWidth}
+          width={refOffset + graphColWidth}
           height={contentHeight}
           style="left: 0; pointer-events: none; z-index: 1;"
         >
-          <!-- GRAPH-02: clip graph lanes to column width when narrower than natural content -->
+          <!-- GRAPH-02: clip graph content to column width -->
           <defs>
             <clipPath id="graph-clip">
-              <rect x="0" y="0" width={refOffset + graphColWidth} height={contentHeight} />
+              <rect x={refOffset} y="0" width={graphColWidth} height={contentHeight} />
             </clipPath>
           </defs>
-          <!-- GRAPH-02: Layer A — rails + connections clipped to graph column boundary -->
+          <!-- GRAPH-02: Layer A — rails + connections, scrolled and clipped.
+               Translated left by scrollX to pan through lanes. -->
           <g clip-path="url(#graph-clip)">
-            <g class="overlay-rails" transform="translate({refOffset}, 0)">
+            <g class="overlay-rails" transform="translate({refOffset - scrollX}, 0)">
               {#each visible.rails as path}
                 <path d={path.d} fill="none"
                   stroke={laneColor(path.colorIndex)}
@@ -730,7 +754,7 @@
                   stroke-dasharray={path.dashed ? '3 3' : 'none'} />
               {/each}
             </g>
-            <g class="overlay-connections" transform="translate({refOffset}, 0)">
+            <g class="overlay-connections" transform="translate({refOffset - scrollX}, 0)">
               {#each visible.connections as path}
                 <path d={path.d} fill="none"
                   stroke={laneColor(path.colorIndex)}
@@ -741,12 +765,12 @@
             </g>
           </g>
           <!-- GRAPH-02: Layer B — dots with "sticky" X clamping.
-               Dots clamp to the graph column viewport edges instead of disappearing.
-               When the column is narrower than the natural graph width, dots from
-               far-right lanes slide left to stay visible (bead-on-a-string effect). -->
+               Dots slide along their horizontal line to stay visible in the viewport.
+               Viewport spans graph coordinates [scrollX, scrollX + graphColWidth].
+               Dots clamp to viewport edges (bead-on-a-string effect). -->
           <g class="overlay-dots" clip-path="url(#graph-clip)" transform="translate({refOffset}, 0)">
             {#each visible.dots as node}
-              {@const clampedCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, cx(node.x)))}
+              {@const clampedCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, cx(node.x) - scrollX))}
               {#if node.isWip}
                 <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
                   fill="none" stroke={laneColor(node.colorIndex)}
@@ -774,9 +798,9 @@
           {#if columnVisibility.ref}
             <g class="overlay-pills">
               {#each visible.pills as pill}
-                <!-- Connector line from pill to commit dot (uses sticky X position) -->
+                <!-- Connector line from pill to commit dot (uses sticky X position, scroll-adjusted) -->
                 {#if columnVisibility.graph}
-                  {@const stickyDotCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, pill.dotCx))}
+                  {@const stickyDotCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, pill.dotCx - scrollX))}
                   <line
                     x1={pill.x + pill.width}
                     y1={pill.y}
