@@ -534,6 +534,25 @@
     }
   }
 
+  /** Scroll the graph to center the row for the given OID.
+   * Loads additional history batches if the commit is not yet loaded.
+   * Called from App.svelte via bind:this (GRAPH-03). */
+  export async function scrollToOid(oid: string): Promise<void> {
+    let idx = displayItems.findIndex(c => c.oid === oid);
+
+    // Load more batches until found or all commits exhausted
+    while (idx < 0 && hasMore && !loading) {
+      await loadMore();
+      await tick();
+      idx = displayItems.findIndex(c => c.oid === oid);
+    }
+
+    if (idx < 0 || !listRef) return;
+
+    // Scroll to the row — use 'auto' alignment (nearest supported by VirtualList)
+    await listRef.scroll({ index: idx, smoothScroll: true, align: 'auto' });
+  }
+
   async function refresh() {
     try {
       const response = await safeInvoke<GraphResponse>('refresh_commit_graph', {

@@ -24,6 +24,7 @@ pub fn run() {
             commands::history::get_commit_graph,
             commands::history::refresh_commit_graph,
             commands::branches::list_refs,
+            commands::branches::resolve_ref,
             commands::branches::checkout_branch,
             commands::branches::create_branch,
             commands::branches::delete_branch,

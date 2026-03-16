@@ -11,10 +11,11 @@
     repoPath: string;
     onrefreshed?: () => void;
     onstashselect?: (oid: string) => void;
+    onrefnavigate?: (refNameOrOid: string) => void;
     refreshSignal?: number;
   }
 
-  let { repoPath, onrefreshed, onstashselect, refreshSignal }: Props = $props();
+  let { repoPath, onrefreshed, onstashselect, onrefnavigate, refreshSignal }: Props = $props();
 
   let refs = $state<RefsResponse | null>(null);
   let loading = $state(false);
@@ -402,7 +403,7 @@
             errorText={checkoutError?.message}
             ahead={branch.ahead}
             behind={branch.behind}
-            onclick={() => handleCheckout(branch.name)}
+            onclick={() => onrefnavigate?.(branch.name)}
             oncontextmenu={(e) => showBranchContextMenu(e, branch.name, branch.is_head)}
           />
         {/each}
@@ -442,6 +443,7 @@
           <BranchRow
             name={tag.short_name}
             kind="tag"
+            onclick={() => onrefnavigate?.(tag.short_name)}
             oncontextmenu={(e) => showTagContextMenu(e, tag.short_name)}
           />
         {/each}
@@ -483,7 +485,7 @@
       {#each filteredStashes as stash (stash.index)}
         <div
           class="stash-row"
-          onclick={() => onstashselect?.(stash.oid)}
+          onclick={() => onrefnavigate?.(stash.oid)}
           oncontextmenu={(e) => showStashEntryMenu(e, stash.index)}
         >
           <span class="stash-index">{stash.short_name}</span>

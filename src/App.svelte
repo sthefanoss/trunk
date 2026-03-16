@@ -41,6 +41,9 @@
   let commitFileDiffs = $state<FileDiff[]>([]);
   let selectedCommitFile = $state<string | null>(null);
 
+  // CommitGraph component ref — used to call scrollToOid for ref navigation (GRAPH-03)
+  let commitGraphRef = $state<{ scrollToOid: (oid: string) => Promise<void> } | null>(null);
+
   const wipCount = $derived(dirtyCounts.staged + dirtyCounts.unstaged + dirtyCounts.conflicted);
 
   // Center pane: show DiffPanel when a file is selected (from either source)
@@ -117,6 +120,13 @@
     // Switching to commit view — close any open staging diff
     clearStagingDiff();
     selectedCommitFile = null;
+
+    // Auto-open right pane if collapsed (LAYOUT-01)
+    if (rightPaneCollapsed) {
+      rightPaneCollapsed = false;
+      setRightPaneCollapsed(false);
+    }
+
     selectedCommitOid = oid;
     if (!repoPath) return;
     try {
@@ -130,6 +140,31 @@
       commitFileDiffs = [];
       commitDetail = null;
     }
+  }
+
+  /** Resolve a ref name or OID to a commit OID, select it, and scroll the graph to it (GRAPH-03). */
+  async function handleRefNavigate(refNameOrOid: string) {
+    if (!repoPath) return;
+
+    let oid: string;
+
+    // If it looks like a full git OID (40 hex chars), use directly (stash case)
+    if (/^[0-9a-f]{40}$/i.test(refNameOrOid)) {
+      oid = refNameOrOid;
+    } else {
+      // Resolve ref name to OID via backend
+      try {
+        oid = await safeInvoke<string>('resolve_ref', { path: repoPath, refName: refNameOrOid });
+      } catch {
+        return; // ref not found — ignore silently
+      }
+    }
+
+    // Select commit (loads detail into right pane, also auto-opens pane via handleCommitSelect)
+    await handleCommitSelect(oid);
+
+    // Scroll graph to the commit row
+    await commitGraphRef?.scrollToOid(oid);
   }
 
   function handleCommitFileSelect(path: string) {
@@ -337,7 +372,7 @@
     </div>
     <main class="flex-1 overflow-hidden flex">
       <div style="width: {leftPaneCollapsed ? 0 : leftPaneWidth}px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
-        <BranchSidebar repoPath={repoPath!} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} {refreshSignal} />
+        <BranchSidebar repoPath={repoPath!} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} />
       </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
@@ -345,7 +380,7 @@
         {#if showDiff}
           <DiffPanel fileDiffs={currentDiffFiles} commitDetail={null} onclose={handleDiffClose} />
         {:else}
-          <CommitGraph {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={clearCommit} {refreshSignal} {selectedCommitOid} />
+          <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={clearCommit} {refreshSignal} {selectedCommitOid} />
         {/if}
       </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
