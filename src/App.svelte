@@ -366,7 +366,8 @@
   {#if repoPath === null}
     <WelcomeScreen onopen={handleOpen} />
   {:else}
-    <div class="flex items-center flex-shrink-0" style="height: 36px; background: var(--color-surface); border-bottom: 1px solid var(--color-border);">
+    <!-- LAYOUT-02: unified title bar + toolbar — data-tauri-drag-region makes it draggable -->
+    <div data-tauri-drag-region class="flex items-center flex-shrink-0" style="height: 36px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding-left: 78px;">
       <TabBar {repoName} onclose={handleClose} />
       <Toolbar repoPath={repoPath!} />
     </div>
