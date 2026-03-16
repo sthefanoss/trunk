@@ -190,9 +190,14 @@
         closeDialog();
         try {
           await safeInvoke('create_branch', { path: repoPath, name: values.name, fromOid: commit.oid });
+          showToast('Checked out ' + values.name, 'success');
         } catch (e) {
           const err = e as TrunkError;
-          await message(err.message ?? 'Failed to create branch', { title: 'Create Branch Error', kind: 'error' });
+          if (err.code === 'dirty_workdir') {
+            showToast('Branch created (checkout skipped — uncommitted changes)', 'success');
+          } else {
+            await message(err.message ?? 'Failed to create branch', { title: 'Create Branch Error', kind: 'error' });
+          }
         }
       },
     };

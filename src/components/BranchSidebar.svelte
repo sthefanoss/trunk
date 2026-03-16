@@ -141,9 +141,18 @@
       newBranchName = '';
       await loadRefs(repoPath);
       onrefreshed?.();
+      showToast('Checked out ' + trimmed, 'success');
     } catch (e) {
       const err = e as TrunkError;
-      createError = err.message;
+      if (err.code === 'dirty_workdir') {
+        showToast('Branch created (checkout skipped — uncommitted changes)', 'success');
+        showCreateInput = false;
+        newBranchName = '';
+        await loadRefs(repoPath);
+        onrefreshed?.();
+      } else {
+        createError = err.message;
+      }
     }
   }
 
