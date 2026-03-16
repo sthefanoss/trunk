@@ -104,10 +104,17 @@
       date: 60,
       sha: 50,
     };
+    const maxWidths: Record<keyof ColumnWidths, number> = {
+      ref: 400,
+      graph: 2000, // GRAPH-02: graph column can be as wide as needed for many lanes
+      author: 400,
+      date: 400,
+      sha: 400,
+    };
 
     function onMouseMove(ev: MouseEvent) {
       const delta = (ev.clientX - startX) * (invert ? -1 : 1);
-      const newWidth = Math.max(minWidths[column], Math.min(400, startWidth + delta));
+      const newWidth = Math.max(minWidths[column], Math.min(maxWidths[column], startWidth + delta));
       columnWidths = { ...columnWidths, [column]: newWidth };
     }
 
