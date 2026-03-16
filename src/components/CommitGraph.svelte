@@ -712,35 +712,41 @@
               <rect x="0" y="0" width={refOffset + graphColWidth} height={contentHeight} />
             </clipPath>
           </defs>
-          <!-- Graph layers clipped to graph column boundary -->
+          <!-- GRAPH-02: Layer A — rails + connections clipped to graph column boundary -->
           <g clip-path="url(#graph-clip)">
-          <g class="overlay-rails" transform="translate({refOffset}, 0)">
-            {#each visible.rails as path}
-              <path d={path.d} fill="none"
-                stroke={laneColor(path.colorIndex)}
-                stroke-width={displaySettings.edgeStroke}
-                stroke-linecap="butt"
-                stroke-dasharray={path.dashed ? '3 3' : 'none'} />
-            {/each}
+            <g class="overlay-rails" transform="translate({refOffset}, 0)">
+              {#each visible.rails as path}
+                <path d={path.d} fill="none"
+                  stroke={laneColor(path.colorIndex)}
+                  stroke-width={displaySettings.edgeStroke}
+                  stroke-linecap="butt"
+                  stroke-dasharray={path.dashed ? '3 3' : 'none'} />
+              {/each}
+            </g>
+            <g class="overlay-connections" transform="translate({refOffset}, 0)">
+              {#each visible.connections as path}
+                <path d={path.d} fill="none"
+                  stroke={laneColor(path.colorIndex)}
+                  stroke-width={displaySettings.edgeStroke}
+                  stroke-linecap="round"
+                  stroke-dasharray={path.dashed ? '3 3' : 'none'} />
+              {/each}
+            </g>
           </g>
-          <g class="overlay-connections" transform="translate({refOffset}, 0)">
-            {#each visible.connections as path}
-              <path d={path.d} fill="none"
-                stroke={laneColor(path.colorIndex)}
-                stroke-width={displaySettings.edgeStroke}
-                stroke-linecap="round"
-                stroke-dasharray={path.dashed ? '3 3' : 'none'} />
-            {/each}
-          </g>
-          <g class="overlay-dots" transform="translate({refOffset}, 0)">
+          <!-- GRAPH-02: Layer B — dots with "sticky" X clamping.
+               Dots clamp to the graph column viewport edges instead of disappearing.
+               When the column is narrower than the natural graph width, dots from
+               far-right lanes slide left to stay visible (bead-on-a-string effect). -->
+          <g class="overlay-dots" clip-path="url(#graph-clip)" transform="translate({refOffset}, 0)">
             {#each visible.dots as node}
+              {@const clampedCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, cx(node.x)))}
               {#if node.isWip}
-                <circle cx={cx(node.x)} cy={cy(node.y)} r={displaySettings.dotRadius}
+                <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
                   fill="none" stroke={laneColor(node.colorIndex)}
                   stroke-width={displaySettings.edgeStroke} stroke-dasharray="3 3" />
               {:else if node.isStash}
                 <rect
-                  x={cx(node.x) - displaySettings.dotRadius}
+                  x={clampedCx - displaySettings.dotRadius}
                   y={cy(node.y) - displaySettings.dotRadius}
                   width={displaySettings.dotRadius * 2}
                   height={displaySettings.dotRadius * 2}
@@ -749,25 +755,25 @@
                   stroke-width={displaySettings.edgeStroke}
                   stroke-dasharray="3 3" />
               {:else if node.isMerge}
-                <circle cx={cx(node.x)} cy={cy(node.y)} r={displaySettings.dotRadius}
+                <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
                   fill="var(--color-bg)" stroke={laneColor(node.colorIndex)}
                   stroke-width={displaySettings.mergeStroke} />
               {:else}
-                <circle cx={cx(node.x)} cy={cy(node.y)} r={displaySettings.dotRadius}
+                <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
                   fill={laneColor(node.colorIndex)} />
               {/if}
             {/each}
           </g>
-          </g><!-- end graph-clip group -->
           {#if columnVisibility.ref}
             <g class="overlay-pills">
               {#each visible.pills as pill}
-                <!-- Connector line from pill to commit dot -->
+                <!-- Connector line from pill to commit dot (uses sticky X position) -->
                 {#if columnVisibility.graph}
+                  {@const stickyDotCx = Math.max(displaySettings.dotRadius, Math.min(graphColWidth - displaySettings.dotRadius, pill.dotCx))}
                   <line
                     x1={pill.x + pill.width}
                     y1={pill.y}
-                    x2={refOffset + pill.dotCx}
+                    x2={refOffset + stickyDotCx}
                     y2={pill.dotCy}
                     stroke={laneColor(pill.commitColorIndex)}
                     stroke-width={displaySettings.pillStroke}
