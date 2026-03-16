@@ -16,11 +16,7 @@ use std::collections::HashSet;
 /// non-stash commits set false.
 type LaneSlot = Option<(git2::Oid, bool)>;
 
-fn find_free_column_near(
-    active_lanes: &mut Vec<LaneSlot>,
-    target: usize,
-    min_col: usize,
-) -> usize {
+fn find_free_column_near(active_lanes: &mut Vec<LaneSlot>, target: usize, min_col: usize) -> usize {
     // Try target column first
     if target >= min_col {
         if target >= active_lanes.len() {
@@ -234,8 +230,11 @@ pub fn walk_commits(
         }
         max_columns = max_columns.max(active_lanes.len());
 
-        // Branch tip: no child has set up this lane (active_lanes[col] is None)
-        let is_branch_tip = col >= active_lanes.len() || active_lanes[col].is_none();
+        // Branch tip: no child has set up this lane (active_lanes[col] is None),
+        // or this is a root commit (no parents) — root commits always terminate the lane downward.
+        let is_root_commit = commit.parent_count() == 0;
+        let is_branch_tip =
+            is_root_commit || col >= active_lanes.len() || active_lanes[col].is_none();
 
         // Get this commit's color_index from lane_colors.
         let commit_color = *lane_colors.get(&col).unwrap_or(&0);

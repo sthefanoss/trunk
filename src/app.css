@@ -25,6 +25,10 @@
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
 }
 
+html, body {
+  overflow: hidden;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
