@@ -4,10 +4,11 @@
   interface Props {
     fileDiffs: FileDiff[];
     commitDetail: CommitDetail | null;
+    selectedPath?: string | null;
     onclose: () => void;
   }
 
-  let { fileDiffs, commitDetail, onclose }: Props = $props();
+  let { fileDiffs, commitDetail, selectedPath = null, onclose }: Props = $props();
 
   let authorTimestamp = $derived(
     commitDetail ? new Date(commitDetail.author_timestamp * 1000).toLocaleString() : ''
@@ -50,16 +51,28 @@
   background: var(--color-bg);
 ">
 
-  <!-- Panel toolbar: close button -->
+  <!-- Panel toolbar: filename + close button -->
   <div style="
-    height: 32px;
+    height: 24px;
     border-bottom: 1px solid var(--color-border);
     padding: 0 8px;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     flex-shrink: 0;
+    gap: 4px;
   ">
+    {#if selectedPath}
+      <span style="
+        flex: 1;
+        font-size: 11px;
+        color: var(--color-text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      ">{selectedPath}</span>
+    {:else}
+      <span style="flex: 1;"></span>
+    {/if}
     <button
       onclick={onclose}
       aria-label="Close diff"
@@ -72,6 +85,7 @@
         line-height: 1;
         padding: 2px 4px;
         border-radius: 3px;
+        flex-shrink: 0;
       "
     >✕</button>
   </div>
