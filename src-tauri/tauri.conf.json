@@ -12,10 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "trunk",
+        "title": "",
         "width": 800,
         "height": 600,
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {

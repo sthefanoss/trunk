@@ -139,10 +139,9 @@
 
 <style>
   .toolbar {
-    flex: 1;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 12px;
     padding: 0 12px;
     user-select: none;
