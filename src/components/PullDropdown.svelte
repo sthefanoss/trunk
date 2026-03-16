@@ -2,6 +2,7 @@
   import { safeInvoke } from '../lib/invoke.js';
   import type { TrunkError } from '../lib/invoke.js';
   import { remoteState } from '../lib/remote-state.svelte.js';
+  import { showToast } from '../lib/toast.svelte.js';
   import { ChevronDown } from '@lucide/svelte';
 
   interface Props {
@@ -20,23 +21,36 @@
   const options: PullOption[] = [
     {
       label: 'Fetch',
-      action: () => runRemote('git_fetch', {}),
+      action: () => runRemote('git_fetch', 'Fetched successfully', {}),
     },
     {
       label: 'Fast-forward if possible',
-      action: () => runRemote('git_pull', { strategy: 'ff' }),
+      action: () => runRemote('git_pull', 'Pulled successfully', { strategy: 'ff' }),
     },
     {
       label: 'Fast-forward only',
-      action: () => runRemote('git_pull', { strategy: 'ff-only' }),
+      action: () => runRemote('git_pull', 'Pulled successfully', { strategy: 'ff-only' }),
     },
     {
       label: 'Pull (rebase)',
-      action: () => runRemote('git_pull', { strategy: 'rebase' }),
+      action: () => runRemote('git_pull', 'Pulled successfully (rebase)', { strategy: 'rebase' }),
     },
   ];
 
-  async function runRemote(cmd: string, extra: Record<string, unknown>) {
+  function errorMessage(error: TrunkError): string {
+    switch (error.code) {
+      case 'auth_failure':
+        return 'Authentication failed \u2014 check your SSH key or credential helper';
+      case 'non_fast_forward':
+        return 'Push rejected (non-fast-forward)';
+      case 'no_upstream':
+      case 'remote_error':
+      default:
+        return error.message;
+    }
+  }
+
+  async function runRemote(cmd: string, successMsg: string, extra: Record<string, unknown>) {
     remoteState.isRunning = true;
     remoteState.error = null;
     remoteState.progressLine = '';
@@ -44,9 +58,12 @@
       await safeInvoke(cmd, { path: repoPath, ...extra });
       remoteState.isRunning = false;
       remoteState.progressLine = '';
+      showToast(successMsg, 'success');
     } catch (e: unknown) {
       remoteState.isRunning = false;
-      remoteState.error = e as TrunkError;
+      const err = e as TrunkError;
+      remoteState.error = err;
+      showToast(errorMessage(err), 'error');
     }
   }
 

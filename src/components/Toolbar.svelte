@@ -15,6 +15,20 @@
 
   let { repoPath }: Props = $props();
 
+  // Listen to remote-progress events from backend (relocated from StatusBar)
+  $effect(() => {
+    let unlisten: (() => void) | undefined;
+    const path = repoPath;
+
+    listen<{ path: string; line: string }>('remote-progress', (event) => {
+      if (event.payload.path === path) {
+        remoteState.progressLine = event.payload.line;
+      }
+    }).then((fn) => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
+  });
+
   // Branch creation dialog state
   let branchDialogOpen = $state(false);
 
@@ -71,10 +85,22 @@
     }
   }
 
+  function errorMessage(error: TrunkError): string {
+    switch (error.code) {
+      case 'auth_failure':
+        return 'Authentication failed \u2014 check your SSH key or credential helper';
+      case 'non_fast_forward':
+        return 'Push rejected (non-fast-forward)';
+      case 'no_upstream':
+      case 'remote_error':
+      default:
+        return error.message;
+    }
+  }
+
   async function runRemote(
     cmd: string,
     successMsg: string,
-    errorMsg: string,
     extra: Record<string, unknown> = {}
   ) {
     remoteState.isRunning = true;
@@ -87,17 +113,18 @@
       showToast(successMsg, 'success');
     } catch (e: unknown) {
       remoteState.isRunning = false;
-      remoteState.error = e as TrunkError;
-      showToast(errorMsg, 'error');
+      const err = e as TrunkError;
+      remoteState.error = err;
+      showToast(errorMessage(err), 'error');
     }
   }
 
   function handlePull() {
-    runRemote('git_pull', 'Pulled successfully', 'Pull failed');
+    runRemote('git_pull', 'Pulled successfully');
   }
 
   function handlePush() {
-    runRemote('git_push', 'Pushed successfully', 'Push failed');
+    runRemote('git_push', 'Pushed successfully');
   }
 
   async function handleStash() {
