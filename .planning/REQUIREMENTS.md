@@ -69,32 +69,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HUNK-01 | — | Pending |
-| HUNK-02 | — | Pending |
-| HUNK-03 | — | Pending |
-| HUNK-04 | — | Pending |
-| HUNK-05 | — | Pending |
-| HUNK-06 | — | Pending |
-| HUNK-07 | — | Pending |
-| HUNK-08 | — | Pending |
-| HUNK-09 | — | Pending |
-| SRCH-01 | — | Pending |
-| SRCH-02 | — | Pending |
-| SRCH-03 | — | Pending |
-| SRCH-04 | — | Pending |
-| SRCH-05 | — | Pending |
-| SRCH-06 | — | Pending |
-| SRCH-07 | — | Pending |
-| SRCH-08 | — | Pending |
-| SRCH-09 | — | Pending |
-| SRCH-10 | — | Pending |
-| SRCH-11 | — | Pending |
+| HUNK-01 | 32 | Planned |
+| HUNK-02 | 32 | Planned |
+| HUNK-03 | 32 | Planned |
+| HUNK-04 | 33 | Planned |
+| HUNK-05 | 32 | Planned |
+| HUNK-06 | 33 | Planned |
+| HUNK-07 | 34 | Planned |
+| HUNK-08 | 34 | Planned |
+| HUNK-09 | 33 | Planned |
+| SRCH-01 | 36 | Planned |
+| SRCH-02 | 35 | Planned |
+| SRCH-03 | 35 | Planned |
+| SRCH-04 | 35 | Planned |
+| SRCH-05 | 35 | Planned |
+| SRCH-06 | 36 | Planned |
+| SRCH-07 | 36 | Planned |
+| SRCH-08 | 36 | Planned |
+| SRCH-09 | 36 | Planned |
+| SRCH-10 | 36 | Planned |
+| SRCH-11 | 35 | Planned |
 
 **Coverage:**
 - v0.7 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20 ✅
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-17 after roadmap mapping*

@@ -5,9 +5,9 @@ milestone_name: Hunk Staging & Search
 status: active
 stopped_at: null
 last_updated: "2026-03-17"
-last_activity: "2026-03-17 — Milestone v0.7 started"
+last_activity: "2026-03-17 — v0.7 roadmap created"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-17 after v0.7 milestone started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 32 (Hunk Staging Backend) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-17 — Milestone v0.7 started
+Status: Roadmap created, ready to plan Phase 32
+Last activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
 
 ## Performance Metrics
 

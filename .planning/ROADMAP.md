@@ -8,6 +8,7 @@
 - ✅ **v0.4 Graph Rework** — Phases 15-17 (shipped 2026-03-13)
 - ✅ **v0.5 Graph Overlay** — Phases 20-26 (shipped 2026-03-15)
 - ✅ **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
+- 🔲 **v0.7 Hunk Staging & Search** — Phases 32-36 (active)
 
 ## Phases
 
@@ -91,6 +92,56 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 
 </details>
 
+## Current: v0.7 Hunk Staging & Search (Phases 32-36)
+
+- [ ] Phase 32: Hunk Staging Backend (4 requirements)
+  **Goal:** Implement Rust commands for staging, unstaging, and discarding individual hunks using git2's apply API with single-hunk patch extraction.
+  **Requirements:** HUNK-01, HUNK-02, HUNK-03, HUNK-05
+  **Success criteria:**
+  1. `stage_hunk` command applies a single hunk to the index via `repo.apply(&diff, ApplyLocation::Index)` and returns success
+  2. `unstage_hunk` command applies a reversed patch to remove a single hunk from the index
+  3. `discard_hunk` command reverts a single hunk in the working directory with confirmation required from frontend
+  4. After any hunk operation, re-fetching the diff shows updated hunk boundaries (no stale indices)
+  5. All commands follow the inner-fn pattern and have unit tests covering multi-hunk files, single-hunk new files, and no-newline-at-EOF
+
+- [ ] Phase 33: Hunk Staging UI (3 requirements)
+  **Goal:** Add context-aware hunk action buttons to DiffPanel with binary file guards and keyboard navigation between hunks.
+  **Requirements:** HUNK-04, HUNK-06, HUNK-09
+  **Success criteria:**
+  1. DiffPanel shows "Stage Hunk" button on each `@@` header for unstaged diffs, "Unstage Hunk" button for staged diffs, and no buttons for commit diffs
+  2. Binary file diffs display no hunk action buttons
+  3. User can press `]` to jump to next hunk and `[` to jump to previous hunk within the diff view
+  4. Hunk buttons are disabled during in-flight operations to prevent stale-index races
+
+- [ ] Phase 34: Line-Level Staging (2 requirements)
+  **Goal:** Enable selecting and staging/unstaging individual lines within a diff hunk, constructing partial patches from line selections.
+  **Requirements:** HUNK-07, HUNK-08
+  **Success criteria:**
+  1. User can click or shift-click to select individual lines within a diff hunk
+  2. "Stage Lines" action constructs a valid partial patch from selected added/removed lines and applies it to the index
+  3. "Unstage Lines" action constructs a reversed partial patch from selected lines in the staged diff
+  4. Selected lines are visually highlighted and the selection clears after the operation completes
+
+- [ ] Phase 35: Search Backend (5 requirements)
+  **Goal:** Implement a backend search command that queries CommitCache for commits matching SHA, message, branch/ref, or author — returning all matches regardless of frontend pagination.
+  **Requirements:** SRCH-02, SRCH-03, SRCH-04, SRCH-05, SRCH-11
+  **Success criteria:**
+  1. `search_commits` command returns `Vec<SearchResult>` (OID + match type) from CommitCache
+  2. SHA prefix search matches via `oid.starts_with(query)`
+  3. Message search performs case-insensitive substring match on summary and body fields
+  4. Ref search matches branch names, tag names, and remote ref short names
+  5. Author search performs case-insensitive substring match on author name
+
+- [ ] Phase 36: Search UI (6 requirements)
+  **Goal:** Build a floating search overlay bar in CommitGraph with Cmd+F activation, match highlighting, prev/next navigation with auto-scroll, and Escape to close.
+  **Requirements:** SRCH-01, SRCH-06, SRCH-07, SRCH-08, SRCH-09, SRCH-10
+  **Success criteria:**
+  1. Cmd+F (macOS) / Ctrl+F opens a floating SearchBar overlay inside CommitGraph (with WebView native find suppressed)
+  2. Matching commit rows are visually highlighted in the graph while non-matching rows remain visible but un-highlighted
+  3. Search overlay displays match count (e.g., "3 of 17 matches") updating live as user types (debounced 200ms)
+  4. Enter navigates to next match, Shift+Enter to previous match, with the graph auto-scrolling via existing `scrollToOid`
+  5. Escape closes the search overlay and preserves the current scroll position
+
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-16 — v0.6 milestone archived*
+*Last updated: 2026-03-17 — v0.7 roadmap added*
