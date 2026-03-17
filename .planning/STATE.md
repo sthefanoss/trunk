@@ -86,8 +86,7 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 
 ### Pending Todos
 
-1 pending todo:
-1. **Add consistent horizontal padding to commit graph columns** (ui) — 2026-03-16
+0 pending todos.
 
 ### Known Limitations
 
