@@ -86,9 +86,8 @@ v0.6 Progress: [████████████░░░░░░░░] 3/
 
 ### Pending Todos
 
-2 pending todos:
-1. **Fix staged files header sinking when collapsed** (ui) — 2026-03-16
-2. **Add consistent horizontal padding to commit graph columns** (ui) — 2026-03-16
+1 pending todo:
+1. **Add consistent horizontal padding to commit graph columns** (ui) — 2026-03-16
 
 ### Known Limitations
 
