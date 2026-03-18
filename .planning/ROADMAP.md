@@ -97,6 +97,9 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 - [ ] Phase 32: Hunk Staging Backend (4 requirements)
   **Goal:** Implement Rust commands for staging, unstaging, and discarding individual hunks using git2's apply API with single-hunk patch extraction.
   **Requirements:** HUNK-01, HUNK-02, HUNK-03, HUNK-05
+  **Plans:** 1 plan
+  Plans:
+  - [ ] 32-01-PLAN.md — TDD: implement stage_hunk, unstage_hunk, discard_hunk with tests and Tauri wiring
   **Success criteria:**
   1. `stage_hunk` command applies a single hunk to the index via `repo.apply(&diff, ApplyLocation::Index)` and returns success
   2. `unstage_hunk` command applies a reversed patch to remove a single hunk from the index
@@ -144,4 +147,4 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-17 — v0.7 roadmap added*
+*Last updated: 2026-03-17 — Phase 32 planned (1 plan)*
