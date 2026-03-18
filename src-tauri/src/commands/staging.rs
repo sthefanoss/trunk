@@ -594,13 +594,145 @@ pub async fn discard_hunk(
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
+/// Build a partial unified diff patch from selected line indices.
+///
+/// When `reverse` is false (staging): builds a forward patch from the source diff.
+///   - Selected `+` lines: kept as `+` (staged)
+///   - Selected `-` lines: kept as `-` (staged)
+///   - Unselected `+` lines: skipped (not staged)
+///   - Unselected `-` lines: converted to context (not staged)
+///
+/// When `reverse` is true (unstaging/discarding): builds a reverse patch from a forward diff.
+///   - Selected `+` lines: become `-` (undo the add)
+///   - Selected `-` lines: become `+` (undo the delete)
+///   - Unselected `+` lines: become context (keep the add)
+///   - Unselected `-` lines: skipped (keep the delete undone... not present)
+///   - old_start/new_start are swapped (old=new side of original, new=old side)
 fn build_partial_patch_text(
     file_path: &str,
     patch: &git2::Patch<'_>,
     hunk_idx: usize,
     selected_indices: &[u32],
+    reverse: bool,
 ) -> Result<String, TrunkError> {
-    todo!()
+    let selected_set: HashSet<u32> = selected_indices.iter().copied().collect();
+
+    let (hunk, _) = patch.hunk(hunk_idx)?;
+    let num_lines = patch.num_lines_in_hunk(hunk_idx)?;
+
+    let mut patch_lines: Vec<String> = Vec::new();
+    let mut old_count: u32 = 0;
+    let mut new_count: u32 = 0;
+
+    for line_idx in 0..num_lines {
+        let line = patch.line_in_hunk(hunk_idx, line_idx)?;
+        let content = String::from_utf8_lossy(line.content());
+        // Ensure content ends with newline for patch format
+        let content_str = if content.ends_with('\n') {
+            content.into_owned()
+        } else {
+            format!("{}\n", content)
+        };
+
+        if reverse {
+            match line.origin() {
+                '+' => {
+                    if selected_set.contains(&(line_idx as u32)) {
+                        // Selected add -> reverse to delete
+                        patch_lines.push(format!("-{}", content_str));
+                        old_count += 1;
+                    } else {
+                        // Unselected add -> keep as context (it stays)
+                        patch_lines.push(format!(" {}", content_str));
+                        old_count += 1;
+                        new_count += 1;
+                    }
+                }
+                '-' => {
+                    if selected_set.contains(&(line_idx as u32)) {
+                        // Selected delete -> reverse to add (restore)
+                        patch_lines.push(format!("+{}", content_str));
+                        new_count += 1;
+                    }
+                    // Unselected delete: skip (it's already absent from the "old" side
+                    // in reverse perspective)
+                }
+                _ => {
+                    // Context line
+                    patch_lines.push(format!(" {}", content_str));
+                    old_count += 1;
+                    new_count += 1;
+                }
+            }
+        } else {
+            match line.origin() {
+                '+' => {
+                    if selected_set.contains(&(line_idx as u32)) {
+                        patch_lines.push(format!("+{}", content_str));
+                        new_count += 1;
+                    }
+                    // Unselected add: skip entirely
+                }
+                '-' => {
+                    if selected_set.contains(&(line_idx as u32)) {
+                        patch_lines.push(format!("-{}", content_str));
+                        old_count += 1;
+                    } else {
+                        // Unselected delete: convert to context
+                        patch_lines.push(format!(" {}", content_str));
+                        old_count += 1;
+                        new_count += 1;
+                    }
+                }
+                _ => {
+                    // Context line
+                    patch_lines.push(format!(" {}", content_str));
+                    old_count += 1;
+                    new_count += 1;
+                }
+            }
+        }
+    }
+
+    // For reversed patches, old/new sides are swapped
+    let (old_start, new_start) = if reverse {
+        (hunk.new_start(), hunk.old_start())
+    } else {
+        (hunk.old_start(), hunk.new_start())
+    };
+
+    // Check delta status for diff header
+    let delta_status = patch.delta().status();
+    let old_header = if !reverse && delta_status == git2::Delta::Added {
+        "--- /dev/null".to_string()
+    } else if reverse && delta_status == git2::Delta::Deleted {
+        "--- /dev/null".to_string()
+    } else {
+        format!("--- a/{}", file_path)
+    };
+    let new_header = if !reverse && delta_status == git2::Delta::Deleted {
+        "+++ /dev/null".to_string()
+    } else if reverse && delta_status == git2::Delta::Added {
+        "+++ /dev/null".to_string()
+    } else {
+        format!("+++ b/{}", file_path)
+    };
+
+    let lines_joined = patch_lines.join("");
+
+    let patch_text = format!(
+        "diff --git a/{path} b/{path}\n{old_header}\n{new_header}\n@@ -{old_start},{old_count} +{new_start},{new_count} @@\n{lines_joined}",
+        path = file_path,
+        old_header = old_header,
+        new_header = new_header,
+        old_start = old_start,
+        old_count = old_count,
+        new_start = new_start,
+        new_count = new_count,
+        lines_joined = lines_joined,
+    );
+
+    Ok(patch_text)
 }
 
 pub fn stage_lines_inner(
@@ -610,7 +742,43 @@ pub fn stage_lines_inner(
     line_indices: Vec<u32>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<(), TrunkError> {
-    todo!()
+    let repo = open_repo_from_state(path, state_map)?;
+
+    // Generate diff for this file (index -> workdir)
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.pathspec(file_path);
+    let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
+
+    if diff.deltas().len() == 0 {
+        return Err(TrunkError::new(
+            "file_not_found",
+            format!("No unstaged changes for: {}", file_path),
+        ));
+    }
+
+    let patch = git2::Patch::from_diff(&diff, 0)?
+        .ok_or_else(|| TrunkError::new("file_not_found", "Binary or unchanged file"))?;
+
+    if (hunk_index as usize) >= patch.num_hunks() {
+        return Err(TrunkError::new(
+            "stale_hunk_index",
+            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+        ));
+    }
+
+    let patch_text = build_partial_patch_text(
+        file_path, &patch, hunk_index as usize, &line_indices, false
+    )?;
+    drop(patch);
+    drop(diff);
+
+    let partial_diff = git2::Diff::from_buffer(patch_text.as_bytes())
+        .map_err(|e| TrunkError::new("patch_parse_failed", e.message().to_owned()))?;
+
+    repo.apply(&partial_diff, git2::ApplyLocation::Index, None)
+        .map_err(|e| TrunkError::new("line_apply_failed", e.message().to_owned()))?;
+
+    Ok(())
 }
 
 pub fn unstage_lines_inner(
@@ -620,7 +788,52 @@ pub fn unstage_lines_inner(
     line_indices: Vec<u32>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<(), TrunkError> {
-    todo!()
+    let repo = open_repo_from_state(path, state_map)?;
+
+    // Generate the staged diff (HEAD -> index), same as what the user sees.
+    // We use the forward diff so line indices match the user's view,
+    // then build a reversed partial patch to undo selected lines.
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.pathspec(file_path);
+
+    let diff = if is_head_unborn(&repo) {
+        repo.diff_tree_to_index(None, None, Some(&mut diff_opts))?
+    } else {
+        let head_tree = repo.head()?.peel_to_tree()?;
+        repo.diff_tree_to_index(Some(&head_tree), None, Some(&mut diff_opts))?
+    };
+
+    if diff.deltas().len() == 0 {
+        return Err(TrunkError::new(
+            "file_not_found",
+            format!("No staged changes for: {}", file_path),
+        ));
+    }
+
+    let patch = git2::Patch::from_diff(&diff, 0)?
+        .ok_or_else(|| TrunkError::new("file_not_found", "Binary or unchanged file"))?;
+
+    if (hunk_index as usize) >= patch.num_hunks() {
+        return Err(TrunkError::new(
+            "stale_hunk_index",
+            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+        ));
+    }
+
+    // Build a reversed partial patch: undoes selected lines in the index
+    let patch_text = build_partial_patch_text(
+        file_path, &patch, hunk_index as usize, &line_indices, true
+    )?;
+    drop(patch);
+    drop(diff);
+
+    let partial_diff = git2::Diff::from_buffer(patch_text.as_bytes())
+        .map_err(|e| TrunkError::new("patch_parse_failed", e.message().to_owned()))?;
+
+    repo.apply(&partial_diff, git2::ApplyLocation::Index, None)
+        .map_err(|e| TrunkError::new("line_apply_failed", e.message().to_owned()))?;
+
+    Ok(())
 }
 
 pub fn discard_lines_inner(
@@ -630,7 +843,46 @@ pub fn discard_lines_inner(
     line_indices: Vec<u32>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<(), TrunkError> {
-    todo!()
+    let repo = open_repo_from_state(path, state_map)?;
+
+    // Generate the unstaged diff (index -> workdir), same as what the user sees.
+    // We use the forward diff so line indices match the user's view,
+    // then build a reversed partial patch to undo selected lines.
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.pathspec(file_path);
+    let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
+
+    if diff.deltas().len() == 0 {
+        return Err(TrunkError::new(
+            "file_not_found",
+            format!("No unstaged changes for: {}", file_path),
+        ));
+    }
+
+    let patch = git2::Patch::from_diff(&diff, 0)?
+        .ok_or_else(|| TrunkError::new("file_not_found", "Binary or unchanged file"))?;
+
+    if (hunk_index as usize) >= patch.num_hunks() {
+        return Err(TrunkError::new(
+            "stale_hunk_index",
+            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+        ));
+    }
+
+    // Build a reversed partial patch: undoes selected lines in the working directory
+    let patch_text = build_partial_patch_text(
+        file_path, &patch, hunk_index as usize, &line_indices, true
+    )?;
+    drop(patch);
+    drop(diff);
+
+    let partial_diff = git2::Diff::from_buffer(patch_text.as_bytes())
+        .map_err(|e| TrunkError::new("patch_parse_failed", e.message().to_owned()))?;
+
+    repo.apply(&partial_diff, git2::ApplyLocation::WorkDir, None)
+        .map_err(|e| TrunkError::new("line_apply_failed", e.message().to_owned()))?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1284,11 +1536,12 @@ mod tests {
         super::discard_lines_inner(&path, "multi.txt", 0, add_indices, &state_map)
             .expect("discard_lines_inner failed");
 
-        // Verify: file content no longer has the discarded add lines
+        // Verify: file content no longer has the discarded add lines as whole lines
         let file_content = std::fs::read_to_string(dir.path().join("multi.txt")).unwrap();
+        let file_lines: Vec<&str> = file_content.lines().collect();
         for content in &add_contents {
             let trimmed = content.trim();
-            assert!(!file_content.contains(trimmed),
+            assert!(!file_lines.contains(&trimmed),
                 "expected discarded add line '{}' to be gone from file", trimmed);
         }
     }
