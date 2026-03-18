@@ -4,7 +4,7 @@ milestone: v0.7
 milestone_name: Hunk Staging & Search
 status: completed
 stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-18T00:55:26.309Z"
+last_updated: "2026-03-18T00:59:01.650Z"
 last_activity: 2026-03-18 — Completed 32-01 hunk staging backend (stage/unstage/discard hunk commands)
 progress:
   total_phases: 1
