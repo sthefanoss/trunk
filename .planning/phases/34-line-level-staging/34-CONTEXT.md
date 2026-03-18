@@ -26,14 +26,17 @@ Enable selecting and staging/unstaging individual lines within a diff hunk, cons
 - **Pointer cursor** on add/delete lines to signal clickability; context lines keep default cursor
 - Selection clears **after operation completes** (diff re-fetches anyway) and **when navigating** to a different file or clicking a line in another hunk
 
-### Stage Lines button placement
-- "Stage Lines (N)" appears **in the hunk toolbar row alongside "Stage Hunk"** when lines are selected in that hunk
-- Button label **includes count** of selected lines: "Stage Lines (3)"
-- In staged diffs: "Unstage Lines (N)" appears alongside "Unstage Hunk" when lines are selected
-- No explicit "Clear selection" button — **Escape key clears** selection, as does clicking in another hunk
+### Hunk toolbar modal behavior
+- Toolbar has two modes based on selection state:
+  - **No selection (hunk mode):** buttons show "Discard Hunk" + "Stage Hunk" (unstaged) or "Unstage Hunk" (staged) — current behavior
+  - **Lines selected (selection mode):** buttons **swap** to "Discard Lines (N)" + "Stage Lines (N)" (unstaged) or "Unstage Lines (N)" (staged)
+- Buttons **replace** the hunk-level ones — not added alongside. One set of buttons at a time.
+- Button labels **include count** of selected lines: "Stage Lines (3)", "Discard Lines (2)"
+- **Escape key clears** selection and restores hunk-level buttons. Clicking a line in another hunk also clears.
+- No explicit "Clear selection" button needed
 
 ### Discard lines
-- When lines are selected in an unstaged diff, "Discard Lines (N)" replaces "Discard Hunk" (or appears alongside)
+- "Discard Lines (N)" replaces "Discard Hunk" when lines are selected (unstaged diffs only)
 - Confirmation dialog includes count: **"Discard 3 selected lines? This cannot be undone."**
 - Uses same `ask()` from `@tauri-apps/plugin-dialog` — consistent with Discard Hunk pattern
 - Backend constructs reversed partial patch and applies to working directory
