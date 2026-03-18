@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.7
 milestone_name: Hunk Staging & Search
-status: planning
-stopped_at: Phase 32 context gathered
-last_updated: "2026-03-17T04:46:54.419Z"
-last_activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
+status: completed
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-03-18T00:55:26.309Z"
+last_activity: 2026-03-18 — Completed 32-01 hunk staging backend (stage/unstage/discard hunk commands)
 progress:
   total_phases: 1
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-17 after v0.7 milestone started)
 
 ## Current Position
 
-Phase: 32 (Hunk Staging Backend) — not started
-Plan: —
-Status: Roadmap created, ready to plan Phase 32
-Last activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
+Phase: 32 (Hunk Staging Backend) — Plan 01 complete
+Plan: 01 of 01 complete
+Status: Phase 32 Plan 01 executed - hunk staging backend complete
+Last activity: 2026-03-18 — Completed 32-01 hunk staging backend (stage/unstage/discard hunk commands)
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Last activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
 | Phase 28-destructive-operations P04 | 1min | 1 tasks | 1 files |
 | Phase 29-staging-commit-ux P02 | 2min | 2 tasks | 2 files |
 | Phase 29-staging-commit-ux P01 | 2min | 1 tasks | 1 files |
+| Phase 32 P01 | 4min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Last activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
 - [Phase 29-staging-commit-ux]: Used inline conditional flex: 1 for 50/50 split instead of CSS classes
 - [Phase 29-staging-commit-ux]: Mode state as string union instead of boolean flags — cleaner discrimination, extensible
 - [Phase 29-staging-commit-ux]: clearRedoStack skipped for stash — stash doesnt modify commit history
+- [Phase 32]: Used ApplyOptions::hunk_callback instead of Patch::from_diff + to_buf roundtrip -- simpler, fewer allocations
+- [Phase 32]: Kept hunk commands in staging.rs rather than new file -- shares helpers, natural grouping
 
 ### Roadmap Evolution
 
@@ -103,7 +106,7 @@ Last activity: 2026-03-17 — v0.7 roadmap created (5 phases, 20 requirements)
 
 ## Session Continuity
 
-Last session: 2026-03-17T04:46:54.415Z
-Stopped at: Phase 32 context gathered
-Resume file: .planning/phases/32-hunk-staging-backend/32-CONTEXT.md
+Last session: 2026-03-18T00:55:26.306Z
+Stopped at: Completed 32-01-PLAN.md
+Resume file: None
 Next action: Discuss Phase 29

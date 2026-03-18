@@ -94,7 +94,7 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 
 ## Current: v0.7 Hunk Staging & Search (Phases 32-36)
 
-- [ ] Phase 32: Hunk Staging Backend (4 requirements)
+- [x] Phase 32: Hunk Staging Backend (4 requirements) (completed 2026-03-18)
   **Goal:** Implement Rust commands for staging, unstaging, and discarding individual hunks using git2's apply API with single-hunk patch extraction.
   **Requirements:** HUNK-01, HUNK-02, HUNK-03, HUNK-05
   **Plans:** 1 plan

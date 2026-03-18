@@ -16,5 +16,8 @@
   },
   "git": {
     "branching_strategy": "none"
+  },
+  "hooks": {
+    "context_warnings": true
   }
 }
