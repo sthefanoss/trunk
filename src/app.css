@@ -15,6 +15,8 @@
   --color-diff-add-bg: rgba(74, 222, 128, 0.1);
   --color-diff-delete: #f87171;
   --color-diff-delete-bg: rgba(248, 113, 113, 0.1);
+  --color-diff-add-bg-selected: rgba(74, 222, 128, 0.25);
+  --color-diff-delete-bg-selected: rgba(248, 113, 113, 0.25);
 
   /* Hunk action button colors */
   --color-btn-stage: #4ade80;

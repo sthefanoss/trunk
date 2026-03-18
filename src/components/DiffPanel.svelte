@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FileDiff, CommitDetail } from '../lib/types.js';
+  import type { FileDiff, CommitDetail, DiffOrigin, DiffLine } from '../lib/types.js';
   import { safeInvoke, type TrunkError } from '../lib/invoke.js';
   import { showToast } from '../lib/toast.svelte.js';
 
@@ -19,6 +19,17 @@
   let focusedHunkIndex = $state(0);
   let hunkElements: Record<string, HTMLDivElement> = {};
 
+  let selectedHunkKey = $state<string | null>(null);
+  let selectedLineIndices = $state<Set<number>>(new Set());
+  let lastClickedIndex = $state<number | null>(null);
+  let selectedCount = $derived(selectedLineIndices.size);
+
+  function clearSelection() {
+    selectedHunkKey = null;
+    selectedLineIndices = new Set();
+    lastClickedIndex = null;
+  }
+
   function scrollToHunk(index: number) {
     const keys = Object.keys(hunkElements);
     if (index < 0 || index >= keys.length) return;
@@ -33,6 +44,12 @@
     function handleKeydown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'Escape' && selectedCount > 0) {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
 
       if (e.key === ']') {
         e.preventDefault();
@@ -50,6 +67,7 @@
     fileDiffs;
     focusedHunkIndex = 0;
     hunkElements = {};
+    clearSelection();
   });
 
   async function handleStageFile() {
@@ -127,9 +145,110 @@
     }
   }
 
-  function lineBackground(origin: string): string {
-    if (origin === 'Add') return 'var(--color-diff-add-bg)';
-    if (origin === 'Delete') return 'var(--color-diff-delete-bg)';
+  function handleLineClick(filePath: string, hunkIdx: number, lineIndex: number, origin: DiffOrigin, hunkLines: DiffLine[], e: MouseEvent) {
+    if (origin === 'Context') return;
+    if (diffKind === 'commit') return;
+
+    const hunkKey = `${filePath}-${hunkIdx}`;
+
+    if (hunkKey !== selectedHunkKey) {
+      selectedHunkKey = hunkKey;
+      selectedLineIndices = new Set([lineIndex]);
+      lastClickedIndex = lineIndex;
+      return;
+    }
+
+    if (e.shiftKey && lastClickedIndex !== null) {
+      const start = Math.min(lastClickedIndex, lineIndex);
+      const end = Math.max(lastClickedIndex, lineIndex);
+      const newSet = new Set(selectedLineIndices);
+      for (let i = start; i <= end; i++) {
+        if (i < hunkLines.length && hunkLines[i].origin !== 'Context') {
+          newSet.add(i);
+        }
+      }
+      selectedLineIndices = newSet;
+    } else {
+      const newSet = new Set(selectedLineIndices);
+      if (newSet.has(lineIndex)) {
+        newSet.delete(lineIndex);
+      } else {
+        newSet.add(lineIndex);
+      }
+      selectedLineIndices = newSet;
+      lastClickedIndex = lineIndex;
+    }
+  }
+
+  async function handleStageLines(filePath: string, hunkIndex: number) {
+    hunkOperationInFlight = true;
+    try {
+      await safeInvoke('stage_lines', {
+        path: repoPath,
+        filePath,
+        hunkIndex,
+        lineIndices: Array.from(selectedLineIndices),
+      });
+      await onhunkaction?.(filePath);
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Stage lines failed', 'error');
+    } finally {
+      hunkOperationInFlight = false;
+      clearSelection();
+    }
+  }
+
+  async function handleUnstageLines(filePath: string, hunkIndex: number) {
+    hunkOperationInFlight = true;
+    try {
+      await safeInvoke('unstage_lines', {
+        path: repoPath,
+        filePath,
+        hunkIndex,
+        lineIndices: Array.from(selectedLineIndices),
+      });
+      await onhunkaction?.(filePath);
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Unstage lines failed', 'error');
+    } finally {
+      hunkOperationInFlight = false;
+      clearSelection();
+    }
+  }
+
+  async function handleDiscardLines(filePath: string, hunkIndex: number) {
+    const count = selectedCount;
+    const { ask } = await import('@tauri-apps/plugin-dialog');
+    const confirmed = await ask(`Discard ${count} selected lines? This cannot be undone.`, {
+      title: 'Discard Lines',
+      kind: 'warning',
+    });
+    if (!confirmed) return;
+
+    hunkOperationInFlight = true;
+    try {
+      await safeInvoke('discard_lines', {
+        path: repoPath,
+        filePath,
+        hunkIndex,
+        lineIndices: Array.from(selectedLineIndices),
+      });
+      showToast(`Discarded ${count} lines`, 'success');
+      await onhunkaction?.(filePath);
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Discard lines failed', 'error');
+    } finally {
+      hunkOperationInFlight = false;
+      clearSelection();
+    }
+  }
+
+  function lineBackground(origin: string, isSelected: boolean = false): string {
+    if (origin === 'Add') return isSelected ? 'var(--color-diff-add-bg-selected)' : 'var(--color-diff-add-bg)';
+    if (origin === 'Delete') return isSelected ? 'var(--color-diff-delete-bg-selected)' : 'var(--color-diff-delete-bg)';
     return 'transparent';
   }
 
@@ -294,76 +413,147 @@
               {hunk.header}
             </span>
             {#if diffKind === 'unstaged'}
-              <button
-                disabled={hunkOperationInFlight}
-                style="
-                  background: var(--color-btn-discard-bg);
-                  border: 1px solid var(--color-btn-discard-border);
-                  border-radius: 3px;
-                  color: var(--color-btn-discard);
-                  font-size: 11px;
-                  font-family: var(--font-sans, sans-serif);
-                  padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
-                  white-space: nowrap;
-                "
-                onclick={() => handleDiscardHunk(fd.path, hunkIdx)}
-              >
-                Discard Hunk
-              </button>
-              <button
-                disabled={hunkOperationInFlight}
-                style="
-                  background: var(--color-btn-stage-bg);
-                  border: 1px solid var(--color-btn-stage-border);
-                  border-radius: 3px;
-                  color: var(--color-btn-stage);
-                  font-size: 11px;
-                  font-family: var(--font-sans, sans-serif);
-                  padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
-                  white-space: nowrap;
-                "
-                onclick={() => handleStageHunk(fd.path, hunkIdx)}
-              >
-                Stage Hunk
-              </button>
+              {@const hunkKey = `${fd.path}-${hunkIdx}`}
+              {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
+              {#if hasSelection}
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-discard-bg);
+                    border: 1px solid var(--color-btn-discard-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-discard);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleDiscardLines(fd.path, hunkIdx)}
+                >
+                  Discard Lines ({selectedCount})
+                </button>
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-stage-bg);
+                    border: 1px solid var(--color-btn-stage-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-stage);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleStageLines(fd.path, hunkIdx)}
+                >
+                  Stage Lines ({selectedCount})
+                </button>
+              {:else}
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-discard-bg);
+                    border: 1px solid var(--color-btn-discard-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-discard);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleDiscardHunk(fd.path, hunkIdx)}
+                >
+                  Discard Hunk
+                </button>
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-stage-bg);
+                    border: 1px solid var(--color-btn-stage-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-stage);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleStageHunk(fd.path, hunkIdx)}
+                >
+                  Stage Hunk
+                </button>
+              {/if}
             {:else if diffKind === 'staged'}
-              <button
-                disabled={hunkOperationInFlight}
-                style="
-                  background: var(--color-btn-unstage-bg);
-                  border: 1px solid var(--color-btn-unstage-border);
-                  border-radius: 3px;
-                  color: var(--color-btn-unstage);
-                  font-size: 11px;
-                  font-family: var(--font-sans, sans-serif);
-                  padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
-                  white-space: nowrap;
-                "
-                onclick={() => handleUnstageHunk(fd.path, hunkIdx)}
-              >
-                Unstage Hunk
-              </button>
+              {@const hunkKey = `${fd.path}-${hunkIdx}`}
+              {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
+              {#if hasSelection}
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-unstage-bg);
+                    border: 1px solid var(--color-btn-unstage-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-unstage);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleUnstageLines(fd.path, hunkIdx)}
+                >
+                  Unstage Lines ({selectedCount})
+                </button>
+              {:else}
+                <button
+                  disabled={hunkOperationInFlight}
+                  style="
+                    background: var(--color-btn-unstage-bg);
+                    border: 1px solid var(--color-btn-unstage-border);
+                    border-radius: 3px;
+                    color: var(--color-btn-unstage);
+                    font-size: 11px;
+                    font-family: var(--font-sans, sans-serif);
+                    padding: 2px 8px;
+                    cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
+                    opacity: {hunkOperationInFlight ? 0.4 : 1};
+                    white-space: nowrap;
+                  "
+                  onclick={() => handleUnstageHunk(fd.path, hunkIdx)}
+                >
+                  Unstage Hunk
+                </button>
+              {/if}
             {/if}
           </div>
 
           <!-- Diff lines -->
-          {#each hunk.lines as line}
-            <div style="
-              font-family: monospace;
-              font-size: 12px;
-              line-height: 1.5;
-              padding: 0 8px;
-              white-space: pre;
-              overflow-x: auto;
-              background: {lineBackground(line.origin)};
-              color: {lineColor(line.origin)};
-            ">{originSymbol(line.origin)}{line.content}</div>
+          {#each hunk.lines as line, lineIdx}
+            {@const isSelectable = diffKind !== 'commit' && line.origin !== 'Context'}
+            {@const hunkKey = `${fd.path}-${hunkIdx}`}
+            {@const isSelected = selectedHunkKey === hunkKey && selectedLineIndices.has(lineIdx)}
+            <div
+              style="
+                font-family: monospace;
+                font-size: 12px;
+                line-height: 1.5;
+                padding: 0 8px;
+                white-space: pre;
+                overflow-x: auto;
+                background: {lineBackground(line.origin, isSelected)};
+                color: {lineColor(line.origin)};
+                cursor: {isSelectable ? 'pointer' : 'default'};
+              "
+              onclick={(e) => isSelectable && handleLineClick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
+            >{originSymbol(line.origin)}{line.content}</div>
           {/each}
         {/each}
       {/if}
