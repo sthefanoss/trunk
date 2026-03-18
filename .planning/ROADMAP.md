@@ -122,10 +122,11 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 - [x] Phase 34: Line-Level Staging (2 requirements) (completed 2026-03-18)
   **Goal:** Enable selecting and staging/unstaging individual lines within a diff hunk, constructing partial patches from line selections.
   **Requirements:** HUNK-07, HUNK-08
-  **Plans:** 2 plans
+  **Plans:** 3 plans
   Plans:
   - [ ] 34-01-PLAN.md — TDD: partial patch construction + stage_lines/unstage_lines/discard_lines backend
   - [ ] 34-02-PLAN.md — Line selection UI + toolbar mode switching + IPC handlers in DiffPanel
+  - [ ] 34-03-PLAN.md — Gap closure: fix shift+click text selection on diff lines
   **Success criteria:**
   1. User can click or shift-click to select individual lines within a diff hunk
   2. "Stage Lines" action constructs a valid partial patch from selected added/removed lines and applies it to the index
@@ -154,4 +155,4 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-18 — Phase 34 planned (2 plans)*
+*Last updated: 2026-03-18 — Phase 34 gap closure plan added (3 plans total)*
