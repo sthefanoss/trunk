@@ -4,8 +4,8 @@ milestone: v0.7
 milestone_name: Hunk Staging & Search
 status: completed
 stopped_at: Completed 34-02-PLAN.md
-last_updated: "2026-03-18T06:57:16.033Z"
-last_activity: 2026-03-18 — Completed 34-01 line-level staging backend (partial patch construction + Tauri commands)
+last_updated: "2026-03-18T22:56:56.892Z"
+last_activity: 2026-03-18 — Completed 34-02 line-level staging frontend (line selection UI, toolbar mode switching, IPC handlers)
 progress:
   total_phases: 3
   completed_phases: 3
