@@ -239,6 +239,47 @@
 
 ---
 
+## Milestone: v0.7 — Hunk Staging & Search
+
+**Shipped:** 2026-03-19
+**Phases:** 5 | **Plans:** 8 | **Commits:** ~12 feat + docs | **Timeline:** 2 days
+
+### What Was Built
+- Hunk staging backend: stage/unstage/discard individual hunks via git2 apply API with hunk_callback counter
+- Context-aware hunk toolbar in DiffPanel with binary file guards and keyboard [/] navigation
+- Line-level staging: click/shift-click selection, partial patch construction from selected lines
+- Search backend: TDD search_commits with SHA/message/ref/author matching over CommitCache
+- Search UI: VS Code-style floating SearchBar with Cmd+F activation, two-tier match highlighting, keyboard navigation with auto-scroll, SVG overlay dimming
+
+### What Worked
+- **TDD for backend commands**: Hunk and search commands were built test-first — 18 staging tests and 14 search tests caught edge cases (stale indices, empty queries, no-newline-at-EOF) before any UI work started
+- **Clean separation between backend and UI phases**: Phase 32 (hunk backend) → 33 (hunk UI) → 34 (line-level) and Phase 35 (search backend) → 36 (search UI) — each phase had well-defined inputs and outputs
+- **Pure presentation SearchBar**: Keeping search state in CommitGraph and making SearchBar stateless simplified both components — SearchBar is just props + callbacks
+- **Capture-phase Cmd+F handler**: `{ capture: true }` on window keydown intercepted before WebView native find — clean single-line fix for macOS WKWebView
+- **Gap closure for shift+click text selection**: Phase 34.03 was a single-line `onmousedown` handler fix — targeted gap closure plans continue to work well
+
+### What Was Inefficient
+- **SUMMARY.md one-liner fields not populated**: All 8 SUMMARY.md files lacked one-liner fields — required manual extraction during milestone completion
+- **ROADMAP plan checkboxes still stale**: Plans 32-01 through 36-02 all showed `[ ]` despite having SUMMARY.md files — seventh consecutive milestone with this issue
+- **Nyquist validation incomplete**: 3 phases had draft VALIDATION.md (not compliant), 2 phases missing entirely — validation strategy step continues to be skipped during fast execution
+- **REQUIREMENTS.md traceability table statuses not updated**: All 20 requirements stayed "Planned" even after phase completion — only checkboxes were updated
+
+### Patterns Established
+- **git2 apply API for hunk operations**: hunk_callback with counter for single-hunk targeting; reverse flag for unstage/discard
+- **Partial patch text construction**: Build new diff text from selected lines, recalculate @@ header line counts, handle no-newline-at-EOF edge case
+- **Capture-phase keyboard handler**: `{ capture: true }` on window event listeners to intercept before WebView native handlers
+- **Search state owned by parent, presentation component stateless**: CommitGraph owns searchQuery/searchResults/searchCurrentIndex; SearchBar just renders and fires callbacks
+- **SVG global dimming**: opacity on entire SVG overlay element rather than per-element tracking — simple and effective for non-segmentable elements (rails span multiple rows)
+
+### Key Lessons
+1. **Backend-first phases enable clean UI phases**: When the backend commands are complete and tested, the UI phase is purely about wiring and presentation — reduces risk
+2. **Small milestones ship fast**: 5 phases / 8 plans in 2 days — well-scoped features with clear requirements execute quickly
+3. **Nyquist validation needs enforcement**: 7 milestones in and validation strategies are still skipped — consider making it mandatory in execute-phase or dropping the requirement
+4. **SUMMARY one-liners should be enforced**: Missing one-liners required manual accomplishment extraction during milestone completion — executor template should enforce this field
+5. **20 requirements fully satisfied on first pass**: Zero gap-closure requirements — only one targeted fix (34-03 shift+click) was needed, and it was caught during UAT not verification
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -251,6 +292,7 @@
 | v0.4 | 1 | 3 | 5 | Intermediate architecture — per-row viewBox SVG (superseded by v0.5) |
 | v0.5 | 2 | 7 | 12 | Pure function pipeline — decision gate, TDD, SVG overlay architecture |
 | v0.6 | 2 | 6 | 16 | UI polish milestone — established patterns enabled fastest per-plan pace yet |
+| v0.7 | 2 | 5 | 8 | Feature milestone — TDD backend + clean UI separation, zero gap-closure requirements |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -261,3 +303,5 @@
 5. **Decision gates prevent wasted work**: v0.4's architecture was superseded in 1 day; v0.5's Phase 20 decision gate validated the approach before committing — gates should be standard for architecture changes
 6. **Pure function pipelines scale**: v0.5's pipeline (data → paths → visibility → rendering) was independently testable and composable — prefer this over stateful approaches
 7. **TODO.md review before milestone close is high-value**: v0.6 found 2 real bugs in pre-archive review — make this a standard step
+8. **Backend-first phases enable clean UI phases**: v0.7 demonstrated clean backend→UI phase separation with zero rework — both hunk staging and search followed this pattern successfully
+9. **SUMMARY one-liner enforcement needed**: v0.7 had all 8 summaries missing one-liners — automated extraction during milestone completion fell back to manual
