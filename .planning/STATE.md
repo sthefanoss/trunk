@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.7
 milestone_name: Hunk Staging & Search
-status: completed
-stopped_at: Phase 35 context gathered
-last_updated: "2026-03-19T01:26:48.372Z"
-last_activity: "2026-03-19 — Completed 34-03 gap-closure: shift+click text selection fix"
+status: unknown
+stopped_at: Completed 35-01-PLAN.md
+last_updated: "2026-03-19T01:54:58.466Z"
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 4
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
@@ -20,14 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17 after v0.7 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** v0.7 Hunk Staging & Search
+**Current focus:** Phase 35 — search-backend
 
 ## Current Position
 
-Phase: 34 (Line-Level Staging) — Complete
-Plan: 03 of 03 complete (includes gap-closure plan)
-Status: Phase 34 complete - line-level staging backend + frontend + shift+click text selection fix
-Last activity: 2026-03-19 — Completed 34-03 gap-closure: shift+click text selection fix
+Phase: 35 (search-backend) — COMPLETE
+Plan: 1 of 1 (done)
 
 ## Performance Metrics
 
@@ -54,6 +51,7 @@ Last activity: 2026-03-19 — Completed 34-03 gap-closure: shift+click text sele
 | Phase 34 P01 | 11min | 3 tasks | 2 files |
 | Phase 34 P02 | 2min | 2 tasks | 2 files |
 | Phase 34 P03 | 1min | 1 tasks | 1 files |
+| Phase 35-search-backend P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -91,6 +89,8 @@ Last activity: 2026-03-19 — Completed 34-03 gap-closure: shift+click text sele
 - [Phase 34]: No new dependencies -- all patterns reused from existing codebase (safeInvoke, showToast, ask(), CSS custom properties)
 - [Phase 34]: Selection state uses Set<number> reassigned on mutation for Svelte 5 reactivity
 - [Phase 34]: onmousedown handler placed before onclick on same div -- mousedown fires before click, preventing text selection before it starts
+- [Phase 35-search-backend]: Pure in-memory scan over CommitCache — no spawn_blocking needed
+- [Phase 35-search-backend]: search_commits_inner as testable pure fn, search_commits as thin Tauri wrapper
 
 ### Roadmap Evolution
 
@@ -118,7 +118,7 @@ Last activity: 2026-03-19 — Completed 34-03 gap-closure: shift+click text sele
 
 ## Session Continuity
 
-Last session: 2026-03-19T01:26:48.368Z
-Stopped at: Phase 35 context gathered
-Resume file: .planning/phases/35-search-backend/35-CONTEXT.md
+Last session: 2026-03-19T01:54:58.462Z
+Stopped at: Completed 35-01-PLAN.md
+Resume file: None
 Next action: Execute Phase 34 Plan 02 (line-level staging frontend)

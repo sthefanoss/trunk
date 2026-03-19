@@ -133,7 +133,7 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
   3. "Unstage Lines" action constructs a reversed partial patch from selected lines in the staged diff
   4. Selected lines are visually highlighted and the selection clears after the operation completes
 
-- [ ] Phase 35: Search Backend (5 requirements)
+- [x] Phase 35: Search Backend (5 requirements) (completed 2026-03-19)
   **Goal:** Implement a backend search command that queries CommitCache for commits matching SHA, message, branch/ref, or author — returning all matches regardless of frontend pagination.
   **Requirements:** SRCH-02, SRCH-03, SRCH-04, SRCH-05, SRCH-11
   **Plans:** 1 plan
