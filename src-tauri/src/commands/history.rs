@@ -68,7 +68,68 @@ pub fn search_commits_inner(
     query: &str,
     cache_map: &HashMap<String, GraphResult>,
 ) -> Result<Vec<SearchResult>, TrunkError> {
-    todo!("implement search")
+    let query = query.trim();
+    if query.is_empty() {
+        return Ok(vec![]);
+    }
+    let q = query.to_lowercase();
+
+    let graph_result = cache_map.get(path).ok_or_else(|| {
+        TrunkError::new("repo_not_open", format!("Repository not open: {}", path))
+    })?;
+
+    let mut results = Vec::new();
+    for commit in &graph_result.commits {
+        let mut match_types = Vec::new();
+
+        // SHA prefix match
+        if commit.oid.to_lowercase().starts_with(&q) {
+            match_types.push(MatchType::Sha);
+        }
+
+        // Message match (summary + body)
+        if commit.summary.to_lowercase().contains(&q) {
+            match_types.push(MatchType::Message);
+        } else if let Some(ref body) = commit.body {
+            if body.to_lowercase().contains(&q) {
+                match_types.push(MatchType::Message);
+            }
+        }
+
+        // Ref match (short_name)
+        if commit
+            .refs
+            .iter()
+            .any(|r| r.short_name.to_lowercase().contains(&q))
+        {
+            match_types.push(MatchType::Ref);
+        }
+
+        // Author match
+        if commit.author_name.to_lowercase().contains(&q) {
+            match_types.push(MatchType::Author);
+        }
+
+        if !match_types.is_empty() {
+            results.push(SearchResult {
+                oid: commit.oid.clone(),
+                match_types,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn search_commits(
+    path: String,
+    query: String,
+    cache: State<'_, CommitCache>,
+) -> Result<Vec<SearchResult>, String> {
+    let cache_map = cache.0.lock().unwrap().clone();
+    search_commits_inner(&path, &query, &cache_map)
+        .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[cfg(test)]

@@ -46,6 +46,13 @@ export interface GraphResponse {
   max_columns: number;
 }
 
+export type MatchType = 'Sha' | 'Message' | 'Ref' | 'Author';
+
+export interface SearchResult {
+  oid: string;
+  match_types: MatchType[];
+}
+
 export interface BranchInfo {
   name: string;
   is_head: boolean;

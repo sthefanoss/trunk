@@ -23,6 +23,7 @@ pub fn run() {
             commands::repo::close_repo,
             commands::history::get_commit_graph,
             commands::history::refresh_commit_graph,
+            commands::history::search_commits,
             commands::branches::list_refs,
             commands::branches::resolve_ref,
             commands::branches::checkout_branch,
