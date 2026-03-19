@@ -74,6 +74,20 @@ pub struct GraphResult {
     pub max_columns: usize,
 }
 
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum MatchType {
+    Sha,
+    Message,
+    Ref,
+    Author,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct SearchResult {
+    pub oid: String,
+    pub match_types: Vec<MatchType>,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct BranchInfo {
     pub name: String,
