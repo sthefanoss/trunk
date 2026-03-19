@@ -1,5 +1,15 @@
 # Milestones
 
+## v0.7 Hunk Staging & Search (Shipped: 2026-03-19)
+
+**Phases completed:** 5 phases, 8 plans, 0 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v0.6 UI Polish & Core Ops (Shipped: 2026-03-16)
 
 **Phases:** 6 (incl. 27.1) | **Plans:** 16 | **Commits:** ~129 | **Timeline:** 2 days
@@ -8,6 +18,7 @@
 **Delivered:** Lucide icon set replacing Unicode symbols across all components, toast notification system for operation feedback, discard/delete/rename/reset destructive operations with confirmation dialogs, three-way commit/amend/stash selector, graph polish (padding, column shrink, sticky dots), sidebar ref navigation, unified title bar, and two bug fixes from TODO.md.
 
 **Key accomplishments:**
+
 1. Icon system: @lucide/svelte replacing all Unicode symbols in Toolbar, FileRow, StagingPanel, CommitForm, BranchSidebar, TabBar, and SVG overlay pills
 2. Toast notification system with Svelte 5 $state store, auto-dismiss, fly transition, and per-kind styling (error/success)
 3. Destructive operations: discard file/all (git2 checkout + fs::remove_file), delete branch/tag, rename branch, reset — all with confirmation dialogs and toast feedback
@@ -26,6 +37,7 @@
 **Delivered:** Single SVG overlay architecture replacing per-row viewBox-clipped SVGs, with cubic bezier curve rendering, TypeScript active lanes transformation with edge coalescing, virtualized element filtering, Canvas-measured SVG ref pills with hover expansion, and full interaction preservation.
 
 **Key accomplishments:**
+
 1. Single SVG overlay spanning full graph height with native scroll sync and pointer-events passthrough — zero JS scroll synchronization
 2. TypeScript Active Lanes transformation with edge coalescing reducing edge count from O(commits x lanes) to O(lanes + merge_edges)
 3. Cubic bezier curve rendering with adaptive corner radius replacing Manhattan routing, three-layer z-ordered SVG (rails → edges → dots)
@@ -44,6 +56,7 @@
 **Delivered:** Full stash management, commit row context menu with cherry-pick/revert, remote push/pull/fetch with progress streaming, quick actions toolbar with undo/redo, and branch ahead/behind tracking.
 
 **Key accomplishments:**
+
 1. Stash create/pop/apply/drop via git2 with graph-integrated synthetic stash rows (square dots, dashed connectors) and right-click context menu
 2. Commit context menu with copy SHA/message, checkout, create branch/tag, cherry-pick, and revert (merge commits disabled)
 3. Remote fetch/pull/push via git CLI subprocess with per-line progress streaming and structured auth/rejection error taxonomy
@@ -62,6 +75,7 @@
 **Delivered:** GitKraken-quality commit graph with continuous vertical lane rails, Manhattan-routed merge/fork edges, vivid 8-color palette, hollow merge dots, WIP dashed connector, lane-colored ref pills, resizable 6-column layout, and column visibility toggles.
 
 **Key accomplishments:**
+
 1. Hardened lane algorithm with ghost lane fix, octopus merge protection, max_columns tracking, and deterministic branch color counter
 2. Three-layer SVG lane rendering with vivid 8-color palette, continuous vertical rails, and Manhattan-routed merge/fork edges
 3. Merge commits display as hollow circles, WIP row integrated into virtual list with dashed connector to HEAD
@@ -80,6 +94,7 @@
 **Delivered:** A native desktop Git GUI where a developer can open any repository, browse its full commit history as a visual lane graph, manage branches, stage files, create/amend commits, and inspect diffs — all without touching the terminal.
 
 **Key accomplishments:**
+
 1. Vite+Svelte SPA with Tailwind v4 dark theme and shared Rust/TypeScript primitives
 2. Visual commit graph with Rust lane algorithm (O(n)), inline SVG per row, virtual scrolling with 200-commit pagination
 3. Branch sidebar with checkout, dirty-workdir error handling, and client-side search
@@ -88,10 +103,10 @@
 6. Unified diff display for workdir/staged/commit diffs with commit metadata header
 
 ### Known Gaps
+
 - **GRAPH-04**: Merge commits not visually distinct in CommitRow.svelte (Rust DTO carries `is_merge` correctly, frontend never reads it)
 - **DIFF-01–04**: Phase 06 VERIFICATION.md never created (code-complete and wiring-verified, lacks formal report)
 - **Plan 02-09**: No SUMMARY.md (active_lanes[0] None initialization fix — plan created, not executed)
 - **Checkout → StagingPanel**: Non-deterministic refresh after checkout/create-branch (relies on watcher, not explicit event emit)
 
 ---
-

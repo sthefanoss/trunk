@@ -53,20 +53,22 @@ A developer can open any Git repository, browse its full commit history as a vis
 - ✓ Unified title bar (decorations:false + drag region), right pane auto-opens — v0.6
 - ✓ Lucide icons on all SVG overlay ref pill types — v0.6
 
-## Current Milestone: v0.7 Hunk Staging & Search
-
-**Goal:** Enable granular hunk-level staging and add fast commit graph search with cmd+f.
-
-**Target features:**
-- Stage/unstage individual hunks within a file diff
-- Search commit graph for hashes, messages, and branches with cmd+f
+- ✓ Stage/unstage individual hunks within a file diff — v0.7
+- ✓ Discard individual hunks from working tree with confirmation — v0.7
+- ✓ Context-aware hunk actions (Stage Hunk for unstaged, Unstage Hunk for staged, none for commit diffs) — v0.7
+- ✓ Binary file diffs show no hunk action buttons — v0.7
+- ✓ Diff refreshes immediately after hunk operations with updated boundaries — v0.7
+- ✓ Keyboard navigation between hunks with [/] shortcuts — v0.7
+- ✓ Select and stage/unstage individual lines within a diff hunk — v0.7
+- ✓ Search commit graph for hashes, messages, refs, and author with Cmd+F — v0.7
+- ✓ Search overlay with live match count, debounced 200ms — v0.7
+- ✓ Match highlighting (amber current, yellow others) with non-match dimming — v0.7
+- ✓ Enter/Shift+Enter navigation with auto-scroll and wrap-around — v0.7
+- ✓ Escape closes search, clears highlights, restores full opacity — v0.7
 
 ### Active
 
-<!-- v0.7 Hunk Staging & Search -->
-
-- [ ] Stage/unstage individual hunks within a file diff
-- [x] Search commit graph for hashes, messages, and branches with cmd+f — Validated in Phase 36: search-ui
+<!-- Next milestone requirements will be defined via /gsd-new-milestone -->
 
 ### Planned
 
@@ -85,7 +87,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 ## Context
 
 - **Stack**: Tauri 2 + Svelte 5 (Vite SPA, not SvelteKit) + Rust with `git2` crate (libgit2 bindings)
-- **Current state**: Shipped v0.6 with 31 phases complete across 6 milestones. Phase 36 (search UI) complete — floating SearchBar with Cmd+F activation, match highlighting, prev/next navigation with auto-scroll, SVG dimming. Building v0.7 Hunk Staging & Search.
+- **Current state**: Shipped v0.7 with 36 phases complete across 7 milestones. v0.7 added hunk staging (stage/unstage/discard individual hunks and lines via git2 apply API), line-level staging with click/shift-click selection, and commit graph search with Cmd+F overlay, match highlighting, keyboard navigation. ~8,200 LOC TypeScript/Svelte, ~7,700 LOC Rust.
 - **Architecture**: Svelte UI communicates with Rust backend via Tauri `invoke` (commands) and `listen` (events). Rust holds `RepoState` (path-keyed PathBuf registry), `CommitCache` (cached GraphResult with max_columns), `WatcherState` (filesystem watchers), and `RunningOp` (active remote process PID) in managed state.
 - **Remote ops**: `git2` for all local read/write; git CLI subprocess for remote operations (fetch/pull/push) and cherry-pick/revert with `GIT_TERMINAL_PROMPT=0` + `GIT_SSH_COMMAND=ssh -o BatchMode=yes`
 - **Graph rendering (v0.5)**: Single SVG overlay spanning full graph height inside virtual list scroll container. Rust lane algorithm (O(n), ~5ms for 10k commits) outputs GraphCommit[]; TypeScript Active Lanes transformation computes global grid coordinates with edge coalescing. Cubic bezier curves for cross-lane connections, continuous vertical rails for same-lane. Three-layer z-ordered `<g>` groups (rails → edges → dots). Virtualized element filtering with O(1) range-intersection. SVG ref pills with Canvas text measurement and hover expansion.
@@ -139,6 +141,11 @@ A developer can open any Git repository, browse its full commit history as a vis
 | Rust lane algorithm stays, TS transformation added | Rust O(n) algorithm is proven (~5ms/10k commits); TS layer transforms output into global grid coords for SVG rendering | ✓ Good — edge coalescing reduces O(commits x lanes) to O(lanes + merge_edges) |
 | Canvas measureText for SVG ref pills | OffscreenCanvas for DOM-free text measurement with injectable mock for testing | ✓ Good — deterministic tests, accurate text sizing |
 | SVG ref pills with HTML hover overlay | SVG handles static pills, HTML sibling handles hover expansion for reliable multi-ref display | ✓ Good — avoids SVG text layout complexity |
+| git2 apply API for hunk staging | Single-hunk patch extraction via hunk_callback counter, applied to Index/WorkDir | ✓ Good — precise hunk targeting, no shell dependency |
+| Partial patch text construction for line staging | Build new diff text from selected lines, recalculate @@ header counts | ✓ Good — handles edge cases (no-newline-at-EOF, context lines) |
+| Capture-phase Cmd+F handler | `{ capture: true }` on window keydown to intercept before WKWebView native find | ✓ Good — suppresses native find bar on macOS |
+| Pure presentation SearchBar | SearchBar is stateless — parent (CommitGraph) owns all search state and IPC | ✓ Good — clean separation, easy to test and restyle |
+| SVG global dimming over per-element | Apply opacity to entire SVG overlay vs tracking per-element match state | ✓ Good — single style change, rails/edges span multiple rows making per-element impractical |
 
 ---
-*Last updated: 2026-03-19 after Phase 36 (search-ui) complete*
+*Last updated: 2026-03-19 after v0.7 milestone (Hunk Staging & Search) complete*
