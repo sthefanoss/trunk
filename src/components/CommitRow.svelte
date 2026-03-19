@@ -15,9 +15,15 @@
     /** Row height in px. Defaults to ROW_HEIGHT constant.
      *  Accepts displaySettings.rowHeight from CommitGraph for future settings-page wiring. */
     rowHeight?: number;
+    /** True when this row's OID is in the search results */
+    isSearchMatch?: boolean;
+    /** True when this row is the current navigated match */
+    isCurrentMatch?: boolean;
+    /** True when any search is active (for dimming non-matches) */
+    isSearchActive?: boolean;
   }
 
-  let { commit, rowIndex, onselect, oncontextmenu, maxColumns = 1, columnWidths, columnVisibility, selected = false, rowHeight = ROW_HEIGHT }: Props = $props();
+  let { commit, rowIndex, onselect, oncontextmenu, maxColumns = 1, columnWidths, columnVisibility, selected = false, rowHeight = ROW_HEIGHT, isSearchMatch = false, isCurrentMatch = false, isSearchActive = false }: Props = $props();
 
   function relativeDate(ts: number): string {
     if (ts === 0) return '';
@@ -37,9 +43,9 @@
 
 <div
   class="relative flex items-center cursor-pointer text-[13px]"
-  class:hover:bg-[var(--color-surface)]={!selected}
+  class:hover:bg-[var(--color-surface)]={!selected && !isCurrentMatch && !isSearchMatch}
   style:height="{rowHeight}px"
-  style="color: var(--color-text); {selected ? 'background: var(--color-selected-row);' : ''}"
+  style="color: var(--color-text); {isCurrentMatch ? 'background: rgba(245, 158, 11, 0.2);' : isSearchMatch ? 'background: rgba(234, 179, 8, 0.1);' : selected ? 'background: var(--color-selected-row);' : ''} {isSearchActive && !isSearchMatch && !isCurrentMatch ? 'opacity: 0.35;' : ''}"
   onclick={() => onselect?.(commit.oid)}
   oncontextmenu={(e: MouseEvent) => { if (oncontextmenu && !isWip) { e.preventDefault(); oncontextmenu(e, commit); } }}
 >
