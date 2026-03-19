@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.7
 milestone_name: Hunk Staging & Search
 status: unknown
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-03-19T02:40:31.026Z"
+stopped_at: Completed 36-02-PLAN.md
+last_updated: "2026-03-19T02:45:44.700Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -53,6 +53,7 @@ Plan: 2 of 2
 | Phase 34 P03 | 1min | 1 tasks | 1 files |
 | Phase 35-search-backend P01 | 2min | 2 tasks | 4 files |
 | Phase 36-search-ui P01 | 5min | 2 tasks | 2 files |
+| Phase 36-search-ui P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Plan: 2 of 2
 - [Phase 36-search-ui]: SearchBar is a pure presentation component -- no IPC calls, parent manages all state
 - [Phase 36-search-ui]: Cmd+F uses capture:true addEventListener to intercept before WebView native find
 - [Phase 36-search-ui]: Search navigation (Enter/Shift+Enter) both scrolls and selects the commit
+- [Phase 36-search-ui]: Inline style conditionals for highlight backgrounds instead of $derived function — Simpler, avoids extra reactive bindings
+- [Phase 36-search-ui]: SVG-wide opacity (0.2) instead of per-element dimming — Much simpler than per-path/per-dot matching since SVG rails are coalesced across rows
 
 ### Roadmap Evolution
 
@@ -122,7 +125,7 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-Last session: 2026-03-19T02:40:18.840Z
-Stopped at: Completed 36-01-PLAN.md
+Last session: 2026-03-19T02:45:29.961Z
+Stopped at: Completed 36-02-PLAN.md
 Resume file: None
 Next action: Execute Phase 34 Plan 02 (line-level staging frontend)

@@ -146,7 +146,7 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
   4. Ref search matches branch names, tag names, and remote ref short names
   5. Author search performs case-insensitive substring match on author name
 
-- [ ] Phase 36: Search UI (6 requirements)
+- [x] Phase 36: Search UI (6 requirements) (completed 2026-03-19)
   **Goal:** Build a floating search overlay bar in CommitGraph with Cmd+F activation, match highlighting, prev/next navigation with auto-scroll, and Escape to close.
   **Requirements:** SRCH-01, SRCH-06, SRCH-07, SRCH-08, SRCH-09, SRCH-10
   **Plans:** 2 plans
