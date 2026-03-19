@@ -554,6 +554,7 @@
                 cursor: {isSelectable ? 'pointer' : 'default'};
                 user-select: {isSelectable ? 'none' : 'auto'};
               "
+              onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
               onclick={(e) => isSelectable && handleLineClick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
             >{originSymbol(line.origin)}{line.content}</div>
           {/each}
