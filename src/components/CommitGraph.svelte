@@ -19,7 +19,9 @@
   import { ask, message } from '@tauri-apps/plugin-dialog';
   import CommitRow from './CommitRow.svelte';
   import InputDialog from './InputDialog.svelte';
+  import SearchBar from './SearchBar.svelte';
   import { Laptop, Globe, Tag, Archive } from '@lucide/svelte';
+  import type { SearchResult } from '../lib/types.js';
 
   interface Props {
     repoPath: string;
@@ -96,6 +98,18 @@
   });
 
   let stashOidToIndex = $state<Map<string, number>>(new Map());
+
+  // Search state
+  let searchOpen = $state(false);
+  let searchQuery = $state('');
+  let searchResults = $state<SearchResult[]>([]);
+  let searchCurrentIndex = $state(0);
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Derived: Set of matching OIDs for O(1) lookup in CommitRow
+  const searchMatchOids = $derived(new Set(searchResults.map(r => r.oid)));
+  // Derived: OID of current match for strong highlight
+  const searchCurrentOid = $derived(searchResults.length > 0 ? searchResults[searchCurrentIndex]?.oid ?? null : null);
 
   async function loadStashMap() {
     try {
@@ -642,6 +656,77 @@
       untrack(() => loadMore());
     }
   });
+
+  // Cmd+F keyboard handler — capture phase to intercept before WebView native find (P7)
+  $effect(() => {
+    function handleSearchKeydown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (searchOpen) {
+          // Already open: focus input and select all text (VS Code behavior)
+          const input = document.querySelector('.search-bar-input') as HTMLInputElement | null;
+          if (input) { input.focus(); input.select(); }
+        } else {
+          searchOpen = true;
+        }
+      }
+    }
+    window.addEventListener('keydown', handleSearchKeydown, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleSearchKeydown, { capture: true });
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    };
+  });
+
+  function handleSearchQueryChange(query: string) {
+    searchQuery = query;
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+    if (!query.trim()) {
+      searchResults = [];
+      searchCurrentIndex = 0;
+      return;
+    }
+
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        const results = await safeInvoke<SearchResult[]>('search_commits', {
+          path: repoPath,
+          query: query.trim(),
+        });
+        searchResults = results;
+        searchCurrentIndex = results.length > 0 ? 0 : 0;
+      } catch {
+        searchResults = [];
+        searchCurrentIndex = 0;
+      }
+    }, 200);
+  }
+
+  function handleSearchNext() {
+    if (searchResults.length === 0) return;
+    searchCurrentIndex = (searchCurrentIndex + 1) % searchResults.length;
+    const oid = searchResults[searchCurrentIndex].oid;
+    scrollToOid(oid);
+    oncommitselect?.(oid);
+  }
+
+  function handleSearchPrev() {
+    if (searchResults.length === 0) return;
+    searchCurrentIndex = (searchCurrentIndex - 1 + searchResults.length) % searchResults.length;
+    const oid = searchResults[searchCurrentIndex].oid;
+    scrollToOid(oid);
+    oncommitselect?.(oid);
+  }
+
+  function handleSearchClose() {
+    searchOpen = false;
+    searchQuery = '';
+    searchResults = [];
+    searchCurrentIndex = 0;
+    if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null; }
+  }
 </script>
 
 <div class="h-full overflow-hidden flex flex-col" style="background: var(--color-bg);">
@@ -710,12 +795,24 @@
 
   <!-- Content area (grows to fill remaining space) -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="flex-1 overflow-hidden" style="padding: 0 {COLUMN_PADDING_X}px;" onwheel={(e) => {
+  <div class="flex-1 overflow-hidden" style="position: relative; padding: 0 {COLUMN_PADDING_X}px;" onwheel={(e) => {
     // GRAPH-02: horizontal pan on trackpad swipe or shift+wheel
     if (maxGraphScrollX > 0 && e.deltaX !== 0) {
       graphScrollX = Math.max(0, Math.min(maxGraphScrollX, graphScrollX + e.deltaX));
     }
   }}>
+    {#if searchOpen}
+      <SearchBar
+        query={searchQuery}
+        currentIndex={searchCurrentIndex}
+        totalMatches={searchResults.length}
+        onquerychange={handleSearchQueryChange}
+        onnext={handleSearchNext}
+        onprev={handleSearchPrev}
+        onclose={handleSearchClose}
+      />
+    {/if}
+
     {#if commits.length === 0 && loading}
       <!-- Initial skeleton loading -->
       {#each { length: SKELETON_COUNT } as _}
