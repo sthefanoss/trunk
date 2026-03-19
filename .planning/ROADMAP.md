@@ -149,6 +149,10 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 - [ ] Phase 36: Search UI (6 requirements)
   **Goal:** Build a floating search overlay bar in CommitGraph with Cmd+F activation, match highlighting, prev/next navigation with auto-scroll, and Escape to close.
   **Requirements:** SRCH-01, SRCH-06, SRCH-07, SRCH-08, SRCH-09, SRCH-10
+  **Plans:** 2 plans
+  Plans:
+  - [ ] 36-01-PLAN.md — SearchBar component + Cmd+F activation + debounced live search + match counter
+  - [ ] 36-02-PLAN.md — Match highlighting on CommitRow + SVG dimming + Enter/Shift+Enter navigation + Escape close
   **Success criteria:**
   1. Cmd+F (macOS) / Ctrl+F opens a floating SearchBar overlay inside CommitGraph (with WebView native find suppressed)
   2. Matching commit rows are visually highlighted in the graph while non-matching rows remain visible but un-highlighted
@@ -158,4 +162,4 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-18 — Phase 34 gap closure plan added (3 plans total)*
+*Last updated: 2026-03-19 — Phase 36 planned (2 plans)*
