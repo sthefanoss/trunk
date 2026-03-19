@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v0.7
 milestone_name: Hunk Staging & Search
 status: unknown
-stopped_at: Completed 35-01-PLAN.md
-last_updated: "2026-03-19T01:57:44.825Z"
+stopped_at: Phase 36 context gathered
+last_updated: "2026-03-19T02:25:10.731Z"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
   total_plans: 6
   completed_plans: 6
@@ -118,7 +118,7 @@ Plan: 1 of 1 (done)
 
 ## Session Continuity
 
-Last session: 2026-03-19T01:54:58.462Z
-Stopped at: Completed 35-01-PLAN.md
-Resume file: None
+Last session: 2026-03-19T02:25:10.725Z
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-search-ui/36-CONTEXT.md
 Next action: Execute Phase 34 Plan 02 (line-level staging frontend)
