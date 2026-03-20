@@ -176,7 +176,6 @@
     align-items: center;
     gap: 12px;
     padding: 0 12px;
-    user-select: none;
   }
 
   .toolbar-group {

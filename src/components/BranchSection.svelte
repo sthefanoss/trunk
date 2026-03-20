@@ -38,7 +38,6 @@
       flex-direction: row;
       align-items: center;
       cursor: pointer;
-      user-select: none;
     "
   >
     <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">

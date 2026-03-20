@@ -556,7 +556,6 @@
     padding: 4px 12px;
     font-size: 12px;
     cursor: default;
-    user-select: none;
   }
 
   .stash-row:hover {

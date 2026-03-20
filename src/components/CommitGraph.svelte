@@ -740,7 +740,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="flex items-center flex-shrink-0"
-    style="height: 24px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); font-size: 11px; color: var(--color-text-muted); user-select: none; padding: 0 {COLUMN_PADDING_X}px;"
+    style="height: 24px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); font-size: 11px; color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;"
     oncontextmenu={showHeaderContextMenu}
   >
     {#if columnVisibility.ref}
@@ -1162,7 +1162,6 @@
     bottom: 0;
     width: 4px;
     cursor: col-resize;
-    user-select: none;
     background: linear-gradient(to right, transparent 1.5px, var(--color-border) 1.5px, var(--color-border) 2.5px, transparent 2.5px);
     transition: background 0.15s;
   }

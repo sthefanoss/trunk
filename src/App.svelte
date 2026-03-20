@@ -375,7 +375,6 @@
     width: 4px;
     flex-shrink: 0;
     cursor: col-resize;
-    user-select: none;
     background: linear-gradient(to right, transparent 1.5px, var(--color-border) 1.5px, var(--color-border) 2.5px, transparent 2.5px);
     transition: background 0.15s;
   }

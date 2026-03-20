@@ -552,7 +552,8 @@
                 background: {lineBackground(line.origin, isSelected)};
                 color: {lineColor(line.origin)};
                 cursor: {isSelectable ? 'pointer' : 'default'};
-                user-select: {isSelectable ? 'none' : 'auto'};
+                -webkit-user-select: {isSelectable ? 'none' : 'text'};
+                user-select: {isSelectable ? 'none' : 'text'};
               "
               onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
               onclick={(e) => isSelectable && handleLineClick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
