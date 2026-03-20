@@ -105,9 +105,8 @@ Plan: 2 of 2
 
 ### Pending Todos
 
-2 pending todos.
+1 pending todo.
 - Fix merge commit line bend direction (ui)
-- Fix pill connector line stopping at hollow dot edge (ui)
 
 ### Known Limitations
 
