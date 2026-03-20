@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 37-conflict-detection-operation-state
 source: 37-01-SUMMARY.md, 37-02-SUMMARY.md
 started: 2026-03-20T17:10:00Z
-updated: 2026-03-20T17:20:00Z
+updated: 2026-03-20T18:30:00Z
 ---
 
 ## Current Test
@@ -53,11 +53,18 @@ skipped: 0
 ## Gaps
 
 - truth: "Clicking a conflicted file shows a read-only diff of the file contents with conflict markers"
-  status: failed
+  status: resolved
   reason: "User reported: No diff appears. The left panel stays completely empty when clicking a conflicted file."
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "diff_unstaged uses repo.diff_index_to_workdir() which skips conflicted files (no stage-0 index entry), returning empty Vec<FileDiff>"
+  artifacts:
+    - path: "src-tauri/src/commands/diff.rs"
+      issue: "diff_unstaged_inner uses diff_index_to_workdir which cannot produce output for conflicted files"
+    - path: "src/App.svelte"
+      issue: "handleFileSelect calls diff_unstaged for conflicted files — wrong diff strategy for conflicts"
+  missing:
+    - "New diff approach for conflicted files: repo.diff_tree_to_workdir() (HEAD tree vs workdir) to show conflict markers"
+    - "Either new Tauri command diff_conflicted or conditional branch in diff_unstaged_inner"
+    - "Frontend to call the correct diff command for conflicted kind"
+  debug_session: ".planning/debug/conflicted-diff-empty.md"
