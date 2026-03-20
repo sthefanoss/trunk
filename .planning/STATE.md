@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v0.8
 milestone_name: Conflict & Rebase
-status: defining_requirements
+status: ready_to_plan
 stopped_at: null
 last_updated: "2026-03-20"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,14 +19,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20 after v0.8 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Defining requirements for v0.8 Conflict & Rebase
+**Current focus:** Phase 37 - Conflict Detection & Operation State
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-20 — Milestone v0.8 started
+Phase: 37 of 41 (Conflict Detection & Operation State)
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-20 -- Roadmap created for v0.8 Conflict & Rebase
+
+Progress: [..........] 0%
 
 ## Performance Metrics
 
@@ -34,14 +36,14 @@ Last activity: 2026-03-20 — Milestone v0.8 started
 |--------|------|------|------|------|------|------|------|
 | Phases | 6 | 4 | 4 | 3 | 7 | 5 | 5 |
 | Plans | 27 | 9 | 14 | 5 | 12 | 16 | 8 |
-| Commits | 155 | 76 | 88 | ~30 | 111 | ~129 | — |
+| Commits | 155 | 76 | 88 | ~30 | 111 | ~129 | -- |
 | Days | 7 | 2 | 3 | 1 | 2 | 2 | 2 |
 
 ## Accumulated Context
 
 ### Decisions
 
-(None yet — v0.8 milestone)
+(None yet -- v0.8 milestone)
 
 ### Pending Todos
 
@@ -59,6 +61,6 @@ Last activity: 2026-03-20 — Milestone v0.8 started
 ## Session Continuity
 
 Last session: 2026-03-20
-Stopped at: Milestone v0.8 initialized
+Stopped at: Roadmap created for v0.8 (5 phases, 29 requirements mapped)
 Resume file: None
-Next action: Define requirements
+Next action: Plan Phase 37 (Conflict Detection & Operation State)

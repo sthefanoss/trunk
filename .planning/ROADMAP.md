@@ -9,6 +9,7 @@
 - ✅ **v0.5 Graph Overlay** — Phases 20-26 (shipped 2026-03-15)
 - ✅ **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
 - ✅ **v0.7 Hunk Staging & Search** — Phases 32-36 (shipped 2026-03-19)
+- 🚧 **v0.8 Conflict & Rebase** — Phases 37-41 (in progress)
 
 ## Phases
 
@@ -105,6 +106,87 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
 
 </details>
 
+### 🚧 v0.8 Conflict & Rebase (In Progress)
+
+**Milestone Goal:** GitKraken-parity conflict resolution and interactive rebase -- three-panel merge editor, full interactive rebase editor, merge/rebase initiation, mid-operation conflict resolution.
+
+- [ ] **Phase 37: Conflict Detection & Operation State** - Conflicted file display in staging panel and merge/rebase operation banners
+- [ ] **Phase 38: Merge Editor** - Three-panel merge editor with per-hunk/per-line selection, editable output, navigation, and resolution workflow
+- [ ] **Phase 39: Merge Workflow** - Merge initiation via context menu and drag-and-drop, fast-forward and auto-commit handling
+- [ ] **Phase 40: Rebase Workflow** - Rebase initiation via context menu and drag-and-drop, mid-rebase conflict resolution, abort/skip
+- [ ] **Phase 41: Interactive Rebase Editor** - Commit list editor with Pick/Squash/Reword/Drop, drag reordering, keyboard shortcuts, execution
+
+## Phase Details
+
+### Phase 37: Conflict Detection & Operation State
+**Goal**: Users can see which files are conflicted and know when a merge or rebase operation is in progress
+**Depends on**: Nothing (first phase of v0.8)
+**Requirements**: CONF-01, OPS-01, OPS-02, OPS-03
+**Success Criteria** (what must be TRUE):
+  1. Conflicted files appear as a distinct third section in the staging panel (separate from staged/unstaged) with warning styling and a count badge
+  2. When a merge is in progress (.git/MERGE_HEAD exists), a persistent banner displays at the top with "Continue" and "Abort" buttons
+  3. When a rebase is in progress (.git/rebase-merge/ or .git/rebase-apply/ exists), a persistent banner displays with "Continue", "Skip", and "Abort" buttons
+  4. Clicking Continue/Abort/Skip in the operation banner executes the corresponding git command and the UI refreshes to reflect the new state
+**Plans**: TBD
+
+### Phase 38: Merge Editor
+**Goal**: Users can resolve conflicted files through a visual three-panel merge editor with granular hunk and line selection
+**Depends on**: Phase 37 (conflict detection provides the conflicted file list that opens the editor)
+**Requirements**: CONF-02, CONF-03, CONF-04, CONF-05, CONF-06, CONF-07, CONF-08, CONF-09
+**Success Criteria** (what must be TRUE):
+  1. Clicking a conflicted file opens a three-panel merge editor showing current (ours) and incoming (theirs) versions on top, with an editable output panel on the bottom, all three scrolling in sync
+  2. User can check/uncheck per-hunk checkboxes on current and incoming panels to add or remove entire hunks from the output, and can click individual lines to toggle them into or out of the output
+  3. User can directly type in the output panel to manually adjust the merged result
+  4. "Take All Current" and "Take All Incoming" buttons resolve the entire file with one click (available in toolbar and as right-click on conflicted file); Prev/Next conflict arrows navigate between conflict sections within the file
+  5. "Save and Mark Resolved" saves the output to disk, stages the file, and auto-opens the next conflicted file if any remain
+**Plans**: TBD
+
+### Phase 39: Merge Workflow
+**Goal**: Users can initiate and complete merges through the GUI without touching the terminal
+**Depends on**: Phase 38 (merge editor needed for conflict resolution during merge)
+**Requirements**: MERGE-01, MERGE-02, MERGE-03, MERGE-04
+**Success Criteria** (what must be TRUE):
+  1. User can right-click a branch (in sidebar or graph pill) and select "Merge into current branch" to start a merge
+  2. User can drag a branch onto another branch in the graph and select "Merge" from the resulting context menu
+  3. Fast-forward merges advance the branch pointer without creating a merge commit, showing a toast confirmation
+  4. Non-conflicting merges auto-create a merge commit with a standard message and the graph refreshes to show it
+**Plans**: TBD
+
+### Phase 40: Rebase Workflow
+**Goal**: Users can rebase branches through the GUI with full conflict resolution support during the rebase
+**Depends on**: Phase 38 (merge editor reused for mid-rebase conflict resolution)
+**Requirements**: REB-01, REB-02, REB-04, REB-05, REB-06
+**Success Criteria** (what must be TRUE):
+  1. User can right-click a branch and select "Rebase current branch onto [branch]" to start a rebase
+  2. User can drag a branch onto another branch in the graph and select "Rebase" from the resulting context menu
+  3. When a rebase hits a conflict, the rebase pauses and conflicted files appear in the staging panel for resolution via the merge editor; after resolving, "Continue" in the operation banner resumes the rebase
+  4. User can abort an in-progress rebase (restoring pre-rebase state) or skip a conflicting commit, both via the operation banner
+**Plans**: TBD
+
+### Phase 41: Interactive Rebase Editor
+**Goal**: Users can rewrite commit history through a visual interactive rebase editor with drag-and-drop reordering and action assignment
+**Depends on**: Phase 40 (rebase workflow foundation; mid-rebase conflicts reuse the merge editor)
+**Requirements**: REB-03, IREB-01, IREB-02, IREB-03, IREB-04, IREB-05, IREB-06, IREB-07
+**Success Criteria** (what must be TRUE):
+  1. Right-clicking a commit in the graph and selecting "Interactive Rebase" opens a modal/panel listing all commits to be rebased, each with an action selector (Pick/Squash/Reword/Drop) defaulting to Pick
+  2. User can reorder commits by dragging rows up/down and assign actions via keyboard shortcuts (P=Pick, S=Squash, R=Reword, D=Drop)
+  3. "Start Rebase" validates the plan (e.g., cannot squash the first commit), executes the rebase, and closes the editor; "Cancel" closes with no changes; "Reset" restores all commits to original Pick state and order
+  4. Reword action prompts a message editor dialog when the rebase reaches that commit; Squash action combines the commit with its predecessor and shows a message editor with concatenated messages
+  5. Mid-rebase conflicts during interactive rebase pause execution and show conflicted files for resolution via the merge editor, then resume on "Continue"
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:** 37 → 38 → 39 → 40 → 41
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 37. Conflict Detection & Operation State | v0.8 | 0/? | Not started | - |
+| 38. Merge Editor | v0.8 | 0/? | Not started | - |
+| 39. Merge Workflow | v0.8 | 0/? | Not started | - |
+| 40. Rebase Workflow | v0.8 | 0/? | Not started | - |
+| 41. Interactive Rebase Editor | v0.8 | 0/? | Not started | - |
+
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-19 — v0.7 Hunk Staging & Search shipped*
+*Last updated: 2026-03-20 — v0.8 Conflict & Rebase roadmap created*

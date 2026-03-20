@@ -81,41 +81,41 @@ Deferred differentiators beyond GitKraken parity.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONF-01 | — | Pending |
-| CONF-02 | — | Pending |
-| CONF-03 | — | Pending |
-| CONF-04 | — | Pending |
-| CONF-05 | — | Pending |
-| CONF-06 | — | Pending |
-| CONF-07 | — | Pending |
-| CONF-08 | — | Pending |
-| CONF-09 | — | Pending |
-| OPS-01 | — | Pending |
-| OPS-02 | — | Pending |
-| OPS-03 | — | Pending |
-| MERGE-01 | — | Pending |
-| MERGE-02 | — | Pending |
-| MERGE-03 | — | Pending |
-| MERGE-04 | — | Pending |
-| REB-01 | — | Pending |
-| REB-02 | — | Pending |
-| REB-03 | — | Pending |
-| REB-04 | — | Pending |
-| REB-05 | — | Pending |
-| REB-06 | — | Pending |
-| IREB-01 | — | Pending |
-| IREB-02 | — | Pending |
-| IREB-03 | — | Pending |
-| IREB-04 | — | Pending |
-| IREB-05 | — | Pending |
-| IREB-06 | — | Pending |
-| IREB-07 | — | Pending |
+| CONF-01 | Phase 37 | Pending |
+| CONF-02 | Phase 38 | Pending |
+| CONF-03 | Phase 38 | Pending |
+| CONF-04 | Phase 38 | Pending |
+| CONF-05 | Phase 38 | Pending |
+| CONF-06 | Phase 38 | Pending |
+| CONF-07 | Phase 38 | Pending |
+| CONF-08 | Phase 38 | Pending |
+| CONF-09 | Phase 38 | Pending |
+| OPS-01 | Phase 37 | Pending |
+| OPS-02 | Phase 37 | Pending |
+| OPS-03 | Phase 37 | Pending |
+| MERGE-01 | Phase 39 | Pending |
+| MERGE-02 | Phase 39 | Pending |
+| MERGE-03 | Phase 39 | Pending |
+| MERGE-04 | Phase 39 | Pending |
+| REB-01 | Phase 40 | Pending |
+| REB-02 | Phase 40 | Pending |
+| REB-03 | Phase 41 | Pending |
+| REB-04 | Phase 40 | Pending |
+| REB-05 | Phase 40 | Pending |
+| REB-06 | Phase 40 | Pending |
+| IREB-01 | Phase 41 | Pending |
+| IREB-02 | Phase 41 | Pending |
+| IREB-03 | Phase 41 | Pending |
+| IREB-04 | Phase 41 | Pending |
+| IREB-05 | Phase 41 | Pending |
+| IREB-06 | Phase 41 | Pending |
+| IREB-07 | Phase 41 | Pending |
 
 **Coverage:**
 - v0.8 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 after roadmap creation*
