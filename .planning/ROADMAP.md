@@ -185,7 +185,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 37. Conflict Detection & Operation State | 2/3 | Gap closure   | 2026-03-20 | - |
+| 37. Conflict Detection & Operation State | 3/3 | Complete   | 2026-03-20 | - |
 | 38. Merge Editor | v0.8 | 0/? | Not started | - |
 | 39. Merge Workflow | v0.8 | 0/? | Not started | - |
 | 40. Rebase Workflow | v0.8 | 0/? | Not started | - |

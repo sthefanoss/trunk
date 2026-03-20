@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.8
 milestone_name: Conflict & Rebase
-status: unknown
-stopped_at: Completed 37-02-PLAN.md
-last_updated: "2026-03-20T17:02:56.475Z"
+status: phase-complete
+stopped_at: Completed 37-03-PLAN.md
+last_updated: "2026-03-20T23:46:36Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-20 after v0.8 milestone started)
 
 ## Current Position
 
-Phase: 37 (conflict-detection-operation-state) — EXECUTING
-Plan: 2 of 2
+Phase: 37 (conflict-detection-operation-state) — COMPLETE
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Plan: 2 of 2
 | Days | 7 | 2 | 3 | 1 | 2 | 2 | 2 |
 | Phase 37 P01 | 4min | 2 tasks | 4 files |
 | Phase 37 P02 | 4min | 3 tasks | 6 files |
+| Phase 37 P03 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -48,6 +49,7 @@ Plan: 2 of 2
 - [Phase 37]: Conflicted files in dedicated section above unstaged/staged with max-height 40% cap
 - [Phase 37]: Read-only diff for conflicted files via diffKind=commit reuse
 - [Phase 37]: Abort requires confirmation dialog; Continue and Skip do not
+- [Phase 37]: Used diff_tree_to_workdir for conflicted files to bypass stage-0-less index entries
 
 ### Pending Todos
 
@@ -65,7 +67,7 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-Last session: 2026-03-20T17:02:56.472Z
-Stopped at: Completed 37-02-PLAN.md
+Last session: 2026-03-20T23:46:36Z
+Stopped at: Completed 37-03-PLAN.md
 Resume file: None
-Next action: Plan Phase 37 (Conflict Detection & Operation State)
+Next action: Phase 37 complete -- all 3 plans done
