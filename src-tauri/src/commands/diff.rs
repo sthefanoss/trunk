@@ -121,6 +121,19 @@ pub fn diff_staged_inner(
     walk_diff_into_file_diffs(diff)
 }
 
+pub fn diff_conflicted_inner(
+    path: &str,
+    file_path: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<Vec<FileDiff>, TrunkError> {
+    let repo = open_repo_from_state(path, state_map)?;
+    let head_tree = repo.head()?.peel_to_tree()?;
+    let mut opts = git2::DiffOptions::new();
+    opts.pathspec(file_path);
+    let diff = repo.diff_tree_to_workdir(Some(&head_tree), Some(&mut opts))?;
+    walk_diff_into_file_diffs(diff)
+}
+
 pub fn diff_commit_inner(
     path: &str,
     oid: &str,
@@ -187,6 +200,19 @@ pub async fn diff_staged(
 ) -> Result<Vec<FileDiff>, String> {
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || diff_staged_inner(&path, &file_path, &state_map))
+        .await
+        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| serde_json::to_string(&e).unwrap())
+}
+
+#[tauri::command]
+pub async fn diff_conflicted(
+    path: String,
+    file_path: String,
+    state: State<'_, RepoState>,
+) -> Result<Vec<FileDiff>, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    tauri::async_runtime::spawn_blocking(move || diff_conflicted_inner(&path, &file_path, &state_map))
         .await
         .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
         .map_err(|e| serde_json::to_string(&e).unwrap())
@@ -429,72 +455,77 @@ mod tests {
         let dir = make_test_repo();
         let state_map = make_state_map(dir.path());
 
-        // make_test_repo leaves HEAD on main with README.md = "hello"
-        // We need to create a conflict: modify README.md on main, then merge feature
-        // which also modifies README.md differently.
+        // Create a merge conflict using git2 API with scoped borrows to avoid lifetime issues
+        {
+            let repo = git2::Repository::open(dir.path()).unwrap();
+            let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
 
-        // First, create a new branch "conflict-branch" from the initial commit
-        let repo = git2::Repository::open(dir.path()).unwrap();
-        let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
+            // Find the root commit OID
+            let root_oid = {
+                let mut revwalk = repo.revwalk().unwrap();
+                revwalk.push_head().unwrap();
+                revwalk
+                    .filter_map(|id| id.ok())
+                    .find(|&id| {
+                        repo.find_commit(id)
+                            .map(|c| c.parent_count() == 0)
+                            .unwrap_or(false)
+                    })
+                    .expect("no root commit found")
+            };
 
-        // Find the initial commit (root)
-        let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push_head().unwrap();
-        let root_oid = revwalk
-            .filter_map(|id| id.ok())
-            .find(|&id| {
-                repo.find_commit(id)
-                    .map(|c| c.parent_count() == 0)
-                    .unwrap_or(false)
-            })
-            .expect("no root commit found");
-        let root_commit = repo.find_commit(root_oid).unwrap();
+            // Create conflict-branch from root
+            {
+                let root_commit = repo.find_commit(root_oid).unwrap();
+                repo.branch("conflict-branch", &root_commit, false).unwrap();
+            }
 
-        // Create conflict-branch from root
-        repo.branch("conflict-branch", &root_commit, false).unwrap();
+            // Commit a change to README.md on main
+            {
+                let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
+                std::fs::write(dir.path().join("README.md"), "main-side change").unwrap();
+                let mut index = repo.index().unwrap();
+                index.add_path(Path::new("README.md")).unwrap();
+                index.write().unwrap();
+                let tree_oid = index.write_tree().unwrap();
+                let tree = repo.find_tree(tree_oid).unwrap();
+                repo.commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Main change to README",
+                    &tree,
+                    &[&head_commit],
+                )
+                .unwrap();
+            }
 
-        // Commit a change to README.md on main (current HEAD)
-        let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
-        std::fs::write(dir.path().join("README.md"), "main-side change").unwrap();
-        let mut index = repo.index().unwrap();
-        index.add_path(Path::new("README.md")).unwrap();
-        index.write().unwrap();
-        let tree_oid = index.write_tree().unwrap();
-        let tree = repo.find_tree(tree_oid).unwrap();
-        repo.commit(
-            Some("refs/heads/main"),
-            &sig,
-            &sig,
-            "Main change to README",
-            &tree,
-            &[&head_commit],
-        )
-        .unwrap();
+            // Commit a different change to README.md on conflict-branch
+            repo.set_head("refs/heads/conflict-branch").unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
+            {
+                let cb_commit = repo.head().unwrap().peel_to_commit().unwrap();
+                std::fs::write(dir.path().join("README.md"), "conflict-branch-side change").unwrap();
+                let mut index = repo.index().unwrap();
+                index.add_path(Path::new("README.md")).unwrap();
+                index.write().unwrap();
+                let tree_oid = index.write_tree().unwrap();
+                let tree = repo.find_tree(tree_oid).unwrap();
+                repo.commit(
+                    Some("refs/heads/conflict-branch"),
+                    &sig,
+                    &sig,
+                    "Conflict branch change to README",
+                    &tree,
+                    &[&cb_commit],
+                )
+                .unwrap();
+            }
 
-        // Commit a different change to README.md on conflict-branch
-        repo.set_head("refs/heads/conflict-branch").unwrap();
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
-        std::fs::write(dir.path().join("README.md"), "conflict-branch-side change").unwrap();
-        let mut index = repo.index().unwrap();
-        index.add_path(Path::new("README.md")).unwrap();
-        index.write().unwrap();
-        let tree_oid = index.write_tree().unwrap();
-        let tree = repo.find_tree(tree_oid).unwrap();
-        let cb_commit = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(
-            Some("refs/heads/conflict-branch"),
-            &sig,
-            &sig,
-            "Conflict branch change to README",
-            &tree,
-            &[&cb_commit],
-        )
-        .unwrap();
-
-        // Switch back to main
-        repo.set_head("refs/heads/main").unwrap();
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
-        drop(repo);
+            // Switch back to main
+            repo.set_head("refs/heads/main").unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
+        }
 
         // Start a merge that will conflict using git CLI
         let output = std::process::Command::new("git")
