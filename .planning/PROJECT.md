@@ -68,11 +68,24 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 ### Active
 
-<!-- Next milestone requirements will be defined via /gsd-new-milestone -->
+## Current Milestone: v0.8 Conflict & Rebase
+
+**Goal:** GitKraken-parity conflict resolution and interactive rebase — three-panel merge editor with per-hunk/per-line selection, full interactive rebase editor (pick/squash/reword/drop/fixup/edit), merge/rebase initiation via context menu and drag-and-drop, mid-operation conflict resolution.
+
+**Target features:**
+- Conflicted file detection and display in staging panel
+- Operation state banner (merge/rebase in progress) with Continue/Abort/Skip
+- Three-panel merge editor (current/incoming/output) with per-hunk checkboxes, per-line selection, editable output
+- Take All Current / Take All Incoming quick resolution
+- Conflict navigation and "Save and Mark Resolved" auto-advance
+- Merge via branch context menu and drag-and-drop on graph
+- Interactive rebase editor with Pick/Squash/Reword/Drop/Fixup/Edit actions
+- Drag-and-drop commit reordering in rebase editor
+- Mid-rebase conflict resolution (reuses merge editor)
+- Rebase initiation via context menu and right-click on commit
 
 ### Planned
 
-- **v0.8**: Conflict & Rebase — conflict diffs, conflict resolution, interactive rebase
 - **v0.9**: Multi-tab & Views — multiple tabs, list/preview toggle for file lists
 - **v0.10**: CI/CD & Releases — GitHub Actions CI, cross-platform release publishing (macOS, Linux, Windows)
 - **v1.0**: Infrastructure — E2E test harness (GOOS-style), performance benchmarks
@@ -87,7 +100,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 ## Context
 
 - **Stack**: Tauri 2 + Svelte 5 (Vite SPA, not SvelteKit) + Rust with `git2` crate (libgit2 bindings)
-- **Current state**: Shipped v0.7 with 36 phases complete across 7 milestones. v0.7 added hunk staging (stage/unstage/discard individual hunks and lines via git2 apply API), line-level staging with click/shift-click selection, and commit graph search with Cmd+F overlay, match highlighting, keyboard navigation. ~8,200 LOC TypeScript/Svelte, ~7,700 LOC Rust.
+- **Current state**: Shipped v0.7 with 36 phases complete across 7 milestones. Starting v0.8 (Conflict & Rebase). ~8,200 LOC TypeScript/Svelte, ~7,700 LOC Rust.
 - **Architecture**: Svelte UI communicates with Rust backend via Tauri `invoke` (commands) and `listen` (events). Rust holds `RepoState` (path-keyed PathBuf registry), `CommitCache` (cached GraphResult with max_columns), `WatcherState` (filesystem watchers), and `RunningOp` (active remote process PID) in managed state.
 - **Remote ops**: `git2` for all local read/write; git CLI subprocess for remote operations (fetch/pull/push) and cherry-pick/revert with `GIT_TERMINAL_PROMPT=0` + `GIT_SSH_COMMAND=ssh -o BatchMode=yes`
 - **Graph rendering (v0.5)**: Single SVG overlay spanning full graph height inside virtual list scroll container. Rust lane algorithm (O(n), ~5ms for 10k commits) outputs GraphCommit[]; TypeScript Active Lanes transformation computes global grid coordinates with edge coalescing. Cubic bezier curves for cross-lane connections, continuous vertical rails for same-lane. Three-layer z-ordered `<g>` groups (rails → edges → dots). Virtualized element filtering with O(1) range-intersection. SVG ref pills with Canvas text measurement and hover expansion.
@@ -148,4 +161,4 @@ A developer can open any Git repository, browse its full commit history as a vis
 | SVG global dimming over per-element | Apply opacity to entire SVG overlay vs tracking per-element match state | ✓ Good — single style change, rails/edges span multiple rows making per-element impractical |
 
 ---
-*Last updated: 2026-03-19 after v0.7 milestone (Hunk Staging & Search) complete*
+*Last updated: 2026-03-20 after v0.8 milestone started (Conflict & Rebase)*
