@@ -2,14 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.8
 milestone_name: Conflict & Rebase
-status: ready_to_plan
-stopped_at: null
-last_updated: "2026-03-20"
+status: planning
+stopped_at: Phase 37 context gathered
+last_updated: "2026-03-20T15:57:36.128Z"
+last_activity: 2026-03-20 -- Roadmap created for v0.8 Conflict & Rebase
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -48,6 +50,7 @@ Progress: [..........] 0%
 ### Pending Todos
 
 1 pending todo.
+
 - Fix merge commit line bend direction (ui)
 
 ### Known Limitations
@@ -60,7 +63,7 @@ Progress: [..........] 0%
 
 ## Session Continuity
 
-Last session: 2026-03-20
-Stopped at: Roadmap created for v0.8 (5 phases, 29 requirements mapped)
-Resume file: None
+Last session: 2026-03-20T15:57:36.125Z
+Stopped at: Phase 37 context gathered
+Resume file: .planning/phases/37-conflict-detection-operation-state/37-CONTEXT.md
 Next action: Plan Phase 37 (Conflict Detection & Operation State)
