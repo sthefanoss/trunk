@@ -89,6 +89,15 @@ export interface WorkingTreeStatus {
   conflicted: FileStatus[];
 }
 
+export type OperationType = 'None' | 'Merge' | 'Rebase' | 'CherryPick' | 'Revert';
+
+export interface OperationInfo {
+  op_type: OperationType;
+  source_branch: string | null;
+  target_branch: string | null;
+  progress: string | null;
+}
+
 export interface DiffLine {
   origin: DiffOrigin;
   content: string;
