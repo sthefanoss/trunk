@@ -127,7 +127,10 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
   2. When a merge is in progress (.git/MERGE_HEAD exists), a persistent banner displays at the top with "Continue" and "Abort" buttons
   3. When a rebase is in progress (.git/rebase-merge/ or .git/rebase-apply/ exists), a persistent banner displays with "Continue", "Skip", and "Abort" buttons
   4. Clicking Continue/Abort/Skip in the operation banner executes the corresponding git command and the UI refreshes to reflect the new state
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 37-01-PLAN.md -- Backend: operation state types, detection, and CLI commands
+- [ ] 37-02-PLAN.md -- Frontend: conflict section, operation banner, and wiring
 
 ### Phase 38: Merge Editor
 **Goal**: Users can resolve conflicted files through a visual three-panel merge editor with granular hunk and line selection
@@ -181,7 +184,7 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 37. Conflict Detection & Operation State | v0.8 | 0/? | Not started | - |
+| 37. Conflict Detection & Operation State | v0.8 | 0/2 | Planning complete | - |
 | 38. Merge Editor | v0.8 | 0/? | Not started | - |
 | 39. Merge Workflow | v0.8 | 0/? | Not started | - |
 | 40. Rebase Workflow | v0.8 | 0/? | Not started | - |
@@ -189,4 +192,4 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-20 — v0.8 Conflict & Rebase roadmap created*
+*Last updated: 2026-03-20 — Phase 37 plans created (2 plans, 2 waves)*
