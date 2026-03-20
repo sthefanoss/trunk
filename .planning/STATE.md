@@ -105,12 +105,11 @@ Plan: 2 of 2
 
 ### Pending Todos
 
-5 pending todos.
+4 pending todos.
 - Fix merge commit line bend direction (ui)
 - Fix pill connector line stopping at hollow dot edge (ui)
 - Show diff content for untracked new files (api)
 - Add right-click context menu to file panels (ui)
-- Limit horizontal graph scroll to graph column only (ui)
 
 ### Known Limitations
 
