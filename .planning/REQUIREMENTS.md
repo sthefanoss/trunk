@@ -12,11 +12,11 @@ Requirements for v0.8 Conflict & Rebase milestone. GitKraken-parity scope.
 - [x] **CONF-01**: Conflicted files display as a distinct third section in the staging panel with warning styling and count badge
 - [ ] **CONF-02**: Three-panel merge editor opens when user clicks a conflicted file (current/incoming on top, editable output on bottom)
 - [ ] **CONF-03**: Merge editor panels scroll in sync across all three panels
-- [ ] **CONF-04**: Per-hunk checkboxes on current and incoming panels add/remove hunk content to/from the output
-- [ ] **CONF-05**: Per-line click selection on current and incoming panels toggles individual lines into/out of the output
+- [x] **CONF-04**: Per-hunk checkboxes on current and incoming panels add/remove hunk content to/from the output
+- [x] **CONF-05**: Per-line click selection on current and incoming panels toggles individual lines into/out of the output
 - [ ] **CONF-06**: Output panel is directly editable as a text editor for manual merge adjustments
-- [ ] **CONF-07**: "Take All Current" and "Take All Incoming" buttons resolve the entire file with one click (available in merge tool toolbar and as right-click on conflicted file)
-- [ ] **CONF-08**: Prev/Next conflict navigation arrows jump between conflict sections within a file
+- [x] **CONF-07**: "Take All Current" and "Take All Incoming" buttons resolve the entire file with one click (available in merge tool toolbar and as right-click on conflicted file)
+- [x] **CONF-08**: Prev/Next conflict navigation arrows jump between conflict sections within a file
 - [ ] **CONF-09**: "Save and Mark Resolved" saves the output, stages the file, and auto-opens the next conflicted file
 
 ### Operation State
@@ -84,11 +84,11 @@ Deferred differentiators beyond GitKraken parity.
 | CONF-01 | Phase 37 | Complete |
 | CONF-02 | Phase 38 | Pending |
 | CONF-03 | Phase 38 | Pending |
-| CONF-04 | Phase 38 | Pending |
-| CONF-05 | Phase 38 | Pending |
+| CONF-04 | Phase 38 | Complete |
+| CONF-05 | Phase 38 | Complete |
 | CONF-06 | Phase 38 | Pending |
-| CONF-07 | Phase 38 | Pending |
-| CONF-08 | Phase 38 | Pending |
+| CONF-07 | Phase 38 | Complete |
+| CONF-08 | Phase 38 | Complete |
 | CONF-09 | Phase 38 | Pending |
 | OPS-01 | Phase 37 | Complete |
 | OPS-02 | Phase 37 | Complete |
