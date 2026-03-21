@@ -275,10 +275,7 @@
         line-height: 16px;
         color: white;
         font-weight: 700;
-        overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
-        max-width: 120px;
       ">
         {currentBranch}
       </span>
