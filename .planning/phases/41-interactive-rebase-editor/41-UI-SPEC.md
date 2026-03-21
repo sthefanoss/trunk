@@ -31,7 +31,7 @@ Declared values (must be multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, column padding (`COLUMN_PADDING_X`), inline padding, toolbar button vertical padding |
+| xs | 4px | Icon gaps, column padding (`COLUMN_PADDING_X`), inline padding, toolbar button vertical padding, action dropdown padding |
 | sm | 8px | Row internal padding, button gaps, toolbar element spacing |
 | md | 16px | Section padding (dialog internal padding) |
 | lg | 24px | Column header height, toolbar height |
@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: Touch target minimum 26px row height (matching CommitGraph `ROW_HEIGHT` constant).
+Exceptions: 26px row height is inherited from the CommitGraph `ROW_HEIGHT` constant (`src/lib/graph-constants.ts` line 4). This value is a legacy system constraint shared across CommitGraph, CommitRow, overlay path calculations, and ref pill positioning. It cannot be changed without breaking layout consistency across the entire graph rendering pipeline. The rebase editor must use this same value to maintain visual parity with CommitGraph rows.
 
 ---
 
@@ -56,6 +56,8 @@ Exceptions: Touch target minimum 26px row height (matching CommitGraph `ROW_HEIG
 | Dialog title (InputDialog) | 14px (text-sm) | 600 | 1.4 | `var(--font-sans)` |
 | Dialog body/textarea | 14px (text-sm) | 400 | 1.5 | `var(--font-sans)` |
 | Dialog label | 12px (text-xs) | 400 | 1.4 | `var(--font-sans)` |
+
+Typography rationale: The 11px/12px/13px/14px scale is intentional for information-dense developer tool UI. 11px serves column headers, toolbar buttons, dropdowns, and validation text (tertiary chrome). 12px serves dialog field labels (secondary chrome within modal context). 13px serves primary row content (the data the user is actively reading/editing). 14px serves dialog title and body (modal focus context where readability at slightly larger size is warranted). Each size corresponds to a distinct information hierarchy tier.
 
 ---
 
@@ -107,6 +109,12 @@ Each rebase action has a distinct semantic color for its dropdown badge dot:
 
 ---
 
+## Focal Point
+
+**Primary visual anchor:** "Start Rebase" button (accent background, `var(--color-accent)` with white text, font-weight 600) in the top-right of the toolbar. This is the only accent-colored element in the toolbar area, drawing the eye to the primary action.
+
+---
+
 ## Component Inventory
 
 ### RebaseEditor (center pane replacement)
@@ -137,7 +145,7 @@ Column widths and visibility persisted via LazyStore under separate keys from Co
 
 ### Commit Row
 
-**Height:** 26px (matching `ROW_HEIGHT` constant from CommitGraph).
+**Height:** 26px (matching `ROW_HEIGHT` constant from CommitGraph — see Spacing Scale exceptions for rationale).
 **Layout:** `display: flex; align-items: center; font-size: 13px; color: var(--color-text);`
 **Cursor:** `grab` on hover (entire row is draggable). `grabbing` while dragging.
 **Focus indicator:** 2px left border in `var(--color-accent)` on focused row. Background `var(--color-selected-row)`.
@@ -160,7 +168,7 @@ Column widths and visibility persisted via LazyStore under separate keys from Co
 - Border: 1px solid `var(--color-border)`
 - Color: `var(--color-text)`
 - Font size: 11px
-- Padding: 1px 4px
+- Padding: 4px 4px
 - Border-radius: 3px
 - Cursor: pointer
 - Width: auto (fits content)
@@ -172,7 +180,7 @@ Column widths and visibility persisted via LazyStore under separate keys from Co
 **Placement:** Below the problematic row, spanning the full row width.
 **Styling:**
 - Background: `var(--color-rebase-error-bg)`
-- Padding: 2px 12px 2px (8px + Action column left offset)
+- Padding: 4px 12px (aligns with row content area)
 - Font size: 11px
 - Color: `var(--color-rebase-error)`
 - No border (background tint is sufficient)
@@ -191,16 +199,30 @@ All buttons: `border-radius: 4px; padding: 4px 12px; font-size: 11px; cursor: po
 
 ### InputDialog (reword/squash message editor)
 
-Reuse existing `InputDialog.svelte` component without modification. It already provides:
+Reuse existing `InputDialog.svelte` component with new `confirmLabel` and `cancelLabel` props. The component currently hardcodes "Cancel" and "OK" as button labels. These must become configurable props with the current text as defaults:
+
+**New props required:**
+- `confirmLabel?: string` (default: "OK")
+- `cancelLabel?: string` (default: "Cancel")
+
+**Existing features (unchanged):**
 - Modal overlay with backdrop (rgba(0,0,0,0.5))
 - Surface card with 16px padding, rounded-lg, shadow-xl
 - Title (text-sm, font-semibold)
 - Multiline textarea (text-sm, themed bg/border/color)
-- Cancel + OK button pair
 - Escape to cancel, auto-focus first field
 
-For reword: title = "Reword Commit", single multiline field prefilled with existing message.
-For squash: title = "Squash Commits", single multiline field prefilled with concatenated messages.
+**Reword dialog configuration:**
+- title: "Reword Commit"
+- confirmLabel: "Save Message"
+- cancelLabel: "Keep Original"
+- fields: single multiline field, key "message", label "Commit Message", prefilled with existing commit message
+
+**Squash dialog configuration:**
+- title: "Squash Commits"
+- confirmLabel: "Save Message"
+- cancelLabel: "Keep Original"
+- fields: single multiline field, key "message", label "Commit Message", prefilled with concatenated messages from all squashed commits
 
 ---
 
@@ -266,8 +288,12 @@ Validation runs on every action change and every reorder. Errors display inline 
 | Error toast (execution failure) | "Rebase failed: {git error message}" |
 | Reword dialog title | "Reword Commit" |
 | Reword dialog field label | "Commit Message" |
+| Reword dialog confirm | "Save Message" |
+| Reword dialog dismiss | "Keep Original" |
 | Squash dialog title | "Squash Commits" |
 | Squash dialog field label | "Commit Message" |
+| Squash dialog confirm | "Save Message" |
+| Squash dialog dismiss | "Keep Original" |
 | Action labels | "Pick", "Reword", "Squash", "Drop" |
 | Context menu item (commit) | "Interactive Rebase..." |
 | Context menu item (branch) | "Interactive Rebase {branch}..." |
@@ -285,8 +311,8 @@ Validation runs on every action change and every reorder. Errors display inline 
 [RebaseEditor] --Start Rebase (invalid)--> [RebaseEditor with inline errors]
 
 [CommitGraph + OperationBanner] --reword/squash pause--> [InputDialog over CommitGraph]
-[InputDialog] --OK--> [CommitGraph + OperationBanner continues]
-[InputDialog] --Cancel--> abort message edit (git fails, shows error toast)
+[InputDialog] --"Save Message"--> [CommitGraph + OperationBanner continues]
+[InputDialog] --"Keep Original"--> abort message edit (git fails, shows error toast)
 
 [CommitGraph + OperationBanner] --conflict--> [MergeEditor via Phase 37-38]
 [CommitGraph + OperationBanner] --complete--> [CommitGraph (graph refreshes, no toast)]
