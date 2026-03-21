@@ -587,6 +587,7 @@
         padding: 0 8px;
         gap: 8px;
         flex-shrink: 0;
+        position: relative;
       ">
         <span style="font-size: 12px; color: var(--color-text);">Output</span>
         {#if manualEdit}
@@ -595,40 +596,49 @@
         <span style="flex: 1;"></span>
 
         {#if hasConflicts}
-          <button
-            onclick={handlePrevConflict}
-            disabled={!hasPrev}
-            aria-label="Previous conflict"
-            style="
-              background: none;
-              border: none;
-              cursor: {hasPrev ? 'pointer' : 'default'};
-              color: {hasPrev ? 'var(--color-text)' : 'var(--color-text-muted)'};
-              opacity: {hasPrev ? 1 : 0.4};
-              padding: 2px;
-              display: flex;
-              align-items: center;
-            "
-          ><ChevronUp size={16} /></button>
-          <span style="font-size: 11px; color: var(--color-text-muted); white-space: nowrap;">{focusedConflictIdx + 1}/{conflictIndices.length}</span>
-          <button
-            onclick={handleNextConflict}
-            disabled={!hasNext}
-            aria-label="Next conflict"
-            style="
-              background: none;
-              border: none;
-              cursor: {hasNext ? 'pointer' : 'default'};
-              color: {hasNext ? 'var(--color-text)' : 'var(--color-text-muted)'};
-              opacity: {hasNext ? 1 : 0.4};
-              padding: 2px;
-              display: flex;
-              align-items: center;
-            "
-          ><ChevronDown size={16} /></button>
+          <div style="
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+          ">
+            <button
+              onclick={handlePrevConflict}
+              disabled={!hasPrev}
+              aria-label="Previous conflict"
+              style="
+                background: none;
+                border: none;
+                cursor: {hasPrev ? 'pointer' : 'default'};
+                color: {hasPrev ? 'var(--color-text)' : 'var(--color-text-muted)'};
+                opacity: {hasPrev ? 1 : 0.4};
+                padding: 2px;
+                display: flex;
+                align-items: center;
+              "
+            ><ChevronUp size={16} /></button>
+            <span style="font-size: 11px; color: var(--color-text-muted); white-space: nowrap;">{focusedConflictIdx + 1}/{conflictIndices.length}</span>
+            <button
+              onclick={handleNextConflict}
+              disabled={!hasNext}
+              aria-label="Next conflict"
+              style="
+                background: none;
+                border: none;
+                cursor: {hasNext ? 'pointer' : 'default'};
+                color: {hasNext ? 'var(--color-text)' : 'var(--color-text-muted)'};
+                opacity: {hasNext ? 1 : 0.4};
+                padding: 2px;
+                display: flex;
+                align-items: center;
+              "
+            ><ChevronDown size={16} /></button>
+          </div>
         {/if}
-
-        <span style="flex: 1;"></span>
 
         <!-- Save and Mark Resolved -->
         <button
