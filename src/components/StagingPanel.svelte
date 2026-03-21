@@ -582,13 +582,15 @@
         onclick={abortMerge}
         disabled={mergeLoading}
         style="
-          background: none;
+          width: 100%;
+          height: 24px;
+          background: var(--color-btn-abort-bg);
           color: var(--color-btn-abort);
-          border: none;
+          border: 1px solid var(--color-btn-abort-border);
+          border-radius: 4px;
           font-size: 11px;
           cursor: {mergeLoading ? 'not-allowed' : 'pointer'};
-          opacity: {mergeLoading ? 0.4 : 0.7};
-          padding: 4px 0;
+          opacity: {mergeLoading ? 0.4 : 1};
         "
       >
         Abort Merge
