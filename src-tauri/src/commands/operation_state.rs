@@ -58,6 +58,8 @@ pub fn get_operation_state_inner(
                 source_branch: source,
                 target_branch: target,
                 progress: None,
+                source_color_index: None,
+                target_color_index: None,
             })
         }
         git2::RepositoryState::Rebase
@@ -87,24 +89,29 @@ pub fn get_operation_state_inner(
                 source_branch: head_name,
                 target_branch: onto_branch,
                 progress,
+                source_color_index: None,
+                target_color_index: None,
             })
         }
         git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
             Ok(OperationInfo {
                 op_type: OperationType::CherryPick,
                 source_branch: None, target_branch: None, progress: None,
+                source_color_index: None, target_color_index: None,
             })
         }
         git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => {
             Ok(OperationInfo {
                 op_type: OperationType::Revert,
                 source_branch: None, target_branch: None, progress: None,
+                source_color_index: None, target_color_index: None,
             })
         }
         _ => {
             Ok(OperationInfo {
                 op_type: OperationType::None,
                 source_branch: None, target_branch: None, progress: None,
+                source_color_index: None, target_color_index: None,
             })
         }
     }
@@ -223,14 +230,38 @@ pub fn rebase_abort_inner(
 pub async fn get_operation_state(
     path: String,
     state: State<'_, RepoState>,
+    cache: State<'_, CommitCache>,
 ) -> Result<OperationInfo, String> {
     let state_map = state.0.lock().unwrap().clone();
+    let graph_cache = cache.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        get_operation_state_inner(&path, &state_map)
+        let mut info = get_operation_state_inner(&path, &state_map)?;
+        // Look up branch color indexes from the cached graph
+        if let Some(graph) = graph_cache.get(&path) {
+            if let Some(ref src) = info.source_branch {
+                info.source_color_index = find_branch_color(&graph.commits, src);
+            }
+            if let Some(ref tgt) = info.target_branch {
+                info.target_color_index = find_branch_color(&graph.commits, tgt);
+            }
+        }
+        Ok(info)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e| serde_json::to_string(&e).unwrap())
+    .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())
+}
+
+/// Find a branch's color_index by searching ref labels in the cached graph.
+fn find_branch_color(commits: &[crate::git::types::GraphCommit], branch_name: &str) -> Option<usize> {
+    for commit in commits {
+        for r in &commit.refs {
+            if r.short_name == branch_name {
+                return Some(r.color_index);
+            }
+        }
+    }
+    None
 }
 
 #[tauri::command]

@@ -216,6 +216,8 @@ pub struct OperationInfo {
     pub source_branch: Option<String>,
     pub target_branch: Option<String>,
     pub progress: Option<String>,
+    pub source_color_index: Option<usize>,
+    pub target_color_index: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Clone)]

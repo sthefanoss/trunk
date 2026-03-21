@@ -96,6 +96,8 @@ export interface OperationInfo {
   source_branch: string | null;
   target_branch: string | null;
   progress: string | null;
+  source_color_index: number | null;
+  target_color_index: number | null;
 }
 
 export interface MergeSides {

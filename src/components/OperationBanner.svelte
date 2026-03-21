@@ -18,6 +18,8 @@
 
   let sourceBranch = $derived(info.source_branch ?? '???');
   let targetBranch = $derived(info.target_branch ?? '???');
+  let sourceColor = $derived(`var(--lane-${(info.source_color_index ?? 1) % 8})`);
+  let targetColor = $derived(`var(--lane-${(info.target_color_index ?? 0) % 8})`);
 
   let label = $derived.by(() => {
     if (info.op_type === 'CherryPick') return 'Cherry-pick in progress';
@@ -94,7 +96,7 @@
     {#if isMerge || isRebase}
       <span>{isMerge ? 'Merging' : 'Rebasing'}</span>
       <span style="
-        background: var(--lane-0);
+        background: {sourceColor};
         border-radius: 9999px;
         padding: 0 6px;
         font-size: 11px;
@@ -107,7 +109,7 @@
       ">{sourceBranch}</span>
       <span>{isMerge ? 'into' : 'onto'}</span>
       <span style="
-        background: var(--lane-0);
+        background: {targetColor};
         border-radius: 9999px;
         padding: 0 6px;
         font-size: 11px;
