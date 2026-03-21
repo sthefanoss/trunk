@@ -33,7 +33,7 @@
   let focusedConflictIdx = $state(0);
   let saving = $state(false);
 
-  let panelRefs: HTMLDivElement[] = [];
+  let panelRefs: HTMLElement[] = [];
 
   // ---------- Derived ----------
   let conflictIndices = $derived(getConflictIndices(regions));
@@ -632,8 +632,10 @@
 
       <!-- Editable output textarea -->
       <textarea
+        bind:this={panelRefs[2]}
         value={outputText}
         oninput={handleOutputEdit}
+        onscroll={() => handleScroll(2)}
         style="
           flex: 1;
           width: 100%;
