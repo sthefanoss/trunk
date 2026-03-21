@@ -226,3 +226,12 @@ pub struct MergeSides {
     pub ours: String,
     pub theirs: String,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RebaseTodoItem {
+    pub oid: String,
+    pub short_oid: String,
+    pub summary: String,
+    pub author_name: String,
+    pub author_timestamp: i64,
+}

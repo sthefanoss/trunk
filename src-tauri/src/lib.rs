@@ -80,6 +80,8 @@ pub fn run() {
             commands::operation_state::rebase_branch,
             commands::merge_editor::get_merge_sides,
             commands::merge_editor::save_merge_result,
+            commands::interactive_rebase::get_rebase_todo,
+            commands::interactive_rebase::get_fork_point,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
