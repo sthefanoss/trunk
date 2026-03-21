@@ -16,21 +16,13 @@
   let isMerge = $derived(info.op_type === 'Merge');
   let isRebase = $derived(info.op_type === 'Rebase');
 
+  let sourceBranch = $derived(info.source_branch ?? '???');
+  let targetBranch = $derived(info.target_branch ?? '???');
+
   let label = $derived.by(() => {
-    if (isMerge) {
-      const src = info.source_branch ?? '???';
-      const tgt = info.target_branch ?? '???';
-      return `Merging ${src} into ${tgt}`;
-    }
-    if (isRebase) {
-      const src = info.source_branch ?? '???';
-      const tgt = info.target_branch ?? '???';
-      const prog = info.progress ? ` (${info.progress})` : '';
-      return `Rebasing ${src} onto ${tgt}${prog}`;
-    }
     if (info.op_type === 'CherryPick') return 'Cherry-pick in progress';
     if (info.op_type === 'Revert') return 'Revert in progress';
-    return 'Operation in progress';
+    return '';
   });
 
   async function handleContinue() {
@@ -98,9 +90,41 @@
   <span style="color: {isMerge ? 'var(--color-banner-merge-border)' : 'var(--color-banner-rebase-border)'}; display: inline-flex; align-items: center; flex-shrink: 0;">
     {#if isMerge}<GitMerge size={14} />{:else}<GitBranch size={14} />{/if}
   </span>
-  <span style="font-size: 12px; color: var(--color-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-    {label}
-  </span>
+  <div style="font-size: 12px; color: var(--color-text); flex: 1; overflow: hidden; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+    {#if isMerge || isRebase}
+      <span>{isMerge ? 'Merging' : 'Rebasing'}</span>
+      <span style="
+        background: var(--lane-0);
+        border-radius: 9999px;
+        padding: 0 6px;
+        font-size: 11px;
+        line-height: 16px;
+        color: white;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+      ">{sourceBranch}</span>
+      <span>{isMerge ? 'into' : 'onto'}</span>
+      <span style="
+        background: var(--lane-0);
+        border-radius: 9999px;
+        padding: 0 6px;
+        font-size: 11px;
+        line-height: 16px;
+        color: white;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+      ">{targetBranch}</span>
+      {#if isRebase && info.progress}
+        <span style="color: var(--color-text-muted);">({info.progress})</span>
+      {/if}
+    {:else}
+      <span>{label}</span>
+    {/if}
+  </div>
   {#if isRebase}
     <div style="display: flex; gap: 4px; flex-shrink: 0;">
       <button
