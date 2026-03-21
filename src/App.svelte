@@ -11,7 +11,7 @@
   import Toast from './components/Toast.svelte';
   import { safeInvoke } from './lib/invoke.js';
   import { getZoomLevel, setZoomLevel, getLeftPaneWidth, setLeftPaneWidth, getRightPaneWidth, setRightPaneWidth, getLeftPaneCollapsed, setLeftPaneCollapsed, getRightPaneCollapsed, setRightPaneCollapsed, getOpenRepo, setOpenRepo } from './lib/store.js';
-  import type { FileDiff, CommitDetail as CommitDetailType, RefsResponse } from './lib/types.js';
+  import type { FileDiff, CommitDetail as CommitDetailType, RefsResponse, WorkingTreeStatus } from './lib/types.js';
 
   interface DirtyCounts {
     staged: number;
@@ -119,8 +119,20 @@
     else clearCommitFileDiff();
   }
 
-  function handleFileResolved() {
-    clearStagingDiff();
+  async function handleFileResolved() {
+    const resolvedPath = selectedFile?.path;
+    if (!repoPath) { clearStagingDiff(); return; }
+    try {
+      const status = await safeInvoke<WorkingTreeStatus>('get_status', { path: repoPath });
+      const next = status.conflicted.find(f => f.path !== resolvedPath);
+      if (next) {
+        handleFileSelect(next.path, 'conflicted');
+      } else {
+        clearStagingDiff();
+      }
+    } catch {
+      clearStagingDiff();
+    }
   }
 
   async function handleFileSelect(path: string, kind: 'unstaged' | 'staged' | 'conflicted') {
