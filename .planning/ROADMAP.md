@@ -143,12 +143,13 @@ Plans:
   3. User can directly type in the output panel to manually adjust the merged result
   4. "Take All Current" and "Take All Incoming" buttons resolve the entire file with one click (available in toolbar and as right-click on conflicted file); Prev/Next conflict arrows navigate between conflict sections within the file
   5. "Save and Mark Resolved" saves the output to disk, stages the file, and returns to the staging panel
-**Plans**: 4 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 38-01-PLAN.md -- Backend: MergeSides type, get_merge_sides and save_merge_result commands
-- [ ] 38-02-PLAN.md -- Merge parser: conflict region parsing, selection helpers, output computation
-- [ ] 38-03-PLAN.md -- MergeEditor component: three-panel layout, selection, sync scroll, navigation
-- [ ] 38-04-PLAN.md -- Integration: App.svelte routing, StagingPanel context menu, resolution flow
+- [x] 38-01-PLAN.md -- Backend: MergeSides type, get_merge_sides and save_merge_result commands
+- [x] 38-02-PLAN.md -- Merge parser: conflict region parsing, selection helpers, output computation
+- [x] 38-03-PLAN.md -- MergeEditor component: three-panel layout, selection, sync scroll, navigation
+- [x] 38-04-PLAN.md -- Integration: App.svelte routing, StagingPanel context menu, resolution flow
+- [ ] 38-05-PLAN.md -- Gap closure: wire output textarea into three-way scroll sync
 
 ### Phase 39: Merge Workflow
 **Goal**: Users can initiate and complete merges through the GUI without touching the terminal
@@ -191,11 +192,11 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 37. Conflict Detection & Operation State | 3/3 | Complete    | 2026-03-20 | - |
-| 38. Merge Editor | 4/4 | Complete   | 2026-03-21 | - |
+| 38. Merge Editor | 5/5 | Complete   | 2026-03-21 | - |
 | 39. Merge Workflow | v0.8 | 0/? | Not started | - |
 | 40. Rebase Workflow | v0.8 | 0/? | Not started | - |
 | 41. Interactive Rebase Editor | v0.8 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-20 — Phase 38 plans created (4 plans)*
+*Last updated: 2026-03-20 — Phase 38 gap closure plan added (5 plans total)*
