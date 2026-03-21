@@ -505,7 +505,7 @@
           {#if staged_expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
         </span>
         <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
-          Staged Files ({status?.staged.length ?? 0})
+          {isMerge ? 'Resolved Files' : 'Staged Files'} ({status?.staged.length ?? 0})
         </span>
         {#if (status?.staged.length ?? 0) > 0}
           <button
