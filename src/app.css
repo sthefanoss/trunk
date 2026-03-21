@@ -64,6 +64,15 @@
   /* Hunk highlight flash */
   --color-hunk-flash: rgba(96, 165, 250, 0.3);
 
+  /* Rebase editor action colors */
+  --color-rebase-pick: #4ade80;
+  --color-rebase-reword: #fbbf24;
+  --color-rebase-squash: #d2a8ff;
+  --color-rebase-drop: #f87171;
+  --color-rebase-drop-opacity: 0.4;
+  --color-rebase-error: #f87171;
+  --color-rebase-error-bg: rgba(248, 113, 113, 0.08);
+
   /* Graph lane colors — vivid 8-color dark-theme palette, high contrast on #0d1117 */
   --lane-0: #58a6ff;
   --lane-1: #f78166;

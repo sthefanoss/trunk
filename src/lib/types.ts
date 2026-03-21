@@ -220,3 +220,12 @@ export interface OverlayRefPill {
   rowIndex: number;       // for virtualization filtering
   isHollow: boolean;      // true for merge/stash/WIP dots (stroke-only, no fill)
 }
+
+// Interactive rebase types (mirrors src-tauri/src/git/types.rs RebaseTodoItem)
+export interface RebaseTodoItem {
+  oid: string;
+  short_oid: string;
+  summary: string;
+  author_name: string;
+  author_timestamp: number;
+}

@@ -13,11 +13,13 @@
     fields: Field[];
     onsubmit: (values: Record<string, string>) => void;
     oncancel: () => void;
+    confirmLabel?: string;
+    cancelLabel?: string;
   }
 
   import { untrack } from 'svelte';
 
-  let { title, fields, onsubmit, oncancel }: Props = $props();
+  let { title, fields, onsubmit, oncancel, confirmLabel = 'OK', cancelLabel = 'Cancel' }: Props = $props();
 
   let values = $state<Record<string, string>>({});
 
@@ -128,7 +130,7 @@
         style="background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
         onclick={oncancel}
       >
-        Cancel
+        {cancelLabel}
       </button>
       <button
         class="rounded px-3 py-1.5 text-xs font-medium"
@@ -136,7 +138,7 @@
         disabled={!canSubmit}
         onclick={handleSubmit}
       >
-        OK
+        {confirmLabel}
       </button>
     </div>
   </div>

@@ -144,3 +144,53 @@ export async function setColumnVisibility(visibility: ColumnVisibility): Promise
   await store.set(COLUMN_VISIBILITY_KEY, visibility);
   await store.save();
 }
+
+// Rebase editor column widths
+export interface RebaseColumnWidths {
+  sha: number;
+  author: number;
+  date: number;
+  // action is fixed 90px, message is flex-1
+}
+
+const REBASE_COLUMN_WIDTHS_KEY = 'rebase_column_widths';
+
+const DEFAULT_REBASE_WIDTHS: RebaseColumnWidths = {
+  sha: 80,
+  author: 120,
+  date: 100,
+};
+
+export async function getRebaseColumnWidths(): Promise<RebaseColumnWidths> {
+  return (await store.get<RebaseColumnWidths>(REBASE_COLUMN_WIDTHS_KEY)) ?? DEFAULT_REBASE_WIDTHS;
+}
+
+export async function setRebaseColumnWidths(widths: RebaseColumnWidths): Promise<void> {
+  await store.set(REBASE_COLUMN_WIDTHS_KEY, widths);
+  await store.save();
+}
+
+// Rebase editor column visibility
+export interface RebaseColumnVisibility {
+  sha: boolean;
+  author: boolean;
+  date: boolean;
+  // action and message always visible
+}
+
+const REBASE_COLUMN_VISIBILITY_KEY = 'rebase_column_visibility';
+
+const DEFAULT_REBASE_VISIBILITY: RebaseColumnVisibility = {
+  sha: true,
+  author: true,
+  date: true,
+};
+
+export async function getRebaseColumnVisibility(): Promise<RebaseColumnVisibility> {
+  return (await store.get<RebaseColumnVisibility>(REBASE_COLUMN_VISIBILITY_KEY)) ?? DEFAULT_REBASE_VISIBILITY;
+}
+
+export async function setRebaseColumnVisibility(visibility: RebaseColumnVisibility): Promise<void> {
+  await store.set(REBASE_COLUMN_VISIBILITY_KEY, visibility);
+  await store.save();
+}
