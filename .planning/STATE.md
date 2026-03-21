@@ -80,6 +80,12 @@ Plan: 6 of 6
 
 (None)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260320-wz2 | Simplify splash screen project cards to single-line items, save 10 projects instead of 5 | 2026-03-21 | ca345bf | [260320-wz2-simplify-splash-screen-project-cards-to-](./quick/260320-wz2-simplify-splash-screen-project-cards-to-/) |
+
 ## Session Continuity
 
 Last activity: 2026-03-21 - Completed quick task 260320-wz2: Simplify splash screen project cards to single-line items, save 10 projects instead of 5
