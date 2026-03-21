@@ -8,6 +8,7 @@
     errorBranch: string | null;
     errorText: string;
     oncheckout: (fullName: string) => void;
+    oncontextmenu?: (e: MouseEvent, fullName: string) => void;
   }
 
   let {
@@ -17,6 +18,7 @@
     errorBranch,
     errorText,
     oncheckout,
+    oncontextmenu,
   }: Props = $props();
 </script>
 
@@ -43,6 +45,7 @@
         isError={errorBranch === remoteName + '/' + branch}
         {errorText}
         onclick={() => oncheckout(remoteName + '/' + branch)}
+        oncontextmenu={(e) => oncontextmenu?.(e, remoteName + '/' + branch)}
       />
     </div>
   {/each}

@@ -300,8 +300,21 @@
     }
   }
 
+  async function handleMergeBranch(branch: string) {
+    try {
+      await safeInvoke('merge_branch', { path: repoPath, branch });
+      // No toast on success -- graph refresh via repo-changed event is sufficient
+      await loadRefs(repoPath);
+      onrefreshed?.();
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Merge failed', 'error');
+    }
+  }
+
   async function showBranchContextMenu(e: MouseEvent, branchName: string, isHead: boolean) {
     const { Menu, MenuItem, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
+    const headBranchName = refs?.local.find(b => b.is_head)?.name;
     const menu = await Menu.new({
       items: [
         await MenuItem.new({
@@ -309,6 +322,12 @@
           enabled: !isHead,
           action: () => { handleCheckout(branchName); },
         }),
+        ...(!isHead && headBranchName ? [
+          await MenuItem.new({
+            text: `Merge ${branchName} into ${headBranchName}`,
+            action: () => { handleMergeBranch(branchName).catch(() => {}); },
+          }),
+        ] : []),
         await PredefinedMenuItem.new({ item: 'Separator' }),
         await MenuItem.new({
           text: 'Rename…',
@@ -331,6 +350,21 @@
         await MenuItem.new({
           text: 'Delete',
           action: () => { handleDeleteTag(tagShortName).catch(() => {}); },
+        }),
+      ],
+    });
+    await menu.popup();
+  }
+
+  async function showRemoteContextMenu(e: MouseEvent, fullRefName: string) {
+    const { Menu, MenuItem } = await import('@tauri-apps/api/menu');
+    const headBranchName = refs?.local.find(b => b.is_head)?.name;
+    if (!headBranchName) return; // Detached HEAD -- no merge item
+    const menu = await Menu.new({
+      items: [
+        await MenuItem.new({
+          text: `Merge ${fullRefName} into ${headBranchName}`,
+          action: () => { handleMergeBranch(fullRefName).catch(() => {}); },
         }),
       ],
     });
@@ -441,6 +475,7 @@
             errorBranch={checkoutError?.branch ?? null}
             errorText={checkoutError?.message ?? ''}
             oncheckout={(fullName) => handleCheckout(fullName)}
+            oncontextmenu={(e, fullName) => showRemoteContextMenu(e, fullName)}
           />
         {/each}
       </BranchSection>
