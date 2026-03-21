@@ -557,7 +557,6 @@
     <div style="
       padding: 8px;
       display: flex;
-      flex-direction: column;
       gap: 6px;
       flex-shrink: 0;
     ">
@@ -565,7 +564,7 @@
         onclick={commitMerge}
         disabled={!allResolved || mergeLoading}
         style="
-          width: 100%;
+          flex: 1;
           height: 28px;
           background: var(--color-accent);
           color: white;
@@ -582,13 +581,15 @@
         onclick={abortMerge}
         disabled={mergeLoading}
         style="
-          background: none;
+          flex: 1;
+          height: 28px;
+          background: var(--color-btn-abort-bg);
           color: var(--color-btn-abort);
-          border: none;
-          font-size: 11px;
+          border: 1px solid var(--color-btn-abort-border);
+          border-radius: 4px;
+          font-size: 12px;
           cursor: {mergeLoading ? 'not-allowed' : 'pointer'};
           opacity: {mergeLoading ? 0.4 : 1};
-          padding: 4px 0;
         "
       >
         Abort Merge
