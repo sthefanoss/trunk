@@ -166,4 +166,4 @@ A developer can open any Git repository, browse its full commit history as a vis
 | SVG global dimming over per-element | Apply opacity to entire SVG overlay vs tracking per-element match state | ✓ Good — single style change, rails/edges span multiple rows making per-element impractical |
 
 ---
-*Last updated: 2026-03-20 after Phase 37 complete (Conflict Detection & Operation State)*
+*Last updated: 2026-03-21 after Phase 40 complete (Rebase Workflow)*
