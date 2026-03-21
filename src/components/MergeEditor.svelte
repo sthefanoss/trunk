@@ -12,6 +12,7 @@
     getConflictIndices,
     type ConflictRegion,
   } from '../lib/merge-parser.js';
+  import { tick } from 'svelte';
   import { Check, CircleCheck, CircleX, ChevronUp, ChevronDown, X } from '@lucide/svelte';
 
   interface Props {
@@ -168,6 +169,7 @@
         focusedConflictIdx = 0;
         panelScrollTop = 0;
         loading = false;
+        tick().then(() => scrollToConflict(0));
       })
       .catch(() => {
         // Merge state no longer available (e.g. git reset) — close the editor
