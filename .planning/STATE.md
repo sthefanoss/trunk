@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.8
 milestone_name: Conflict & Rebase
 status: unknown
-stopped_at: Phase 41 context gathered
-last_updated: "2026-03-21T22:07:05.589Z"
+stopped_at: Phase 41 UI-SPEC approved
+last_updated: "2026-03-21T22:37:44.405Z"
 last_activity: 2026-03-21
 progress:
   total_phases: 5
@@ -97,7 +97,7 @@ Plan: 1 of 1 (done)
 ## Session Continuity
 
 Last activity: 2026-03-21
-Last session: 2026-03-21T22:07:05.585Z
-Stopped at: Phase 41 context gathered
-Resume file: .planning/phases/41-interactive-rebase-editor/41-CONTEXT.md
+Last session: 2026-03-21T22:37:44.402Z
+Stopped at: Phase 41 UI-SPEC approved
+Resume file: .planning/phases/41-interactive-rebase-editor/41-UI-SPEC.md
 Next action: Phase 40 complete -- all plans done. v0.8 milestone complete.
