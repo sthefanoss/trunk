@@ -31,7 +31,7 @@ Declared values (must be multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, column padding (`COLUMN_PADDING_X`), inline padding |
+| xs | 4px | Icon gaps, column padding (`COLUMN_PADDING_X`), inline padding, toolbar button vertical padding |
 | sm | 8px | Row internal padding, button gaps, toolbar element spacing |
 | md | 16px | Section padding (dialog internal padding) |
 | lg | 24px | Column header height, toolbar height |
@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: Touch target minimum 26px row height (matching CommitGraph `ROW_HEIGHT` constant). Toolbar button padding 2px vertical, 8px horizontal (matching OperationBanner button pattern).
+Exceptions: Touch target minimum 26px row height (matching CommitGraph `ROW_HEIGHT` constant).
 
 ---
 
@@ -51,7 +51,7 @@ Exceptions: Touch target minimum 26px row height (matching CommitGraph `ROW_HEIG
 | Row text (SHA, message, author, date) | 13px | 400 | 26px (row height) | `var(--font-sans)` |
 | SHA column | 13px | 400 | 26px | `var(--font-mono)` |
 | Action dropdown text | 11px | 400 | normal | `var(--font-sans)` |
-| Toolbar button text | 11px | 500 | normal | `var(--font-sans)` |
+| Toolbar button text | 11px | 600 | normal | `var(--font-sans)` |
 | Validation error text | 11px | 400 | 1.3 | `var(--font-sans)` |
 | Dialog title (InputDialog) | 14px (text-sm) | 600 | 1.4 | `var(--font-sans)` |
 | Dialog body/textarea | 14px (text-sm) | 400 | 1.5 | `var(--font-sans)` |
@@ -72,7 +72,7 @@ All colors reference CSS custom properties from `src/app.css`. No inline hex or 
 | Text muted | `--color-text-muted` | #8b949e | Column header labels, date column, secondary info |
 | Accent (10%) | `--color-accent` | #388bfd | "Start Rebase" button background, focused row indicator |
 | Selected row | `--color-selected-row` | rgba(56,139,253,0.1) | Keyboard-focused row background |
-| Destructive | `--color-diff-delete` | #f87171 | "Drop" action badge color, validation error text, "Cancel" button if needed |
+| Destructive | `--color-diff-delete` | #f87171 | "Drop" action badge color, validation error text |
 
 ### New CSS Custom Properties Required
 
@@ -119,7 +119,7 @@ Each rebase action has a distinct semantic color for its dropdown badge dot:
 **Toolbar layout:** `display: flex; align-items: center; gap: 8px; padding: 0 12px;`
 - Left: Title text "Interactive Rebase" (13px, weight 600, `--color-text`)
 - Left (after title): Commit count badge "N commits" (11px, `--color-text-muted`)
-- Right: Reset button, Cancel button, Start Rebase button (flex-shrink: 0, gap: 8px)
+- Right: Reset button, Discard Changes button, Start Rebase button (flex-shrink: 0, gap: 8px)
 
 **Column header:** Identical structure to CommitGraph header. Height 24px. Background `var(--color-surface)`. Border-bottom 1px solid `var(--color-border)`. Font 11px `var(--color-text-muted)`.
 
@@ -184,8 +184,8 @@ Three buttons, right-aligned in toolbar:
 | Button | Style | Enabled State | Disabled State |
 |--------|-------|---------------|----------------|
 | Reset | Ghost: `bg: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text)` | Normal | `opacity: 0.5` when commits match original state |
-| Cancel | Ghost: `bg: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text)` | Always enabled | N/A |
-| Start Rebase | Primary: `bg: var(--color-accent); color: white; font-weight: 500` | Normal | `opacity: 0.5` when validation errors exist |
+| Discard Changes | Ghost: `bg: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text)` | Always enabled | N/A |
+| Start Rebase | Primary: `bg: var(--color-accent); color: white; font-weight: 600` | Normal | `opacity: 0.5` when validation errors exist |
 
 All buttons: `border-radius: 4px; padding: 4px 12px; font-size: 11px; cursor: pointer; white-space: nowrap;`
 
@@ -218,7 +218,7 @@ All shortcuts active ONLY when a rebase editor row is focused (not when InputDia
 | D | Set focused row action to Drop | Row focused, not in text input |
 | ArrowUp | Move focus to previous row | Row focused |
 | ArrowDown | Move focus to next row | Row focused |
-| Escape | Close editor (cancel) | Editor has focus, no dialog open |
+| Escape | Close editor (discard changes) | Editor has focus, no dialog open |
 
 ### Drag-and-Drop Reorder
 
@@ -256,7 +256,7 @@ Validation runs on every action change and every reorder. Errors display inline 
 |---------|------|
 | Primary CTA | "Start Rebase" |
 | Secondary action (reset) | "Reset" |
-| Dismiss action | "Cancel" |
+| Dismiss action | "Discard Changes" |
 | Toolbar title | "Interactive Rebase" |
 | Commit count badge | "{N} commits" (e.g., "5 commits") |
 | Empty state heading | N/A — editor never opens with zero commits (backend validates) |
@@ -280,7 +280,7 @@ Validation runs on every action change and every reorder. Errors display inline 
 [CommitGraph] --right-click commit--> "Interactive Rebase..." --> [RebaseEditor]
 [CommitGraph] --right-click branch--> "Interactive Rebase {branch}..." --> [RebaseEditor]
 
-[RebaseEditor] --Cancel--> [CommitGraph]
+[RebaseEditor] --Discard Changes--> [CommitGraph]
 [RebaseEditor] --Start Rebase (valid)--> [CommitGraph + OperationBanner]
 [RebaseEditor] --Start Rebase (invalid)--> [RebaseEditor with inline errors]
 
