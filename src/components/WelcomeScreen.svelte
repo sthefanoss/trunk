@@ -1,5 +1,6 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
+  import { homeDir } from '@tauri-apps/api/path';
   import { safeInvoke, type TrunkError } from '../lib/invoke.js';
   import { addRecentRepo, getRecentRepos, removeRecentRepo, type RecentRepo } from '../lib/store.js';
 
@@ -12,8 +13,16 @@
   let recentRepos = $state<RecentRepo[]>([]);
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let home = $state('');
+
+  function displayPath(path: string): string {
+    if (!home || !path.startsWith(home)) return path;
+    const rest = path.slice(home.length).replace(/^\//, '');
+    return '~/' + rest;
+  }
 
   $effect(() => {
+    homeDir().then((h) => { home = h; });
     getRecentRepos().then((repos) => {
       recentRepos = repos;
     });
@@ -94,7 +103,7 @@
               onkeydown={(e) => e.key === 'Enter' && openPath(repo.path)}
             >
               <span class="text-sm truncate min-w-0 flex-1">
-                <span style="color: var(--color-text-muted);">{repo.path.substring(0, repo.path.lastIndexOf('/'))}/</span><span class="font-semibold" style="color: var(--color-text);">{repo.path.split('/').at(-1)}</span>
+                <span style="color: var(--color-text-muted);">{displayPath(repo.path).substring(0, displayPath(repo.path).lastIndexOf('/'))}/</span><span class="font-semibold" style="color: var(--color-text);">{displayPath(repo.path).split('/').at(-1)}</span>
               </span>
               <button
                 class="ml-2 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity text-xs"
