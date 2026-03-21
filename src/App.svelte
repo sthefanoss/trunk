@@ -290,6 +290,11 @@
 
   $effect(() => {
     function handleKeydown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && (showDiff || showMergeEditor)) {
+        e.preventDefault();
+        handleDiffClose();
+        return;
+      }
       if (!e.metaKey && !e.ctrlKey) return;
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
