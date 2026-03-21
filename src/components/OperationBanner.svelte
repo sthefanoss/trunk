@@ -103,9 +103,6 @@
         line-height: 16px;
         color: white;
         font-weight: 700;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100px;
       ">{sourceBranch}</span>
       <span>{isMerge ? 'into' : 'onto'}</span>
       <span style="
@@ -116,9 +113,6 @@
         line-height: 16px;
         color: white;
         font-weight: 700;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100px;
       ">{targetBranch}</span>
       {#if isRebase && info.progress}
         <span style="color: var(--color-text-muted);">({info.progress})</span>
