@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v0.8
 milestone_name: Conflict & Rebase
 status: unknown
-stopped_at: Completed 38-04-PLAN.md
-last_updated: "2026-03-21T01:59:17.553Z"
+stopped_at: Completed 38-05-PLAN.md
+last_updated: "2026-03-21T02:15:50.140Z"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 8
+  completed_plans: 8
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-20 after v0.8 milestone started)
 ## Current Position
 
 Phase: 38 (merge-editor) — COMPLETE
-Plan: 4 of 4
+Plan: 5 of 5
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Plan: 4 of 4
 | Phase 38 P01 | 5min | 2 tasks | 5 files |
 | Phase 38 P03 | 2min | 2 tasks | 2 files |
 | Phase 38 P04 | 2min | 2 tasks | 2 files |
+| Phase 38 P05 | 1min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ Plan: 4 of 4
 - [Phase 38]: Scroll sync via guard-flag + requestAnimationFrame to prevent feedback loops
 - [Phase 38]: Removed diff_conflicted from App.svelte since MergeEditor loads its own data via get_merge_sides
 - [Phase 38]: handleFileResolved calls clearStagingDiff to return center pane to CommitGraph after conflict resolution
+- [Phase 38]: Changed panelRefs type from HTMLDivElement[] to HTMLElement[] to accommodate textarea in scroll sync
 
 ### Pending Todos
 
@@ -78,7 +80,7 @@ Plan: 4 of 4
 
 ## Session Continuity
 
-Last session: 2026-03-21T01:59:17.550Z
-Stopped at: Completed 38-04-PLAN.md
+Last session: 2026-03-21T02:15:50.136Z
+Stopped at: Completed 38-05-PLAN.md
 Resume file: None
 Next action: Phase 37 complete -- all 3 plans done
