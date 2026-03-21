@@ -31,9 +31,10 @@
     onWipClick?: () => void;
     refreshSignal?: number;
     selectedCommitOid?: string | null;
+    onopenrebaseeditor?: (baseOid: string) => void;
   }
 
-  let { repoPath, oncommitselect, wipCount = 0, wipMessage = 'WIP', onWipClick, refreshSignal, selectedCommitOid }: Props = $props();
+  let { repoPath, oncommitselect, wipCount = 0, wipMessage = 'WIP', onWipClick, refreshSignal, selectedCommitOid, onopenrebaseeditor }: Props = $props();
 
   const BATCH = 200;
   const SKELETON_COUNT = 10;
@@ -297,6 +298,16 @@
     }
   }
 
+  async function handleInteractiveRebaseBranch(branchName: string) {
+    try {
+      const forkPoint = await safeInvoke<string>('get_fork_point', { path: repoPath, branch: branchName });
+      onopenrebaseeditor?.(forkPoint);
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Failed to detect fork point', 'error');
+    }
+  }
+
   async function showCommitContextMenu(e: MouseEvent, commit: GraphCommit) {
     e.preventDefault();
 
@@ -315,9 +326,22 @@
       );
     }
 
+    // Interactive Rebase (only when HEAD is on a branch and commit is not HEAD and not a stash)
+    const interactiveRebaseItems: (Awaited<ReturnType<typeof MenuItem.new>> | Awaited<ReturnType<typeof PredefinedMenuItem.new>>)[] = [];
+    if (headBranchName && !commit.is_stash && !commit.is_head) {
+      interactiveRebaseItems.push(
+        await MenuItem.new({
+          text: 'Interactive Rebase...',
+          action: () => { onopenrebaseeditor?.(commit.oid); },
+        }),
+        await PredefinedMenuItem.new({ item: 'Separator' }),
+      );
+    }
+
     const menu = await Menu.new({
       items: [
         ...mergeRebaseItems,
+        ...interactiveRebaseItems,
         await MenuItem.new({ text: 'Copy SHA', action: () => { writeText(commit.oid).catch(() => {}); } }),
         await MenuItem.new({ text: 'Copy Message', action: () => { writeText(commit.summary).catch(() => {}); } }),
         await PredefinedMenuItem.new({ item: 'Separator' }),
@@ -465,6 +489,10 @@
               text: `Rebase ${headBranchName} onto ${pill.label}`,
               action: () => { handleRebaseBranch(pill.label).catch(() => {}); },
             }),
+            await MenuItem.new({
+              text: `Interactive Rebase ${pill.label}...`,
+              action: () => { handleInteractiveRebaseBranch(pill.label).catch(() => {}); },
+            }),
             await PredefinedMenuItem.new({ item: 'Separator' }),
           ] : []),
           await MenuItem.new({
@@ -491,6 +519,10 @@
             await MenuItem.new({
               text: `Rebase ${headBranchName} onto ${pill.label}`,
               action: () => { handleRebaseBranch(pill.label).catch(() => {}); },
+            }),
+            await MenuItem.new({
+              text: `Interactive Rebase ${pill.label}...`,
+              action: () => { handleInteractiveRebaseBranch(pill.label).catch(() => {}); },
             }),
           ],
         });
@@ -529,6 +561,10 @@
               text: `Rebase ${headBranchName} onto ${ref.short_name}`,
               action: () => { handleRebaseBranch(ref.short_name).catch(() => {}); },
             }),
+            await MenuItem.new({
+              text: `Interactive Rebase ${ref.short_name}...`,
+              action: () => { handleInteractiveRebaseBranch(ref.short_name).catch(() => {}); },
+            }),
             await PredefinedMenuItem.new({ item: 'Separator' }),
           ] : []),
           await MenuItem.new({
@@ -555,6 +591,10 @@
             await MenuItem.new({
               text: `Rebase ${headBranchName} onto ${ref.short_name}`,
               action: () => { handleRebaseBranch(ref.short_name).catch(() => {}); },
+            }),
+            await MenuItem.new({
+              text: `Interactive Rebase ${ref.short_name}...`,
+              action: () => { handleInteractiveRebaseBranch(ref.short_name).catch(() => {}); },
             }),
           ],
         });

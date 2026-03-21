@@ -13,9 +13,10 @@
     onstashselect?: (oid: string) => void;
     onrefnavigate?: (refNameOrOid: string) => void;
     refreshSignal?: number;
+    onopenrebaseeditor?: (baseOid: string) => void;
   }
 
-  let { repoPath, onrefreshed, onstashselect, onrefnavigate, refreshSignal }: Props = $props();
+  let { repoPath, onrefreshed, onstashselect, onrefnavigate, refreshSignal, onopenrebaseeditor }: Props = $props();
 
   let refs = $state<RefsResponse | null>(null);
   let loading = $state(false);
@@ -324,6 +325,16 @@
     }
   }
 
+  async function handleInteractiveRebase(branchName: string) {
+    try {
+      const forkPoint = await safeInvoke<string>('get_fork_point', { path: repoPath, branch: branchName });
+      onopenrebaseeditor?.(forkPoint);
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Failed to detect fork point', 'error');
+    }
+  }
+
   async function showBranchContextMenu(e: MouseEvent, branchName: string, isHead: boolean) {
     const { Menu, MenuItem, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
     const headBranchName = refs?.local.find(b => b.is_head)?.name;
@@ -342,6 +353,10 @@
           await MenuItem.new({
             text: `Rebase ${headBranchName} onto ${branchName}`,
             action: () => { handleRebaseBranch(branchName).catch(() => {}); },
+          }),
+          await MenuItem.new({
+            text: `Interactive Rebase ${branchName}...`,
+            action: () => { handleInteractiveRebase(branchName).catch(() => {}); },
           }),
         ] : []),
         await PredefinedMenuItem.new({ item: 'Separator' }),
@@ -385,6 +400,10 @@
         await MenuItem.new({
           text: `Rebase ${headBranchName} onto ${fullRefName}`,
           action: () => { handleRebaseBranch(fullRefName).catch(() => {}); },
+        }),
+        await MenuItem.new({
+          text: `Interactive Rebase ${fullRefName}...`,
+          action: () => { handleInteractiveRebase(fullRefName).catch(() => {}); },
         }),
       ],
     });

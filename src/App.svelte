@@ -7,11 +7,14 @@
   import StagingPanel from './components/StagingPanel.svelte';
   import DiffPanel from './components/DiffPanel.svelte';
   import MergeEditor from './components/MergeEditor.svelte';
+  import RebaseEditor from './components/RebaseEditor.svelte';
+  import InputDialog from './components/InputDialog.svelte';
   import CommitDetail from './components/CommitDetail.svelte';
   import Toast from './components/Toast.svelte';
   import { safeInvoke } from './lib/invoke.js';
+  import { showToast } from './lib/toast.svelte.js';
   import { getZoomLevel, setZoomLevel, getLeftPaneWidth, setLeftPaneWidth, getRightPaneWidth, setRightPaneWidth, getLeftPaneCollapsed, setLeftPaneCollapsed, getRightPaneCollapsed, setRightPaneCollapsed, getOpenRepo, setOpenRepo } from './lib/store.js';
-  import type { FileDiff, CommitDetail as CommitDetailType, RefsResponse, WorkingTreeStatus } from './lib/types.js';
+  import type { FileDiff, CommitDetail as CommitDetailType, RefsResponse, WorkingTreeStatus, RebaseTodoItem } from './lib/types.js';
 
   interface DirtyCounts {
     staged: number;
@@ -44,6 +47,16 @@
 
   // CommitGraph component ref — used to call scrollToOid for ref navigation (GRAPH-03)
   let commitGraphRef = $state<{ scrollToOid: (oid: string) => Promise<void> } | null>(null);
+
+  // Rebase editor state
+  let showRebaseEditor = $state(false);
+  let rebaseEditorCommits = $state<RebaseTodoItem[]>([]);
+  let rebaseBaseOid = $state('');
+
+  // Reword/squash message dialog state
+  let showMessageDialog = $state(false);
+  let messageDialogTitle = $state('');
+  let messageDialogMessage = $state('');
 
   const wipCount = $derived(dirtyCounts.staged + dirtyCounts.unstaged + dirtyCounts.conflicted);
 
@@ -261,6 +274,20 @@
   });
 
   $effect(() => {
+    let unlisten2: (() => void) | undefined;
+    listen<string>('rebase-message-needed', (event) => {
+      const msg = event.payload;
+      // Detect if this is a squash (message contains "# This is a combination of")
+      const isSquash = msg.includes('# This is a combination of');
+      messageDialogTitle = isSquash ? 'Squash Commits' : 'Reword Commit';
+      // Strip git comment lines (lines starting with #) for cleaner editing
+      messageDialogMessage = msg.split('\n').filter(line => !line.startsWith('#')).join('\n').trim();
+      showMessageDialog = true;
+    }).then((fn) => { unlisten2 = fn; });
+    return () => { unlisten2?.(); };
+  });
+
+  $effect(() => {
     getOpenRepo().then(async (repo) => {
       if (!repo) return;
       try {
@@ -290,7 +317,7 @@
 
   $effect(() => {
     function handleKeydown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && (showDiff || showMergeEditor)) {
+      if (e.key === 'Escape' && !showRebaseEditor && (showDiff || showMergeEditor)) {
         e.preventDefault();
         handleDiffClose();
         return;
@@ -382,6 +409,64 @@
     window.addEventListener('mouseup', onMouseUp);
   }
 
+  async function handleOpenRebaseEditor(baseOid: string) {
+    if (!repoPath) return;
+    try {
+      const todoItems = await safeInvoke<RebaseTodoItem[]>('get_rebase_todo', { path: repoPath, baseOid });
+      if (todoItems.length === 0) return;
+      rebaseEditorCommits = todoItems;
+      rebaseBaseOid = baseOid;
+      // Clear any open diffs/selections before showing editor
+      clearStagingDiff();
+      clearCommit();
+      showRebaseEditor = true;
+    } catch (e) {
+      const err = e as { message?: string };
+      showToast(err.message ?? 'Failed to load commits for rebase', 'error');
+    }
+  }
+
+  function handleRebaseEditorClose() {
+    showRebaseEditor = false;
+    rebaseEditorCommits = [];
+    rebaseBaseOid = '';
+  }
+
+  async function handleRebaseStart(todoItems: { oid: string; action: string; summary: string }[]) {
+    if (!repoPath) return;
+    // IMPORTANT: Capture baseOid BEFORE closing editor, because
+    // handleRebaseEditorClose() resets rebaseBaseOid to ''
+    const baseOid = rebaseBaseOid;
+    // Close editor immediately per user decision
+    handleRebaseEditorClose();
+    try {
+      await safeInvoke('start_interactive_rebase', {
+        path: repoPath,
+        baseOid,
+        todoItems,
+      });
+    } catch (e) {
+      const err = e as { message?: string };
+      showToast(err.message ?? 'Rebase failed', 'error');
+    }
+  }
+
+  async function handleMessageDialogSubmit(values: Record<string, string>) {
+    showMessageDialog = false;
+    try {
+      await safeInvoke('submit_rebase_message', { message: values.message });
+    } catch (e) {
+      const err = e as { message?: string };
+      showToast(err.message ?? 'Failed to submit message', 'error');
+    }
+  }
+
+  function handleMessageDialogCancel() {
+    // "Keep Original" -- submit the original message unchanged
+    showMessageDialog = false;
+    safeInvoke('submit_rebase_message', { message: messageDialogMessage }).catch(() => {});
+  }
+
   async function handleClose() {
     if (repoPath) {
       try {
@@ -424,12 +509,18 @@
     </div>
     <main class="flex-1 overflow-hidden flex">
       <div style="width: {leftPaneCollapsed ? 0 : leftPaneWidth}px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
-        <BranchSidebar repoPath={repoPath!} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} />
+        <BranchSidebar repoPath={repoPath!} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} onopenrebaseeditor={handleOpenRebaseEditor} />
       </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
       <div class="flex-1 overflow-hidden">
-        {#if showMergeEditor && selectedFile}
+        {#if showRebaseEditor}
+          <RebaseEditor
+            commits={rebaseEditorCommits}
+            onclose={handleRebaseEditorClose}
+            onstart={handleRebaseStart}
+          />
+        {:else if showMergeEditor && selectedFile}
           <MergeEditor
             repoPath={repoPath!}
             filePath={selectedFile.path}
@@ -451,7 +542,7 @@
             onclose={handleDiffClose}
           />
         {:else}
-          <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} />
+          <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} />
         {/if}
       </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -473,4 +564,20 @@
     </main>
   {/if}
   <Toast />
+  {#if showMessageDialog}
+    <InputDialog
+      title={messageDialogTitle}
+      fields={[{
+        key: 'message',
+        label: 'Commit Message',
+        multiline: true,
+        required: true,
+        defaultValue: messageDialogMessage,
+      }]}
+      confirmLabel="Save Message"
+      cancelLabel="Keep Original"
+      onsubmit={handleMessageDialogSubmit}
+      oncancel={handleMessageDialogCancel}
+    />
+  {/if}
 </div>
