@@ -50,7 +50,7 @@ Exceptions: none — this phase introduces no new layout elements. All spacing i
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 13px | 400 (regular) | 1.5 |
-| Label | 12px | 500 (medium) | 1.4 |
+| Label | 12px | 400 (regular) | 1.4 |
 | Heading | 14px | 600 (semibold) | 1.2 |
 
 **Phase-specific note:** Context menu text is rendered by the native OS menu system — font size and weight are not controlled by the application. The above values apply only to existing components (Toast, OperationBanner) that are already implemented and use these values. No new typography declarations needed.
