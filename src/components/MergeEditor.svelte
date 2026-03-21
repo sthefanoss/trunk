@@ -359,12 +359,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-    " class="icon-gutter">
+    ">
       {#if taken}
-        <span class="taken-icon"><Check size={14} style="color: var(--color-merge-taken-check);" /></span>
-        <span class="remove-icon"><CircleX size={14} style="color: var(--color-merge-remove-icon);" /></span>
+        <span class="icon-taken"><Check size={14} style="color: var(--color-merge-taken-check);" /></span>
+        <span class="icon-remove"><CircleX size={14} style="color: var(--color-merge-remove-icon);" /></span>
       {:else}
-        <span class="untaken-icon"><CircleCheck size={14} style="color: var(--color-text-muted); opacity: 0.4;" /></span>
+        <span class="icon-add"><Check size={14} style="color: var(--color-merge-taken-check);" /></span>
       {/if}
     </span>
     <span style="
@@ -694,20 +694,22 @@
 </div>
 
 <style>
-  /* Icon hover: show remove icon on taken lines, show dimmed check on untaken */
-  .icon-gutter .remove-icon {
+  /* Untaken lines: no icon by default, show green check on row hover */
+  .merge-line .icon-add {
     display: none;
   }
-  .icon-gutter:hover .taken-icon {
-    display: none;
-  }
-  .icon-gutter:hover .remove-icon {
+  .merge-line:hover .icon-add {
     display: inline-flex;
   }
-  .icon-gutter .untaken-icon {
+
+  /* Taken lines: show green check by default, swap to red X on row hover */
+  .merge-line .icon-remove {
     display: none;
   }
-  .icon-gutter:hover .untaken-icon {
+  .merge-line:hover .icon-taken {
+    display: none;
+  }
+  .merge-line:hover .icon-remove {
     display: inline-flex;
   }
 </style>
