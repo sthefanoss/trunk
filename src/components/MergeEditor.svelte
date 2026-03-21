@@ -577,35 +577,28 @@
 
     <!-- Bottom panel: Output (50% height) -->
     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border-top: 1px solid var(--color-border);">
-      <!-- Header -->
+      <!-- Header: 3-column grid so the nav naturally centers -->
       <div style="
         height: 28px;
         background: var(--color-merge-output-header);
         border-bottom: 1px solid var(--color-merge-output-border);
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
         align-items: center;
         padding: 0 8px;
-        gap: 8px;
         flex-shrink: 0;
-        position: relative;
       ">
-        <span style="font-size: 12px; color: var(--color-text);">Output</span>
-        {#if manualEdit}
-          <span style="font-size: 10px; color: var(--color-text-muted);">(manual edit)</span>
-        {/if}
-        <span style="flex: 1;"></span>
+        <!-- Left: label -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; color: var(--color-text);">Output</span>
+          {#if manualEdit}
+            <span style="font-size: 10px; color: var(--color-text-muted);">(manual edit)</span>
+          {/if}
+        </div>
 
-        {#if hasConflicts}
-          <div style="
-            position: absolute;
-            left: 50%;
-            top: 0;
-            height: 100%;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 2px;
-          ">
+        <!-- Center: conflict navigation -->
+        <div style="display: flex; align-items: center; gap: 2px;">
+          {#if hasConflicts}
             <button
               onclick={handlePrevConflict}
               disabled={!hasPrev}
@@ -637,42 +630,41 @@
                 align-items: center;
               "
             ><ChevronDown size={16} /></button>
-          </div>
-        {/if}
+          {/if}
+        </div>
 
-        <!-- Save and Mark Resolved -->
-        <button
-          onclick={handleSaveAndResolve}
-          disabled={saving}
-          style="
-            background: var(--color-btn-continue-bg);
-            border: 1px solid var(--color-btn-continue-border);
-            border-radius: 3px;
-            color: var(--color-btn-continue);
-            font-size: 11px;
-            font-family: var(--font-sans, sans-serif);
-            padding: 2px 8px;
-            cursor: {saving ? 'not-allowed' : 'pointer'};
-            opacity: {saving ? 0.4 : 1};
-            white-space: nowrap;
-            flex-shrink: 0;
-          "
-        >Save and Mark Resolved</button>
-
-        <!-- Close button -->
-        <button
-          onclick={onclose}
-          aria-label="Close merge editor"
-          style="
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--color-text-muted);
-            padding: 2px;
-            display: flex;
-            align-items: center;
-          "
-        ><X size={16} /></button>
+        <!-- Right: actions -->
+        <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+          <button
+            onclick={handleSaveAndResolve}
+            disabled={saving}
+            style="
+              background: var(--color-btn-continue-bg);
+              border: 1px solid var(--color-btn-continue-border);
+              border-radius: 3px;
+              color: var(--color-btn-continue);
+              font-size: 11px;
+              font-family: var(--font-sans, sans-serif);
+              padding: 2px 8px;
+              cursor: {saving ? 'not-allowed' : 'pointer'};
+              opacity: {saving ? 0.4 : 1};
+              white-space: nowrap;
+            "
+          >Save and Mark Resolved</button>
+          <button
+            onclick={onclose}
+            aria-label="Close merge editor"
+            style="
+              background: none;
+              border: none;
+              cursor: pointer;
+              color: var(--color-text-muted);
+              padding: 2px;
+              display: flex;
+              align-items: center;
+            "
+          ><X size={16} /></button>
+        </div>
       </div>
 
       <!-- Editable output textarea -->
