@@ -31,11 +31,13 @@
   let conflicted_expanded = $state(true);
   let operationInfo = $state<OperationInfo | null>(null);
 
+  let isMerge = $derived(operationInfo?.op_type === 'Merge');
   let totalCount = $derived(
     (status?.unstaged.length ?? 0) +
     (status?.staged.length ?? 0) +
     (status?.conflicted.length ?? 0)
   );
+  let allResolved = $derived((status?.conflicted.length ?? 0) === 0);
 
   async function loadOperationState() {
     const result = await safeInvoke<OperationInfo>('get_operation_state', { path: repoPath });
@@ -178,6 +180,50 @@
     }
   }
 
+  // ---------- Merge-mode actions ----------
+  async function markAllResolved() {
+    for (const f of status?.conflicted ?? []) {
+      await safeInvoke('stage_file', { path: repoPath, filePath: f.path });
+    }
+    await loadStatus();
+  }
+
+  let mergeLoading = $state(false);
+
+  async function commitMerge() {
+    mergeLoading = true;
+    try {
+      await safeInvoke('merge_continue', { path: repoPath });
+      showToast('Merge completed', 'success');
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Merge commit failed', 'error');
+    } finally {
+      mergeLoading = false;
+      await loadStatus();
+    }
+  }
+
+  async function abortMerge() {
+    const { ask } = await import('@tauri-apps/plugin-dialog');
+    const confirmed = await ask(
+      'Abort merge? This will discard all merge progress and return to the previous state.',
+      { title: 'Abort Merge', kind: 'warning' }
+    );
+    if (!confirmed) return;
+    mergeLoading = true;
+    try {
+      await safeInvoke('merge_abort', { path: repoPath });
+      showToast('Merge aborted', 'success');
+    } catch (e) {
+      const err = e as TrunkError;
+      showToast(err.message ?? 'Abort failed', 'error');
+    } finally {
+      mergeLoading = false;
+      await loadStatus();
+    }
+  }
+
   // Initial load on mount
   $effect(() => {
     if (repoPath) loadStatus();
@@ -250,8 +296,8 @@
 
   <!-- File sections flex container (50/50 split when both expanded) -->
   <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
-    <!-- Conflicted Files section (top, above unstaged/staged) -->
-    {#if (status?.conflicted.length ?? 0) > 0}
+    <!-- Conflicted Files section (non-merge only — during merge, conflicts show in unstaged area) -->
+    {#if !isMerge && (status?.conflicted.length ?? 0) > 0}
       <div style="
         display: flex;
         flex-direction: column;
@@ -336,58 +382,98 @@
         <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">
           {#if unstaged_expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
         </span>
-        <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
-          Unstaged Files ({status?.unstaged.length ?? 0})
-        </span>
-        {#if (status?.unstaged.length ?? 0) > 0}
-          <button
-            onclick={(e) => { e.stopPropagation(); handleDiscardAll(); }}
-            style="
-              background: var(--color-btn-discard-bg);
-              color: var(--color-btn-discard);
-              font-size: 11px;
-              border: 1px solid var(--color-btn-discard-border);
-              border-radius: 4px;
-              cursor: pointer;
-              padding: 2px 8px;
-              white-space: nowrap;
-            "
-            aria-label="Discard all changes"
-          >
-            Discard All
-          </button>
-          <button
-            onclick={(e) => { e.stopPropagation(); stageAll(); }}
-            style="
-              background: var(--color-btn-stage-bg);
-              color: var(--color-btn-stage);
-              font-size: 11px;
-              border: 1px solid var(--color-btn-stage-border);
-              border-radius: 4px;
-              cursor: pointer;
-              padding: 2px 8px;
-              white-space: nowrap;
-              margin-left: 4px;
-            "
-            aria-label="Stage all changes"
-          >
-            Stage All Changes
-          </button>
+        {#if isMerge}
+          <span style="color: var(--color-badge-warning); display: inline-flex; align-items: center; margin-right: 4px;">
+            <AlertTriangle size={12} />
+          </span>
+          <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
+            Conflicted Files ({status?.conflicted.length ?? 0})
+          </span>
+          {#if (status?.conflicted.length ?? 0) > 0}
+            <button
+              onclick={(e) => { e.stopPropagation(); markAllResolved(); }}
+              style="
+                background: var(--color-btn-stage-bg);
+                color: var(--color-btn-stage);
+                font-size: 11px;
+                border: 1px solid var(--color-btn-stage-border);
+                border-radius: 4px;
+                cursor: pointer;
+                padding: 2px 8px;
+                white-space: nowrap;
+              "
+              aria-label="Mark all as resolved"
+            >
+              Mark All as Resolved
+            </button>
+          {/if}
+        {:else}
+          <span style="color: var(--color-text); font-size: 12px; font-weight: 500; flex: 1;">
+            Unstaged Files ({status?.unstaged.length ?? 0})
+          </span>
+          {#if (status?.unstaged.length ?? 0) > 0}
+            <button
+              onclick={(e) => { e.stopPropagation(); handleDiscardAll(); }}
+              style="
+                background: var(--color-btn-discard-bg);
+                color: var(--color-btn-discard);
+                font-size: 11px;
+                border: 1px solid var(--color-btn-discard-border);
+                border-radius: 4px;
+                cursor: pointer;
+                padding: 2px 8px;
+                white-space: nowrap;
+              "
+              aria-label="Discard all changes"
+            >
+              Discard All
+            </button>
+            <button
+              onclick={(e) => { e.stopPropagation(); stageAll(); }}
+              style="
+                background: var(--color-btn-stage-bg);
+                color: var(--color-btn-stage);
+                font-size: 11px;
+                border: 1px solid var(--color-btn-stage-border);
+                border-radius: 4px;
+                cursor: pointer;
+                padding: 2px 8px;
+                white-space: nowrap;
+                margin-left: 4px;
+              "
+              aria-label="Stage all changes"
+            >
+              Stage All Changes
+            </button>
+          {/if}
         {/if}
       </div>
 
       {#if unstaged_expanded}
         <div style="flex: 1; overflow-y: auto; min-height: 0;" role="list">
-          {#each status?.unstaged ?? [] as f (f.path)}
-            <FileRow
-              file={f}
-              actionLabel="+"
-              isLoading={loadingFiles.has(f.path)}
-              onaction={() => stageFile(f.path)}
-              onclick={() => onfileselect?.(f.path, 'unstaged')}
-              oncontextmenu={(e) => showUnstagedContextMenu(e, f.path, f.status)}
-            />
-          {/each}
+          {#if isMerge}
+            {#each status?.conflicted ?? [] as f (f.path)}
+              <FileRow
+                file={f}
+                actionLabel="✓"
+                isLoading={loadingFiles.has(f.path)}
+                onaction={() => stageFile(f.path)}
+                onclick={() => onfileselect?.(f.path, 'conflicted')}
+                oncontextmenu={(e) => showConflictedContextMenu(e, f.path)}
+              />
+            {/each}
+          {:else}
+            {#each status?.unstaged ?? [] as f (f.path)}
+              <FileRow
+                file={f}
+                actionLabel="+"
+                isLoading={loadingFiles.has(f.path)}
+                onaction={() => stageFile(f.path)}
+                onclick={() => onfileselect?.(f.path, 'unstaged')}
+                oncontextmenu={(e) => showUnstagedContextMenu(e, f.path, f.status)}
+              />
+            {/each}
+          {/if}
         </div>
       {/if}
     </div>
@@ -463,9 +549,55 @@
     {/if}
   </div>
 
-  <!-- Permanent divider above commit form -->
+  <!-- Permanent divider above bottom area -->
   <div style="flex-shrink: 0; border-top: 1px solid var(--color-border);"></div>
 
-  <!-- CommitForm — always visible at bottom -->
-  <CommitForm {repoPath} stagedCount={status?.staged.length ?? 0} {onsubjectchange} />
+  {#if isMerge}
+    <!-- Merge actions — replaces CommitForm during merge -->
+    <div style="
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    ">
+      <button
+        onclick={commitMerge}
+        disabled={!allResolved || mergeLoading}
+        style="
+          width: 100%;
+          height: 28px;
+          background: var(--color-accent);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: {allResolved && !mergeLoading ? 'pointer' : 'not-allowed'};
+          opacity: {allResolved && !mergeLoading ? 1 : 0.4};
+        "
+      >
+        {mergeLoading ? 'Committing...' : 'Commit and Merge'}
+      </button>
+      <button
+        onclick={abortMerge}
+        disabled={mergeLoading}
+        style="
+          width: 100%;
+          height: 28px;
+          background: var(--color-btn-abort-bg);
+          color: var(--color-btn-abort);
+          border: 1px solid var(--color-btn-abort-border);
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: {mergeLoading ? 'not-allowed' : 'pointer'};
+          opacity: {mergeLoading ? 0.4 : 1};
+        "
+      >
+        Abort Merge
+      </button>
+    </div>
+  {:else}
+    <!-- CommitForm — normal mode -->
+    <CommitForm {repoPath} stagedCount={status?.staged.length ?? 0} {onsubjectchange} />
+  {/if}
 </div>
