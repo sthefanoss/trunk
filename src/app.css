@@ -50,6 +50,17 @@
   --color-badge-warning: #facc15;
   --color-badge-warning-bg: rgba(250, 204, 21, 0.15);
 
+  /* Merge editor panel headers */
+  --color-merge-current-header: rgba(56, 139, 253, 0.15);
+  --color-merge-current-border: #58a6ff;
+  --color-merge-incoming-header: rgba(74, 222, 128, 0.15);
+  --color-merge-incoming-border: #4ade80;
+  --color-merge-output-header: rgba(139, 148, 158, 0.1);
+  --color-merge-output-border: #8b949e;
+  --color-merge-taken-check: #4ade80;
+  --color-merge-remove-icon: #f87171;
+  --color-merge-dimmed: 0.5;
+
   /* Hunk highlight flash */
   --color-hunk-flash: rgba(96, 165, 250, 0.3);
 
