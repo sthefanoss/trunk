@@ -69,6 +69,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 - ✓ Conflicted file detection and display in staging panel — v0.8
 - ✓ Operation state banner (merge/rebase in progress) with Continue/Abort/Skip — v0.8
 - ✓ Read-only diff for conflicted files showing conflict markers — v0.8
+- ✓ Merge via branch context menu (sidebar + graph pill + overflow ref) — v0.8
 
 ### Active
 
@@ -104,7 +105,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 ## Context
 
 - **Stack**: Tauri 2 + Svelte 5 (Vite SPA, not SvelteKit) + Rust with `git2` crate (libgit2 bindings)
-- **Current state**: Shipped v0.7 with 36 phases complete across 7 milestones. Phase 37 complete in v0.8 (Conflict & Rebase). ~8,200 LOC TypeScript/Svelte, ~7,700 LOC Rust.
+- **Current state**: Shipped v0.7 with 36 phases complete across 7 milestones. Phases 37-39 complete in v0.8 (Conflict & Rebase). ~8,200 LOC TypeScript/Svelte, ~7,700 LOC Rust.
 - **Architecture**: Svelte UI communicates with Rust backend via Tauri `invoke` (commands) and `listen` (events). Rust holds `RepoState` (path-keyed PathBuf registry), `CommitCache` (cached GraphResult with max_columns), `WatcherState` (filesystem watchers), and `RunningOp` (active remote process PID) in managed state.
 - **Remote ops**: `git2` for all local read/write; git CLI subprocess for remote operations (fetch/pull/push) and cherry-pick/revert with `GIT_TERMINAL_PROMPT=0` + `GIT_SSH_COMMAND=ssh -o BatchMode=yes`
 - **Graph rendering (v0.5)**: Single SVG overlay spanning full graph height inside virtual list scroll container. Rust lane algorithm (O(n), ~5ms for 10k commits) outputs GraphCommit[]; TypeScript Active Lanes transformation computes global grid coordinates with edge coalescing. Cubic bezier curves for cross-lane connections, continuous vertical rails for same-lane. Three-layer z-ordered `<g>` groups (rails → edges → dots). Virtualized element filtering with O(1) range-intersection. SVG ref pills with Canvas text measurement and hover expansion.
