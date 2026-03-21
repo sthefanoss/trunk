@@ -28,8 +28,8 @@ Requirements for v0.8 Conflict & Rebase milestone. GitKraken-parity scope.
 ### Merge Workflow
 
 - [x] **MERGE-01**: User can merge a branch into the current branch via right-click context menu on a branch (sidebar or graph pill)
-- [x] **MERGE-02**: User can initiate merge by dragging a branch onto another branch in the graph, selecting "Merge" from the resulting context menu
-- [x] **MERGE-03**: Fast-forward merges advance the branch pointer without creating a merge commit, with toast confirmation
+- [ ] **MERGE-02**: ~~User can initiate merge by dragging a branch onto another branch in the graph~~ — Dropped per user decision (no drag-and-drop)
+- [x] **MERGE-03**: Fast-forward merges advance the branch pointer without creating a merge commit silently (no toast), graph refreshes
 - [x] **MERGE-04**: Non-conflicting merges auto-create a merge commit with standard message and refresh the graph
 
 ### Rebase Workflow
@@ -94,7 +94,7 @@ Deferred differentiators beyond GitKraken parity.
 | OPS-02 | Phase 37 | Complete |
 | OPS-03 | Phase 37 | Complete |
 | MERGE-01 | Phase 39 | Complete |
-| MERGE-02 | Phase 39 | Complete |
+| MERGE-02 | Phase 39 | Dropped |
 | MERGE-03 | Phase 39 | Complete |
 | MERGE-04 | Phase 39 | Complete |
 | REB-01 | Phase 40 | Pending |
