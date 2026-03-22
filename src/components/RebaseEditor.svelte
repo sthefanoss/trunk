@@ -1,5 +1,6 @@
 <script lang="ts">
   import Sortable from 'sortablejs';
+  import { safeInvoke } from '../lib/invoke.js';
   import { ROW_HEIGHT, COLUMN_PADDING_X } from '../lib/graph-constants.js';
   import { validateRebasePlan } from '../lib/rebase-validation.js';
   import type { RebaseTodoItem } from '../lib/types.js';
@@ -24,6 +25,7 @@
   }
 
   interface Props {
+    repoPath: string;
     commits: RebaseTodoItem[];
     branchName: string;
     baseName: string;
@@ -32,7 +34,7 @@
     onfocuschange?: (oid: string) => void;
   }
 
-  let { commits, branchName, baseName, onclose, onstart, onfocuschange }: Props = $props();
+  let { repoPath, commits, branchName, baseName, onclose, onstart, onfocuschange }: Props = $props();
 
   function toRebaseCommits(source: RebaseTodoItem[]): RebaseCommit[] {
     // Reverse: backend sends oldest-first (for git), but we display newest-first (like the graph)
@@ -51,6 +53,11 @@
   let originalItems = $state<RebaseCommit[]>(structuredClone(toRebaseCommits(commits)));
   let focusedIndex = $state<number>(0);
   let listEl: HTMLDivElement | undefined = $state();
+
+  // Inline message editor state
+  let editingIdx = $state<number | null>(null);
+  let editingSummary = $state('');
+  let editingBody = $state('');
   let columnWidths = $state<RebaseColumnWidths>({ sha: 80, author: 120, date: 100 });
   let columnVisibility = $state<RebaseColumnVisibility>({ sha: true, author: true, date: true });
 
@@ -215,6 +222,7 @@
       case 'R':
         e.preventDefault();
         items[focusedIndex].action = 'reword';
+        openMessageEditor(focusedIndex);
         break;
       case 'd':
       case 'D':
@@ -256,10 +264,57 @@
     node.focus();
   }
 
+  // --- Inline message editor ---
+
+  async function openMessageEditor(idx: number) {
+    const item = items[idx];
+    if (item.action === 'drop' || item.action === 'squash') return;
+    focusedIndex = idx;
+
+    if (item.newMessage != null) {
+      // Already edited — split summary/body from stored message
+      const lines = item.newMessage.split('\n');
+      editingSummary = lines[0] ?? '';
+      editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
+    } else {
+      // Fetch full commit message
+      editingSummary = item.summary;
+      try {
+        const detail = await safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
+          path: repoPath,
+          oid: item.oid,
+        });
+        editingSummary = detail.summary;
+        editingBody = detail.body ?? '';
+      } catch {
+        editingBody = '';
+      }
+    }
+
+    editingIdx = idx;
+    // Auto-set to reword if currently pick
+    if (item.action === 'pick') item.action = 'reword';
+  }
+
+  function handleMessageUpdate() {
+    if (editingIdx === null) return;
+    const fullMsg = editingBody.trim()
+      ? `${editingSummary.trim()}\n\n${editingBody.trim()}`
+      : editingSummary.trim();
+    items[editingIdx].newMessage = fullMsg;
+    // Update displayed summary to match
+    items[editingIdx].summary = editingSummary.trim();
+    editingIdx = null;
+  }
+
+  function handleMessageCancel() {
+    editingIdx = null;
+  }
+
   // --- Toolbar handlers ---
 
   function handleReset() {
-    items = structuredClone(originalItems);
+    items = toRebaseCommits(commits);
     focusedIndex = 0;
   }
 
@@ -359,6 +414,7 @@
         class:rebase-row-squash={item.action === 'squash'}
         data-rebase-row={idx}
         onclick={() => (focusedIndex = idx)}
+        ondblclick={() => { if (item.action === 'pick' || item.action === 'reword') openMessageEditor(idx); }}
         style="height: {ROW_HEIGHT}px;"
       >
         <!-- Action column -->
@@ -371,6 +427,7 @@
             class="rebase-select"
             bind:value={item.action}
             onclick={(e) => e.stopPropagation()}
+            onchange={() => { if (item.action === 'reword') openMessageEditor(idx); }}
           >
             <option value="pick">Pick</option>
             <option value="reword">Reword</option>
@@ -422,6 +479,30 @@
       {#if errorForIndex(idx)}
         <div class="rebase-validation-error">
           {errorForIndex(idx)}
+        </div>
+      {/if}
+
+      <!-- Inline message editor -->
+      {#if editingIdx === idx}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="rebase-msg-editor" onkeydown={(e) => e.stopPropagation()}>
+          <div class="rebase-msg-editor-title">Reword commit message</div>
+          <input
+            class="rebase-msg-editor-summary"
+            type="text"
+            placeholder="Summary (required)"
+            bind:value={editingSummary}
+          />
+          <textarea
+            class="rebase-msg-editor-body"
+            placeholder="Body (optional)"
+            rows="4"
+            bind:value={editingBody}
+          ></textarea>
+          <div class="rebase-msg-editor-buttons">
+            <button class="rebase-btn rebase-btn-ghost" onclick={handleMessageCancel}>Cancel</button>
+            <button class="rebase-btn rebase-btn-start" onclick={handleMessageUpdate}>Update Message</button>
+          </div>
         </div>
       {/if}
     {/each}
@@ -737,6 +818,63 @@
 
   .rebase-cell-date {
     color: var(--color-text-muted);
+  }
+
+  /* --- Inline message editor --- */
+
+  .rebase-msg-editor {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 12px;
+    margin: 4px 24px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .rebase-msg-editor-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .rebase-msg-editor-summary {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    padding: 6px 8px;
+    outline: none;
+  }
+
+  .rebase-msg-editor-summary:focus {
+    border-color: var(--color-accent);
+  }
+
+  .rebase-msg-editor-body {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    padding: 6px 8px;
+    resize: vertical;
+    outline: none;
+  }
+
+  .rebase-msg-editor-body:focus {
+    border-color: var(--color-accent);
+  }
+
+  .rebase-msg-editor-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   /* --- Validation error --- */

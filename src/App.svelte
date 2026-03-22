@@ -499,6 +499,9 @@
       const needsEdit = group.target.action === 'reword' || hasSquashes;
       if (!needsEdit || group.target.action === 'drop') continue;
 
+      // Skip standalone rewords already edited inline
+      if (!hasSquashes && group.target.action === 'reword' && group.target.newMessage != null) continue;
+
       const allItems = [group.target, ...group.squashes];
       const allOids = allItems.map((i) => i.oid);
 
@@ -650,6 +653,7 @@
             />
           {:else}
             <RebaseEditor
+              repoPath={repoPath!}
               commits={rebaseEditorCommits}
               branchName={rebaseBranchName}
               baseName={rebaseBaseName}
