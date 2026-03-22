@@ -123,8 +123,20 @@ pub fn start_interactive_rebase_blocking(
     std::fs::write(&todo_path, &todo_content)
         .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
 
-    // 2. Build GIT_SEQUENCE_EDITOR command
-    let seq_editor = format!("cp \"{}\" \"$1\"", todo_path.display());
+    // 2. Write GIT_SEQUENCE_EDITOR script (script file for reliable $1 handling)
+    let seq_editor_path = session_dir.join("trunk-seq-editor.sh");
+    let seq_editor_script = format!(
+        "#!/bin/sh\ncp \"{}\" \"$1\"\n",
+        todo_path.display(),
+    );
+    std::fs::write(&seq_editor_path, &seq_editor_script)
+        .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&seq_editor_path, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
+    }
 
     // 3. Write GIT_EDITOR helper script
     let editor_script_path = session_dir.join("trunk-rebase-editor.sh");
@@ -157,7 +169,7 @@ pub fn start_interactive_rebase_blocking(
         .args(["rebase", "-i", base_oid])
         .current_dir(path_buf)
         .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SEQUENCE_EDITOR", &seq_editor)
+        .env("GIT_SEQUENCE_EDITOR", seq_editor_path.to_str().unwrap())
         .env("GIT_EDITOR", editor_script_path.to_str().unwrap())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
