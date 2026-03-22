@@ -361,6 +361,7 @@
         class="rebase-row"
         class:rebase-row-focused={focusedIndex === idx}
         class:rebase-row-drop={item.action === 'drop'}
+        class:rebase-row-squash={item.action === 'squash'}
         data-rebase-row={idx}
         onclick={() => (focusedIndex = idx)}
         style="height: {ROW_HEIGHT}px;"
@@ -564,6 +565,15 @@
 
   .rebase-row-drop {
     opacity: var(--color-rebase-drop-opacity);
+  }
+
+  .rebase-row-squash {
+    padding-left: 16px;
+    border-left: 2px solid var(--color-rebase-squash);
+  }
+
+  .rebase-row-squash.rebase-row-focused {
+    border-left: 2px solid var(--color-rebase-squash);
   }
 
   :global(.rebase-row-ghost) {
