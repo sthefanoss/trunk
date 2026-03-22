@@ -1,14 +1,10 @@
 use std::collections::HashMap;
-use std::io::Read;
 use std::path::PathBuf;
-use std::sync::Mutex as StdMutex;
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, State};
 use crate::error::TrunkError;
 use crate::git::{graph, types::RebaseTodoItem};
 use crate::state::{CommitCache, RepoState};
-
-static REBASE_SESSION_DIR: StdMutex<Option<PathBuf>> = StdMutex::new(None);
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -107,7 +103,6 @@ pub fn start_interactive_rebase_blocking(
     todo_items: &[RebaseTodoAction],
     session_dir: &std::path::Path,
     state_map: &HashMap<String, PathBuf>,
-    app: &AppHandle,
 ) -> Result<crate::git::types::GraphResult, TrunkError> {
     let path_buf = state_map
         .get(path)
@@ -140,54 +135,34 @@ pub fn start_interactive_rebase_blocking(
             .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
     }
 
-    // 3. Write pre-edited message files (for reword/squash with user-provided messages)
+    // 3. Write pre-edited message files (consumed by GIT_EDITOR in order)
     let msg_queue_dir = session_dir.join("msg-queue");
     let _ = std::fs::create_dir_all(&msg_queue_dir);
     let mut msg_index = 0u32;
     for item in todo_items.iter().filter(|i| i.action != "drop") {
-        if let Some(ref new_msg) = item.new_message {
-            let msg_file = msg_queue_dir.join(format!("{:04}", msg_index));
-            std::fs::write(&msg_file, new_msg)
-                .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
-        }
         if item.action == "reword" || item.action == "squash" {
+            if let Some(ref new_msg) = item.new_message {
+                let msg_file = msg_queue_dir.join(format!("{:04}", msg_index));
+                std::fs::write(&msg_file, new_msg)
+                    .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
+            }
             msg_index += 1;
         }
     }
 
-    // 4. Write GIT_EDITOR script — checks for pre-edited message, falls back to signal/wait
+    // 4. Write GIT_EDITOR script — consumes the first available message file, or accepts default
     let editor_script_path = session_dir.join("trunk-rebase-editor.sh");
-    let signal_path = session_dir.join("trunk-rebase-msg-needed");
-    let input_path = session_dir.join("trunk-rebase-msg-input");
-    let response_path = session_dir.join("trunk-rebase-msg-response");
-    let counter_path = session_dir.join("trunk-rebase-msg-counter");
-
-    // Initialize counter
-    std::fs::write(&counter_path, "0")
-        .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
-
     let editor_script = format!(
         r#"#!/bin/sh
-COUNTER=$(cat "{counter}")
-PADDED=$(printf "%04d" "$COUNTER")
-MSG_FILE="{queue}/$PADDED"
-echo $((COUNTER + 1)) > "{counter}"
-if [ -f "$MSG_FILE" ]; then
-  cp "$MSG_FILE" "$1"
+MSG=$(ls -1 "{queue}/" 2>/dev/null | sort | head -1)
+if [ -n "$MSG" ]; then
+  cp "{queue}/$MSG" "$1"
+  rm "{queue}/$MSG"
   exit 0
 fi
-cp "$1" "{input}"
-touch "{signal}"
-while [ ! -f "{response}" ]; do sleep 0.1; done
-cp "{response}" "$1"
-rm -f "{signal}" "{response}"
 exit 0
 "#,
-        counter = counter_path.display(),
         queue = msg_queue_dir.display(),
-        input = input_path.display(),
-        signal = signal_path.display(),
-        response = response_path.display(),
     );
     std::fs::write(&editor_script_path, &editor_script)
         .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
@@ -198,87 +173,27 @@ exit 0
             .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
     }
 
-    // 5. Clean up stale signal/response files from previous sessions
-    let _ = std::fs::remove_file(&signal_path);
-    let _ = std::fs::remove_file(&response_path);
-    let _ = std::fs::remove_file(&input_path);
-
-    // 6. Spawn git rebase -i
-    let mut child = std::process::Command::new("git")
+    // 5. Run git rebase -i (blocking — waits for completion)
+    let output = std::process::Command::new("git")
         .args(["rebase", "-i", base_oid])
         .current_dir(path_buf)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_SEQUENCE_EDITOR", seq_editor_path.to_str().unwrap())
         .env("GIT_EDITOR", editor_script_path.to_str().unwrap())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
+        .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
 
-    // 7. Poll loop: watch for signal file (message needed) or process exit
-    loop {
-        // Check if git needs a message edit
-        if signal_path.exists() {
-            let msg = std::fs::read_to_string(&input_path).unwrap_or_default();
-            // Emit event to frontend
-            let _ = app.emit("rebase-message-needed", &msg);
-            // Wait for response file (frontend calls submit_rebase_message)
-            while !response_path.exists() {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                // Also check if the child has exited unexpectedly
-                if let Ok(Some(_)) = child.try_wait() {
-                    break;
-                }
-            }
-            // Response written by submit_rebase_message, shell script will pick it up
-            // Wait briefly for shell script to complete its copy
-            std::thread::sleep(std::time::Duration::from_millis(200));
-            continue;
-        }
-
-        // Check if process has exited
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if status.success() {
-                    let mut repo = git2::Repository::open(path_buf)?;
-                    return graph::walk_commits(&mut repo, 0, usize::MAX)
-                        .map_err(TrunkError::from);
-                } else {
-                    let stderr_output = child
-                        .stderr
-                        .take()
-                        .map(|mut s| {
-                            let mut buf = String::new();
-                            s.read_to_string(&mut buf).ok();
-                            buf
-                        })
-                        .unwrap_or_default();
-                    if stderr_output.to_lowercase().contains("conflict") {
-                        let mut repo = git2::Repository::open(path_buf)?;
-                        return graph::walk_commits(&mut repo, 0, usize::MAX)
-                            .map_err(TrunkError::from);
-                    }
-                    return Err(TrunkError::new("rebase_error", stderr_output));
-                }
-            }
-            Ok(None) => {
-                // Still running, wait a bit
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-            Err(e) => {
-                return Err(TrunkError::new("rebase_error", e.to_string()));
-            }
+    // 6. Handle result
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        // Conflicts leave the repo in rebase-in-progress state — that's expected
+        if !stderr.to_lowercase().contains("conflict") && !stderr.to_lowercase().contains("could not apply") {
+            return Err(TrunkError::new("rebase_error", stderr));
         }
     }
-}
 
-pub fn submit_rebase_message_inner(
-    session_dir: &std::path::Path,
-    message: &str,
-) -> Result<(), TrunkError> {
-    let response_path = session_dir.join("trunk-rebase-msg-response");
-    std::fs::write(&response_path, message)
-        .map_err(|e| TrunkError::new("message_error", e.to_string()))
+    let mut repo = git2::Repository::open(path_buf)?;
+    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
 }
 
 #[tauri::command]
@@ -324,43 +239,25 @@ pub async fn start_interactive_rebase(
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     let path_clone = path.clone();
-    let app_clone = app.clone();
 
-    // Create a unique temp directory for this rebase session
     let session_dir = std::env::temp_dir().join(format!("trunk-rebase-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&session_dir);
-
-    // Store session dir for submit_rebase_message to find
-    *REBASE_SESSION_DIR.lock().unwrap() = Some(session_dir.clone());
+    let session_dir_cleanup = session_dir.clone();
 
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
         start_interactive_rebase_blocking(
-            &path_clone, &base_oid, &todo_items, &session_dir, &state_map, &app_clone,
+            &path_clone, &base_oid, &todo_items, &session_dir, &state_map,
         )
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())?;
 
-    // Clean up session dir
-    let session = REBASE_SESSION_DIR.lock().unwrap().take();
-    if let Some(dir) = session {
-        let _ = std::fs::remove_dir_all(&dir);
-    }
+    let _ = std::fs::remove_dir_all(&session_dir_cleanup);
 
     cache.0.lock().unwrap().insert(path.clone(), graph_result);
     let _ = app.emit("repo-changed", path);
     Ok(())
-}
-
-#[tauri::command]
-pub async fn submit_rebase_message(
-    message: String,
-) -> Result<(), String> {
-    let session_dir = REBASE_SESSION_DIR.lock().unwrap().clone()
-        .ok_or_else(|| serde_json::to_string(&TrunkError::new("no_session", "No active rebase session")).unwrap())?;
-    submit_rebase_message_inner(&session_dir, &message)
-        .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())
 }
 
 #[cfg(test)]

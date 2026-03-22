@@ -54,11 +54,6 @@
   let rebaseEditorCommits = $state<RebaseTodoItem[]>([]);
   let rebaseBaseOid = $state('');
 
-  // Reword/squash message dialog state
-  let showMessageDialog = $state(false);
-  let messageDialogTitle = $state('');
-  let messageDialogMessage = $state('');
-
   // Rebase message editor state (sequential center pane flow)
   interface SquashGroup {
     targetOid: string;
@@ -288,19 +283,6 @@
     };
   });
 
-  $effect(() => {
-    let unlisten2: (() => void) | undefined;
-    listen<string>('rebase-message-needed', (event) => {
-      const msg = event.payload;
-      // Detect if this is a squash (message contains "# This is a combination of")
-      const isSquash = msg.includes('# This is a combination of');
-      messageDialogTitle = isSquash ? 'Squash Commits' : 'Reword Commit';
-      // Strip git comment lines (lines starting with #) for cleaner editing
-      messageDialogMessage = msg.split('\n').filter(line => !line.startsWith('#')).join('\n').trim();
-      showMessageDialog = true;
-    }).then((fn) => { unlisten2 = fn; });
-    return () => { unlisten2?.(); };
-  });
 
   $effect(() => {
     getOpenRepo().then(async (repo) => {
@@ -556,22 +538,6 @@
     }
   }
 
-  async function handleMessageDialogSubmit(values: Record<string, string>) {
-    showMessageDialog = false;
-    try {
-      await safeInvoke('submit_rebase_message', { message: values.message });
-    } catch (e) {
-      const err = e as { message?: string };
-      showToast(err.message ?? 'Failed to submit message', 'error');
-    }
-  }
-
-  function handleMessageDialogCancel() {
-    // "Keep Original" -- submit the original message unchanged
-    showMessageDialog = false;
-    safeInvoke('submit_rebase_message', { message: messageDialogMessage }).catch(() => {});
-  }
-
   async function handleClose() {
     if (repoPath) {
       try {
@@ -681,20 +647,4 @@
     </main>
   {/if}
   <Toast />
-  {#if showMessageDialog}
-    <InputDialog
-      title={messageDialogTitle}
-      fields={[{
-        key: 'message',
-        label: 'Commit Message',
-        multiline: true,
-        required: true,
-        defaultValue: messageDialogMessage,
-      }]}
-      confirmLabel="Save Message"
-      cancelLabel="Keep Original"
-      onsubmit={handleMessageDialogSubmit}
-      oncancel={handleMessageDialogCancel}
-    />
-  {/if}
 </div>
