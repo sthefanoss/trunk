@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Sortable from 'sortablejs';
   import { ROW_HEIGHT, COLUMN_PADDING_X } from '../lib/graph-constants.js';
   import { validateRebasePlan } from '../lib/rebase-validation.js';
   import type { RebaseTodoItem } from '../lib/types.js';
@@ -44,7 +43,9 @@
   let items = $state<RebaseCommit[]>(toRebaseCommits(commits));
   let originalItems = $state<RebaseCommit[]>(structuredClone(toRebaseCommits(commits)));
   let focusedIndex = $state<number>(0);
-  let listEl: HTMLDivElement | undefined = $state();
+  let dragIdx = $state<number | null>(null);
+  let dropTargetIdx = $state<number | null>(null);
+  let dragStartY = 0;
   let columnWidths = $state<RebaseColumnWidths>({ sha: 80, author: 120, date: 100 });
   let columnVisibility = $state<RebaseColumnVisibility>({ sha: true, author: true, date: true });
 
@@ -143,28 +144,51 @@
     await menu.popup();
   }
 
-  // --- Drag-and-drop (SortableJS) ---
+  // --- Drag-and-drop (pointer-based) ---
 
-  $effect(() => {
-    if (!listEl) return;
-    const sortable = Sortable.create(listEl, {
-      animation: 150,
-      ghostClass: 'rebase-row-ghost',
-      chosenClass: 'rebase-row-chosen',
-      dragClass: 'rebase-row-drag',
-      filter: 'select, option',
-      preventOnFilter: false,
-      onEnd: (e) => {
-        if (e.oldIndex == null || e.newIndex == null || e.oldIndex === e.newIndex) return;
+  function handleRowMouseDown(e: MouseEvent, idx: number) {
+    // Don't start drag from interactive elements
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'SELECT' || tag === 'OPTION' || tag === 'BUTTON') return;
+
+    e.preventDefault();
+    dragIdx = idx;
+    dragStartY = e.clientY;
+
+    function onMouseMove(ev: MouseEvent) {
+      if (dragIdx === null) return;
+      const list = document.querySelector('.rebase-list');
+      if (!list) return;
+      const rows = list.querySelectorAll<HTMLElement>('[data-rebase-row]');
+      let target: number | null = null;
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        if (ev.clientY >= rect.top && ev.clientY < rect.bottom) {
+          target = Number(row.dataset.rebaseRow);
+          break;
+        }
+      }
+      if (target !== null && target !== dragIdx) {
+        // Live-reorder: swap adjacent to move item toward target
         const updated = [...items];
-        const [moved] = updated.splice(e.oldIndex, 1);
-        updated.splice(e.newIndex, 0, moved);
+        const [moved] = updated.splice(dragIdx, 1);
+        updated.splice(target, 0, moved);
         items = updated;
-        focusedIndex = e.newIndex;
-      },
-    });
-    return () => sortable.destroy();
-  });
+        focusedIndex = target;
+        dragIdx = target;
+      }
+    }
+
+    function onMouseUp() {
+      dragIdx = null;
+      dropTargetIdx = null;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
 
   // --- Keyboard shortcuts ---
 
@@ -336,14 +360,17 @@
   </div>
 
   <!-- Commit list -->
-  <div class="rebase-list" bind:this={listEl}>
-    {#each items as item, idx (item.oid)}
+  <div class="rebase-list">
+    {#each items as item, idx}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="rebase-row"
         class:rebase-row-focused={focusedIndex === idx}
         class:rebase-row-drop={item.action === 'drop'}
+        class:rebase-row-dragging={dragIdx === idx}
+        class:rebase-row-drop-target={dropTargetIdx === idx && dragIdx !== idx}
         data-rebase-row={idx}
+        onmousedown={(e) => handleRowMouseDown(e, idx)}
         onclick={() => (focusedIndex = idx)}
         style="height: {ROW_HEIGHT}px;"
       >
@@ -532,6 +559,7 @@
     font-size: 13px;
     color: var(--color-text);
     cursor: grab;
+    transition: transform 150ms ease;
   }
 
   .rebase-row:hover:not(.rebase-row-focused) {
@@ -547,16 +575,12 @@
     opacity: var(--color-rebase-drop-opacity);
   }
 
-  :global(.rebase-row-ghost) {
-    opacity: 0.4;
+  .rebase-row-dragging {
+    opacity: 0.6;
   }
 
-  :global(.rebase-row-chosen) {
-    background: var(--color-selected-row);
-  }
-
-  :global(.rebase-row-drag) {
-    opacity: 0;
+  .rebase-row-drop-target {
+    border-top: 2px solid var(--color-accent);
   }
 
   .rebase-text-drop {
