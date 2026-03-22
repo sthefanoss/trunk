@@ -45,6 +45,7 @@
   let focusedIndex = $state<number>(0);
   let dragIdx = $state<number | null>(null);
   let dropTargetIdx = $state<number | null>(null);
+  let dragStartY = 0;
   let columnWidths = $state<RebaseColumnWidths>({ sha: 80, author: 120, date: 100 });
   let columnVisibility = $state<RebaseColumnVisibility>({ sha: true, author: true, date: true });
 
@@ -143,41 +144,50 @@
     await menu.popup();
   }
 
-  // --- Drag-and-drop ---
+  // --- Drag-and-drop (pointer-based) ---
 
-  function handleDragStart(e: DragEvent, idx: number) {
+  function handleRowMouseDown(e: MouseEvent, idx: number) {
+    // Don't start drag from interactive elements
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'SELECT' || tag === 'OPTION' || tag === 'BUTTON') return;
+
+    e.preventDefault();
     dragIdx = idx;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', String(idx));
+    dragStartY = e.clientY;
+
+    function onMouseMove(ev: MouseEvent) {
+      if (dragIdx === null) return;
+      const list = document.querySelector('.rebase-list');
+      if (!list) return;
+      const rows = list.querySelectorAll<HTMLElement>('[data-rebase-row]');
+      let target: number | null = null;
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        if (ev.clientY >= rect.top && ev.clientY < rect.bottom) {
+          target = Number(row.dataset.rebaseRow);
+          break;
+        }
+      }
+      if (target !== null && target !== dragIdx) {
+        // Live-reorder: swap adjacent to move item toward target
+        const updated = [...items];
+        const [moved] = updated.splice(dragIdx, 1);
+        updated.splice(target, 0, moved);
+        items = updated;
+        focusedIndex = target;
+        dragIdx = target;
+      }
     }
-  }
 
-  function handleDragOver(e: DragEvent, idx: number) {
-    e.preventDefault();
-    if (dragIdx === null) return;
-    dropTargetIdx = idx;
-  }
-
-  function handleDrop(e: DragEvent, idx: number) {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) {
+    function onMouseUp() {
       dragIdx = null;
       dropTargetIdx = null;
-      return;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
     }
-    const updated = [...items];
-    const [moved] = updated.splice(dragIdx, 1);
-    updated.splice(idx, 0, moved);
-    items = updated;
-    focusedIndex = idx;
-    dragIdx = null;
-    dropTargetIdx = null;
-  }
 
-  function handleDragEnd() {
-    dragIdx = null;
-    dropTargetIdx = null;
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   }
 
   // --- Keyboard shortcuts ---
@@ -360,11 +370,7 @@
         class:rebase-row-dragging={dragIdx === idx}
         class:rebase-row-drop-target={dropTargetIdx === idx && dragIdx !== idx}
         data-rebase-row={idx}
-        draggable="true"
-        ondragstart={(e) => handleDragStart(e, idx)}
-        ondragover={(e) => handleDragOver(e, idx)}
-        ondrop={(e) => handleDrop(e, idx)}
-        ondragend={handleDragEnd}
+        onmousedown={(e) => handleRowMouseDown(e, idx)}
         onclick={() => (focusedIndex = idx)}
         style="height: {ROW_HEIGHT}px;"
       >
