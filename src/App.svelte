@@ -444,28 +444,30 @@
     if (!repoPath) return;
     // Capture before close resets these
     const baseOid = rebaseBaseOid;
-    const editorCommits = [...rebaseEditorCommits];
 
     // Find commits that need message editing
     const needsMessage = todoItems
       .filter((i) => i.action === 'reword' || i.action === 'squash')
       .map((i) => {
-        const commit = editorCommits.find((c) => c.oid === i.oid);
+        const commit = rebaseEditorCommits.find((c) => c.oid === i.oid);
         return { ...i, shortOid: commit?.short_oid ?? i.oid.slice(0, 7) };
       });
 
     // Store for later execution
     pendingRebaseTodoItems = todoItems;
     pendingRebaseBaseOid = baseOid;
-    handleRebaseEditorClose();
 
     if (needsMessage.length > 0) {
+      // Show message editor BEFORE closing rebase editor —
+      // the center pane priority puts message editor first
       rebaseMessageQueue = needsMessage;
       rebaseMessageIdx = 0;
       showRebaseMessageEditor = true;
+      showRebaseEditor = false;
       return;
     }
 
+    handleRebaseEditorClose();
     await executeRebase(baseOid, todoItems);
   }
 
@@ -481,6 +483,7 @@
     } else {
       // All messages collected — execute rebase
       showRebaseMessageEditor = false;
+      handleRebaseEditorClose();
       await executeRebase(pendingRebaseBaseOid, pendingRebaseTodoItems);
     }
   }
@@ -489,6 +492,7 @@
     showRebaseMessageEditor = false;
     rebaseMessageQueue = [];
     pendingRebaseTodoItems = [];
+    handleRebaseEditorClose();
   }
 
   async function executeRebase(baseOid: string, todoItems: { oid: string; action: string; summary: string; newMessage: string | null }[]) {
