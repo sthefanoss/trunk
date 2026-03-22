@@ -480,6 +480,13 @@
     if (pill.refType === 'LocalBranch') {
       const menu = await Menu.new({
         items: [
+          ...(!pill.isHead ? [
+            await MenuItem.new({
+              text: `Checkout ${pill.label}`,
+              action: () => { handlePillCheckout(e, pill); },
+            }),
+            await PredefinedMenuItem.new({ item: 'Separator' }),
+          ] : []),
           ...(!pill.isHead && headBranchName ? [
             await MenuItem.new({
               text: `Merge ${pill.label} into ${headBranchName}`,
@@ -512,6 +519,11 @@
       if (headBranchName) {
         const menu = await Menu.new({
           items: [
+            await MenuItem.new({
+              text: `Checkout ${pill.label}`,
+              action: () => { handlePillCheckout(e, pill); },
+            }),
+            await PredefinedMenuItem.new({ item: 'Separator' }),
             await MenuItem.new({
               text: `Merge ${pill.label} into ${headBranchName}`,
               action: () => { handleMergeBranch(pill.label).catch(() => {}); },
@@ -552,6 +564,13 @@
     if (ref.ref_type === 'LocalBranch') {
       const menu = await Menu.new({
         items: [
+          ...(!ref.is_head ? [
+            await MenuItem.new({
+              text: `Checkout ${ref.short_name}`,
+              action: () => { safeInvoke('checkout_branch', { path: repoPath, branchName: ref.short_name }).catch((e) => { showToast((e as TrunkError).code === 'dirty_workdir' ? 'Cannot checkout — uncommitted changes' : (e as TrunkError).message ?? 'Checkout failed', 'error'); }); },
+            }),
+            await PredefinedMenuItem.new({ item: 'Separator' }),
+          ] : []),
           ...(!ref.is_head && headBranchName ? [
             await MenuItem.new({
               text: `Merge ${ref.short_name} into ${headBranchName}`,
@@ -584,6 +603,11 @@
       if (headBranchName) {
         const menu = await Menu.new({
           items: [
+            await MenuItem.new({
+              text: `Checkout ${ref.short_name}`,
+              action: () => { safeInvoke('checkout_branch', { path: repoPath, branchName: ref.short_name }).catch((e) => { showToast((e as TrunkError).code === 'dirty_workdir' ? 'Cannot checkout — uncommitted changes' : (e as TrunkError).message ?? 'Checkout failed', 'error'); }); },
+            }),
+            await PredefinedMenuItem.new({ item: 'Separator' }),
             await MenuItem.new({
               text: `Merge ${ref.short_name} into ${headBranchName}`,
               action: () => { handleMergeBranch(ref.short_name).catch(() => {}); },
