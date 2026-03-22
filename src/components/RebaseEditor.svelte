@@ -156,6 +156,9 @@
       fallbackClass: 'rebase-row-fallback',
       filter: 'select, option',
       preventOnFilter: false,
+      onStart: (e) => {
+        if (e.oldIndex != null) focusedIndex = e.oldIndex;
+      },
       onEnd: (e) => {
         if (e.oldIndex == null || e.newIndex == null || e.oldIndex === e.newIndex) return;
         // Update state — {#key items} forces full DOM recreation so no conflict
