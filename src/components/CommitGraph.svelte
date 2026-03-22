@@ -1063,7 +1063,7 @@
                     x2={connectorEndX}
                     y2={pill.dotCy}
                     stroke={laneColor(pill.commitColorIndex)}
-                    stroke-width={displaySettings.pillStroke}
+                    stroke-width={pill.isHead ? displaySettings.pillStroke * 2 : displaySettings.pillStroke}
                     opacity={pill.isRemoteOnly ? 0.67 : 1}
                     style={pill.isNonHead && !pill.isRemoteOnly ? 'filter: brightness(0.75)' : ''}
                   />
