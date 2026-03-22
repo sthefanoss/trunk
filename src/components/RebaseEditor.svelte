@@ -25,11 +25,14 @@
 
   interface Props {
     commits: RebaseTodoItem[];
+    branchName: string;
+    baseName: string;
     onclose: () => void;
     onstart: (items: { oid: string; action: string; summary: string; newMessage: string | null }[]) => void;
+    onfocuschange?: (oid: string) => void;
   }
 
-  let { commits, onclose, onstart }: Props = $props();
+  let { commits, branchName, baseName, onclose, onstart, onfocuschange }: Props = $props();
 
   function toRebaseCommits(source: RebaseTodoItem[]): RebaseCommit[] {
     // Reverse: backend sends oldest-first (for git), but we display newest-first (like the graph)
@@ -60,6 +63,11 @@
   });
   let hasChanges = $derived(JSON.stringify(items) !== JSON.stringify(originalItems));
   let canStart = $derived(validationErrors.length === 0);
+
+  // Emit focus change when focused commit changes
+  $effect(() => {
+    if (items[focusedIndex]) onfocuschange?.(items[focusedIndex].oid);
+  });
 
   // Load persisted column state on mount
   $effect(() => {
@@ -283,27 +291,14 @@
   onkeydown={handleEditorKeydown}
   use:autofocus
 >
-  <!-- Toolbar -->
+  <!-- Header -->
   <div class="rebase-toolbar">
     <div class="rebase-toolbar-left">
       <span class="rebase-toolbar-title">Interactive Rebase</span>
-      <span class="rebase-toolbar-badge">{items.length} commits</span>
+      <span class="rebase-toolbar-meta">Rebasing <span class="rebase-branch-pill">{branchName}</span> onto <span class="rebase-branch-pill">{baseName}</span></span>
     </div>
     <div class="rebase-toolbar-right">
-      <button
-        class="rebase-btn rebase-btn-ghost"
-        disabled={!hasChanges}
-        onclick={handleReset}
-      >Reset</button>
-      <button
-        class="rebase-btn rebase-btn-ghost"
-        onclick={handleCancel}
-      >Cancel</button>
-      <button
-        class="rebase-btn rebase-btn-primary"
-        disabled={!canStart}
-        onclick={handleStartRebase}
-      >Start Rebase</button>
+      <button class="rebase-btn rebase-btn-cancel" onclick={handleCancel}>Cancel Rebase</button>
     </div>
   </div>
 
@@ -429,6 +424,24 @@
     {/each}
   </div>
   {/key}
+
+  <!-- Bottom bar -->
+  <div class="rebase-bottombar">
+    <div class="rebase-shortcuts">
+      <span class="rebase-shortcut-label">shortcuts:</span>
+      <span class="rebase-shortcut-key">P</span> Pick
+      <span class="rebase-shortcut-key">S</span> Squash
+      <span class="rebase-shortcut-key">R</span> Reword
+      <span class="rebase-shortcut-key">D</span> Drop
+      <span class="rebase-shortcut-key">Shift+↑</span> Move Up
+      <span class="rebase-shortcut-key">Shift+↓</span> Move Down
+    </div>
+    <div class="rebase-bottombar-right">
+      <button class="rebase-btn rebase-btn-ghost" disabled={!hasChanges} onclick={handleReset}>Reset</button>
+      <button class="rebase-btn rebase-btn-cancel" onclick={handleCancel}>Cancel Rebase</button>
+      <button class="rebase-btn rebase-btn-start" disabled={!canStart} onclick={handleStartRebase}>Start Rebase</button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -470,7 +483,62 @@
     color: var(--color-text-muted);
   }
 
+  .rebase-toolbar-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  .rebase-branch-pill {
+    display: inline-block;
+    background: var(--color-accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
   .rebase-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rebase-bottombar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .rebase-shortcuts {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .rebase-shortcut-label {
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  .rebase-shortcut-key {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin-left: 6px;
+  }
+
+  .rebase-bottombar-right {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -498,9 +566,20 @@
     color: var(--color-text);
   }
 
-  .rebase-btn-primary {
-    background: var(--color-accent);
+  .rebase-btn-cancel {
+    background: transparent;
+    border: 1px solid var(--color-rebase-drop);
+    color: var(--color-rebase-drop);
+  }
+
+  .rebase-btn-start {
+    background: var(--color-green, #2ea043);
     color: white;
+  }
+
+  .rebase-btn-start:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   /* --- Column header --- */

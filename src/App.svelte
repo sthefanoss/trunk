@@ -53,6 +53,11 @@
   let showRebaseEditor = $state(false);
   let rebaseEditorCommits = $state<RebaseTodoItem[]>([]);
   let rebaseBaseOid = $state('');
+  let rebaseBranchName = $state('');
+  let rebaseBaseName = $state('');
+  let rebaseFocusedCommitDetail = $state<CommitDetailType | null>(null);
+  let rebaseFocusedFileDiffs = $state<FileDiff[]>([]);
+  let rebaseFocusedFileSelected = $state<string | null>(null);
 
   // Rebase message editor state (sequential center pane flow)
   interface SquashGroup {
@@ -413,9 +418,25 @@
       if (todoItems.length === 0) return;
       rebaseEditorCommits = todoItems;
       rebaseBaseOid = baseOid;
+      rebaseBranchName = headBranch ?? 'HEAD';
+      // Resolve base name: use short ref if possible
+      try {
+        const refs = await safeInvoke<RefsResponse>('list_refs', { path: repoPath! });
+        const allBranches = [...refs.local, ...refs.remote];
+        const baseRef = allBranches.find(b => {
+          // Try to match OID - need to resolve ref to OID
+          return false; // fallback below
+        });
+        rebaseBaseName = baseOid.slice(0, 7);
+      } catch {
+        rebaseBaseName = baseOid.slice(0, 7);
+      }
       // Clear any open diffs/selections before showing editor
       clearStagingDiff();
       clearCommit();
+      rebaseFocusedCommitDetail = null;
+      rebaseFocusedFileDiffs = [];
+      rebaseFocusedFileSelected = null;
       showRebaseEditor = true;
     } catch (e) {
       const err = e as { message?: string };
@@ -427,6 +448,27 @@
     showRebaseEditor = false;
     rebaseEditorCommits = [];
     rebaseBaseOid = '';
+    rebaseBranchName = '';
+    rebaseBaseName = '';
+    rebaseFocusedCommitDetail = null;
+    rebaseFocusedFileDiffs = [];
+    rebaseFocusedFileSelected = null;
+  }
+
+  async function handleRebaseFocusChange(oid: string) {
+    if (!repoPath) return;
+    rebaseFocusedFileSelected = null;
+    try {
+      const [detail, files] = await Promise.all([
+        safeInvoke<CommitDetailType>('get_commit_detail', { path: repoPath, oid }),
+        safeInvoke<FileDiff[]>('diff_commit', { path: repoPath, oid }),
+      ]);
+      rebaseFocusedCommitDetail = detail;
+      rebaseFocusedFileDiffs = files;
+    } catch {
+      rebaseFocusedCommitDetail = null;
+      rebaseFocusedFileDiffs = [];
+    }
   }
 
   async function handleRebaseStart(todoItems: { oid: string; action: string; summary: string; newMessage: string | null }[]) {
@@ -579,31 +621,58 @@
       <Toolbar repoPath={repoPath!} />
     </div>
     <main class="flex-1 overflow-hidden flex">
+      {#if showRebaseEditor || showRebaseMessageEditor}
+        <!-- Full-window takeover for interactive rebase -->
+        <div class="flex-1 overflow-hidden">
+          {#if showRebaseMessageEditor && rebaseMessageQueue[rebaseMessageIdx]}
+            {@const group = rebaseMessageQueue[rebaseMessageIdx]}
+            <RebaseMessageEditor
+              repoPath={repoPath!}
+              allOids={group.allOids}
+              shortOids={group.shortOids}
+              message={group.combinedMessage}
+              actionType={group.actionType}
+              remaining={rebaseMessageQueue.length - rebaseMessageIdx}
+              onconfirm={handleRebaseMessageConfirm}
+              oncancel={handleRebaseMessageCancel}
+            />
+          {:else}
+            <RebaseEditor
+              commits={rebaseEditorCommits}
+              branchName={rebaseBranchName}
+              baseName={rebaseBaseName}
+              onclose={handleRebaseEditorClose}
+              onstart={handleRebaseStart}
+              onfocuschange={handleRebaseFocusChange}
+            />
+          {/if}
+        </div>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="pane-divider" onmousedown={startRightResize}></div>
+        <div style="width: {rightPaneCollapsed ? 0 : rightPaneWidth}px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
+          {#if rebaseFocusedCommitDetail}
+            <CommitDetail
+              commitDetail={rebaseFocusedCommitDetail}
+              fileDiffs={rebaseFocusedFileDiffs}
+              selectedFile={rebaseFocusedFileSelected}
+              onfileselect={(path) => { rebaseFocusedFileSelected = rebaseFocusedFileSelected === path ? null : path; }}
+              onclose={() => { rebaseFocusedCommitDetail = null; }}
+              repoPath={repoPath!}
+            />
+          {:else}
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted); font-size: 13px;">
+              Select a commit to view details
+            </div>
+          {/if}
+        </div>
+      {:else}
       <div style="width: {leftPaneCollapsed ? 0 : leftPaneWidth}px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
         <BranchSidebar repoPath={repoPath!} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} onopenrebaseeditor={handleOpenRebaseEditor} />
       </div>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
       <div class="flex-1 overflow-hidden">
-        {#if showRebaseMessageEditor && rebaseMessageQueue[rebaseMessageIdx]}
-          {@const group = rebaseMessageQueue[rebaseMessageIdx]}
-          <RebaseMessageEditor
-            repoPath={repoPath!}
-            allOids={group.allOids}
-            shortOids={group.shortOids}
-            message={group.combinedMessage}
-            actionType={group.actionType}
-            remaining={rebaseMessageQueue.length - rebaseMessageIdx}
-            onconfirm={handleRebaseMessageConfirm}
-            oncancel={handleRebaseMessageCancel}
-          />
-        {:else if showRebaseEditor}
-          <RebaseEditor
-            commits={rebaseEditorCommits}
-            onclose={handleRebaseEditorClose}
-            onstart={handleRebaseStart}
-          />
-        {:else if showMergeEditor && selectedFile}
+        {#if showMergeEditor && selectedFile}
           <MergeEditor
             repoPath={repoPath!}
             filePath={selectedFile.path}
@@ -644,6 +713,7 @@
           <StagingPanel repoPath={repoPath!} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} />
         {/if}
       </div>
+      {/if}
     </main>
   {/if}
   <Toast />
