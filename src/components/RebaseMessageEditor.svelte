@@ -5,8 +5,8 @@
 
   interface Props {
     repoPath: string;
-    commitOid: string;
-    commitShortOid: string;
+    allOids: string[];
+    shortOids: string[];
     message: string;
     actionType: 'reword' | 'squash';
     remaining: number;
@@ -14,20 +14,46 @@
     oncancel: () => void;
   }
 
-  let { repoPath, commitOid, commitShortOid, message, actionType, remaining, onconfirm, oncancel }: Props = $props();
+  let { repoPath, allOids, shortOids, message, actionType, remaining, onconfirm, oncancel }: Props = $props();
 
   let editedMessage = $state(message);
   let fileDiffs = $state<FileDiff[]>([]);
 
+  // Reset editedMessage when the message prop changes (next commit in queue)
   $effect(() => {
-    safeInvoke<FileDiff[]>('diff_commit', { path: repoPath, oid: commitOid })
-      .then((diffs) => { fileDiffs = diffs; })
+    editedMessage = message;
+  });
+
+  $effect(() => {
+    const oids = allOids;
+    Promise.all(oids.map((oid) => safeInvoke<FileDiff[]>('diff_commit', { path: repoPath, oid })))
+      .then((allDiffs) => {
+        // Merge diffs: combine hunks for files appearing in multiple commits
+        const merged = new Map<string, FileDiff>();
+        for (const diffs of allDiffs) {
+          for (const fd of diffs) {
+            const existing = merged.get(fd.path);
+            if (existing) {
+              existing.hunks = [...existing.hunks, ...fd.hunks];
+            } else {
+              merged.set(fd.path, { ...fd, hunks: [...fd.hunks] });
+            }
+          }
+        }
+        fileDiffs = Array.from(merged.values());
+      })
       .catch(() => { fileDiffs = []; });
   });
 
   function handleConfirm() {
     onconfirm(editedMessage.trim());
   }
+
+  const headerLabel = $derived(
+    actionType === 'squash'
+      ? `Squash ${shortOids.join(' + ')}`
+      : `Reword ${shortOids[0]}`
+  );
 </script>
 
 <div class="rme-container">
@@ -35,9 +61,8 @@
   <div class="rme-header">
     <div class="rme-header-left">
       <span class="rme-header-action" style="color: var(--color-rebase-{actionType});">
-        {actionType === 'squash' ? 'Squash' : 'Reword'}
+        {headerLabel}
       </span>
-      <span class="rme-header-oid">{commitShortOid}</span>
       {#if remaining > 1}
         <span class="rme-header-remaining">{remaining} remaining</span>
       {/if}
@@ -55,7 +80,7 @@
     <textarea
       class="rme-textarea"
       bind:value={editedMessage}
-      rows="4"
+      rows="6"
       placeholder="Commit message..."
     ></textarea>
   </div>
@@ -101,12 +126,6 @@
   .rme-header-action {
     font-size: 13px;
     font-weight: 600;
-  }
-
-  .rme-header-oid {
-    font-size: 12px;
-    font-family: var(--font-mono);
-    color: var(--color-text-muted);
   }
 
   .rme-header-remaining {

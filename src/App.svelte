@@ -60,8 +60,15 @@
   let messageDialogMessage = $state('');
 
   // Rebase message editor state (sequential center pane flow)
+  interface SquashGroup {
+    targetOid: string;
+    allOids: string[];
+    shortOids: string[];
+    combinedMessage: string;
+    actionType: 'reword' | 'squash';
+  }
   let showRebaseMessageEditor = $state(false);
-  let rebaseMessageQueue = $state<{ oid: string; shortOid: string; action: string; summary: string; newMessage: string | null }[]>([]);
+  let rebaseMessageQueue = $state<SquashGroup[]>([]);
   let rebaseMessageIdx = $state(0);
   let pendingRebaseTodoItems = $state<{ oid: string; action: string; summary: string; newMessage: string | null }[]>([]);
   let pendingRebaseBaseOid = $state('');
@@ -442,25 +449,59 @@
 
   async function handleRebaseStart(todoItems: { oid: string; action: string; summary: string; newMessage: string | null }[]) {
     if (!repoPath) return;
-    // Capture before close resets these
     const baseOid = rebaseBaseOid;
 
-    // Find commits that need message editing
-    const needsMessage = todoItems
-      .filter((i) => i.action === 'reword' || i.action === 'squash')
-      .map((i) => {
-        const commit = rebaseEditorCommits.find((c) => c.oid === i.oid);
-        return { ...i, shortOid: commit?.short_oid ?? i.oid.slice(0, 7) };
+    // Build squash groups: consecutive squash commits attach to the pick/reword above them
+    type Group = { target: typeof todoItems[0]; squashes: typeof todoItems[0][] };
+    const groups: Group[] = [];
+    let currentGroup: Group | null = null;
+
+    for (const item of todoItems) {
+      if (item.action === 'squash' && currentGroup && currentGroup.target.action !== 'drop') {
+        currentGroup.squashes.push(item);
+      } else {
+        currentGroup = { target: item, squashes: [] };
+        groups.push(currentGroup);
+      }
+    }
+
+    // Build message queue for groups needing editing
+    const messageQueue: SquashGroup[] = [];
+    for (const group of groups) {
+      const hasSquashes = group.squashes.length > 0;
+      const needsEdit = group.target.action === 'reword' || hasSquashes;
+      if (!needsEdit || group.target.action === 'drop') continue;
+
+      const allItems = [group.target, ...group.squashes];
+      const allOids = allItems.map((i) => i.oid);
+
+      // Fetch full commit messages (summary + body)
+      const details = await Promise.all(
+        allOids.map((oid) => safeInvoke<CommitDetailType>('get_commit_detail', { path: repoPath!, oid }))
+      );
+      const fullMessages = details.map((d) => {
+        let msg = d.summary;
+        if (d.body) msg += '\n\n' + d.body;
+        return msg;
       });
 
-    // Store for later execution
+      messageQueue.push({
+        targetOid: group.target.oid,
+        allOids,
+        shortOids: allItems.map((i) => {
+          const c = rebaseEditorCommits.find((c) => c.oid === i.oid);
+          return c?.short_oid ?? i.oid.slice(0, 7);
+        }),
+        combinedMessage: fullMessages.join('\n\n'),
+        actionType: hasSquashes ? 'squash' : 'reword',
+      });
+    }
+
     pendingRebaseTodoItems = todoItems;
     pendingRebaseBaseOid = baseOid;
 
-    if (needsMessage.length > 0) {
-      // Show message editor BEFORE closing rebase editor —
-      // the center pane priority puts message editor first
-      rebaseMessageQueue = needsMessage;
+    if (messageQueue.length > 0) {
+      rebaseMessageQueue = messageQueue;
       rebaseMessageIdx = 0;
       showRebaseMessageEditor = true;
       showRebaseEditor = false;
@@ -472,16 +513,22 @@
   }
 
   async function handleRebaseMessageConfirm(newMessage: string) {
-    const current = rebaseMessageQueue[rebaseMessageIdx];
-    // Store the edited message back into the pending items
-    const item = pendingRebaseTodoItems.find((i) => i.oid === current.oid);
-    if (item) item.newMessage = newMessage;
+    const group = rebaseMessageQueue[rebaseMessageIdx];
+
+    // Write newMessage to all reword/squash items in this group so the backend
+    // msg-queue has a file for every editor invocation git makes.
+    // The last squash step's message is the final combined result.
+    for (const oid of group.allOids) {
+      const item = pendingRebaseTodoItems.find((i) => i.oid === oid);
+      if (!item) continue;
+      if (item.action === 'reword' || item.action === 'squash') {
+        item.newMessage = newMessage;
+      }
+    }
 
     if (rebaseMessageIdx < rebaseMessageQueue.length - 1) {
-      // Show next
       rebaseMessageIdx += 1;
     } else {
-      // All messages collected — execute rebase
       showRebaseMessageEditor = false;
       handleRebaseEditorClose();
       await executeRebase(pendingRebaseBaseOid, pendingRebaseTodoItems);
@@ -573,13 +620,13 @@
       <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
       <div class="flex-1 overflow-hidden">
         {#if showRebaseMessageEditor && rebaseMessageQueue[rebaseMessageIdx]}
-          {@const current = rebaseMessageQueue[rebaseMessageIdx]}
+          {@const group = rebaseMessageQueue[rebaseMessageIdx]}
           <RebaseMessageEditor
             repoPath={repoPath!}
-            commitOid={current.oid}
-            commitShortOid={current.shortOid}
-            message={current.newMessage ?? current.summary}
-            actionType={current.action as 'reword' | 'squash'}
+            allOids={group.allOids}
+            shortOids={group.shortOids}
+            message={group.combinedMessage}
+            actionType={group.actionType}
             remaining={rebaseMessageQueue.length - rebaseMessageIdx}
             onconfirm={handleRebaseMessageConfirm}
             oncancel={handleRebaseMessageCancel}

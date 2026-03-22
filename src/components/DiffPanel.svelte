@@ -63,11 +63,21 @@
     return () => window.removeEventListener('keydown', handleKeydown);
   });
 
+  let collapsedFiles = $state<Set<string>>(new Set());
+
+  function toggleFileCollapsed(path: string) {
+    const next = new Set(collapsedFiles);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    collapsedFiles = next;
+  }
+
   $effect(() => {
     fileDiffs;
     focusedHunkIndex = 0;
     hunkElements = {};
     clearSelection();
+    collapsedFiles = new Set();
   });
 
   async function handleStageFile() {
@@ -372,6 +382,7 @@
     <div>
       <!-- File header bar (hidden for single-file view since top bar shows the path) -->
       {#if !selectedPath}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div style="
           background: var(--color-surface);
           border-bottom: 1px solid var(--color-border);
@@ -382,11 +393,18 @@
           position: sticky;
           top: 0;
           z-index: 1;
-        ">
+          cursor: pointer;
+          user-select: none;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        " onclick={() => toggleFileCollapsed(fd.path)}>
+          <span style="font-size: 10px; color: var(--color-text-muted); width: 10px; display: inline-block;">{collapsedFiles.has(fd.path) ? '▶' : '▼'}</span>
           {fd.path}
         </div>
       {/if}
 
+      {#if !collapsedFiles.has(fd.path)}
       {#if fd.is_binary}
         <!-- Binary file fallback -->
         <div style="
@@ -560,6 +578,7 @@
             >{originSymbol(line.origin)}{line.content}</div>
           {/each}
         {/each}
+      {/if}
       {/if}
     </div>
   {/each}
