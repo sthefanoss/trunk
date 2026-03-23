@@ -50,7 +50,6 @@ pub fn run() {
             commands::commit::get_head_commit_message,
             commands::diff::diff_unstaged,
             commands::diff::diff_staged,
-            commands::diff::diff_conflicted,
             commands::diff::diff_commit,
             commands::diff::get_commit_detail,
             commands::stash::list_stashes,
