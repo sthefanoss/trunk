@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 41-interactive-rebase-editor
 source: 41-01-SUMMARY.md, 41-02-SUMMARY.md, 41-03-SUMMARY.md, 41-04-SUMMARY.md
 started: 2026-03-22T00:00:00Z
-updated: 2026-03-23T00:05:00Z
+updated: 2026-03-23T00:00:00Z
 ---
 
 ## Current Test
@@ -75,7 +75,7 @@ skipped: 0
 ## Gaps
 
 - truth: "Squash action shows dialog with combined commit messages for editing"
-  status: failed
+  status: resolved
   reason: "User reported: reject, no dialog, I have to manually select the commit below and reword."
   severity: major
   test: 10
@@ -92,7 +92,7 @@ skipped: 0
   debug_session: ".planning/debug/squash-message-no-dialog.md"
 
 - truth: "SHA column is positioned to the right of the Message column"
-  status: failed
+  status: resolved
   reason: "User reported: SHA is currently to the left of the message, it should be to the right."
   severity: minor
   test: 11
@@ -105,7 +105,7 @@ skipped: 0
   debug_session: ".planning/debug/rebase-editor-column-order-squash-arrow.md"
 
 - truth: "Squash arrow indicator renders next to commit dot, not in validation error row"
-  status: failed
+  status: resolved
   reason: "User reported: squash arrow ended up in the error message area instead of next to the commit dot"
   severity: minor
   test: 7
