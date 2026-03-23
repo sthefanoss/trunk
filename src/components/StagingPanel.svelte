@@ -383,25 +383,25 @@
       Rebasing
       {#if operationInfo.source_branch}
         <span style="
-          background: var(--color-accent);
-          border-radius: 3px;
-          padding: 0 5px;
+          background: var(--lane-{operationInfo.source_color_index ?? 0});
+          border-radius: 9999px;
+          padding: 0 6px;
           font-size: 10px;
           line-height: 16px;
           color: white;
-          font-weight: 600;
+          font-weight: 700;
         ">{operationInfo.source_branch}</span>
       {/if}
       onto
       {#if operationInfo.target_branch}
         <span style="
-          background: var(--color-accent);
-          border-radius: 3px;
-          padding: 0 5px;
+          background: var(--lane-{operationInfo.target_color_index ?? 0});
+          border-radius: 9999px;
+          padding: 0 6px;
           font-size: 10px;
           line-height: 16px;
           color: white;
-          font-weight: 600;
+          font-weight: 700;
         ">{operationInfo.target_branch}</span>
       {/if}
     </div>
