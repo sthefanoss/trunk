@@ -9,7 +9,7 @@
 - ✅ **v0.5 Graph Overlay** — Phases 20-26 (shipped 2026-03-15)
 - ✅ **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
 - ✅ **v0.7 Hunk Staging & Search** — Phases 32-36 (shipped 2026-03-19)
-- 🚧 **v0.8 Conflict & Rebase** — Phases 37-41 (in progress)
+- 🚧 **v0.8 Conflict & Rebase** — Phases 37-43 (in progress)
 
 ## Phases
 
@@ -115,6 +115,8 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
 - [x] **Phase 39: Merge Workflow** - Merge initiation via context menu, fast-forward and auto-commit handling (MERGE-02 drag-and-drop dropped) (completed 2026-03-21)
 - [x] **Phase 40: Rebase Workflow** - Rebase initiation via context menu, mid-rebase conflict resolution, abort/skip (REB-02 drag-and-drop dropped) (completed 2026-03-21)
 - [x] **Phase 41: Interactive Rebase Editor** - Commit list editor with Pick/Squash/Reword/Drop, drag reordering, keyboard shortcuts, execution (completed 2026-03-21)
+- [ ] **Phase 42: Rebase Skip in Inline UI** - Add Skip button to StagingPanel inline rebase UI, wire to rebase_skip backend (gap closure: REB-06)
+- [ ] **Phase 43: Tech Debt Cleanup** - Remove orphaned commands, dead imports, fix cosmetic issues from v0.8 phases
 
 ## Phase Details
 
@@ -197,6 +199,28 @@ Plans:
 - [x] 41-04-PLAN.md -- Integration: App.svelte center pane swap, context menus, message dialog, end-to-end flow
 - [ ] 41-05-PLAN.md -- Gap closure: squash message pre-editing, column order fix, squash arrow positioning
 
+### Phase 42: Rebase Skip in Inline UI
+**Goal**: Users can skip a conflicting commit during rebase from the inline rebase UI in StagingPanel
+**Depends on**: Phase 40 (rebase workflow), Phase 37 (operation state)
+**Requirements**: REB-06
+**Gap Closure**: Closes gaps from v0.8 audit — REB-06 unsatisfied, integration gap (StagingPanel → rebase_skip)
+**Success Criteria** (what must be TRUE):
+  1. StagingPanel inline rebase UI includes a Skip button alongside Continue and Abort
+  2. Clicking Skip invokes the `rebase_skip` IPC command and refreshes the UI
+**Plans**: TBD
+
+### Phase 43: Tech Debt Cleanup
+**Goal**: Clean up orphaned code and dead imports accumulated during v0.8 phases
+**Depends on**: Phase 42 (complete gap closure first)
+**Requirements**: None (tech debt only)
+**Success Criteria** (what must be TRUE):
+  1. `diff_conflicted` backend command removed from registration and implementation
+  2. `InputDialog` dead import removed from App.svelte
+  3. `rebaseBaseName` lookup fixed to show branch name instead of always showing short OID
+  4. `submit_rebase_message` dead references cleaned up
+  5. Pre-existing type error in App.svelte resolved (remove dead `'conflicted'` diffKind path)
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:** 37 → 38 → 39 → 40 → 41
@@ -208,6 +232,8 @@ Plans:
 | 39. Merge Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 40. Rebase Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 41. Interactive Rebase Editor | 5/5 | Complete    | 2026-03-23 | - |
+| 42. Rebase Skip in Inline UI | 0/0 | Pending     | - | - |
+| 43. Tech Debt Cleanup | 0/0 | Pending     | - | - |
 
 ---
 *Roadmap created: 2026-03-13*
