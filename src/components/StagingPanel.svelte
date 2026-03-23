@@ -715,7 +715,7 @@
           onclick={continueRebase}
           disabled={rebaseLoading}
           style="
-            flex: 1;
+            flex: 3;
             height: 34px;
             background: var(--color-btn-continue-bg);
             color: var(--color-btn-continue);
@@ -733,7 +733,7 @@
           onclick={abortRebase}
           disabled={rebaseLoading}
           style="
-            flex: 1;
+            flex: 2;
             height: 34px;
             background: var(--color-btn-abort-bg);
             color: var(--color-btn-abort);
