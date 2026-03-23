@@ -415,15 +415,14 @@
 
   <!-- File sections flex container (50/50 split when both expanded) -->
   <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
-    <!-- Conflicted Files section (non-merge only — during merge, conflicts show in unstaged area) -->
+    <!-- Conflicted Files section (rebase: shown as top section like unstaged; merge: shown inside unstaged) -->
     {#if !isMerge && (status?.conflicted.length ?? 0) > 0}
       <div style="
+        {conflicted_expanded && staged_expanded ? 'flex: 1;' : conflicted_expanded ? 'max-height: calc(100% - 28px);' : ''}
         display: flex;
         flex-direction: column;
         overflow: hidden;
         min-height: 0;
-        flex-shrink: 0;
-        max-height: 40%;
       ">
         <div
           role="button"
@@ -440,6 +439,9 @@
             flex-shrink: 0;
           "
         >
+          <span style="color: var(--color-text-muted); display: inline-flex; align-items: center; margin-right: 4px;">
+            {#if conflicted_expanded}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
+          </span>
           <span style="color: var(--color-badge-warning); display: inline-flex; align-items: center; margin-right: 4px;">
             <AlertTriangle size={12} />
           </span>
