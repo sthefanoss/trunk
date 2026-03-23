@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 41-interactive-rebase-editor
 source: 41-01-SUMMARY.md, 41-02-SUMMARY.md, 41-03-SUMMARY.md, 41-04-SUMMARY.md
 started: 2026-03-22T00:00:00Z
@@ -68,7 +68,7 @@ result: pass
 
 total: 12
 passed: 9
-issues: 2
+issues: 3
 pending: 0
 skipped: 0
 
@@ -79,17 +79,40 @@ skipped: 0
   reason: "User reported: reject, no dialog, I have to manually select the commit below and reword."
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Signal/wait IPC mechanism was removed in commit de9ea19 due to rebase hanging. start_interactive_rebase_blocking now uses blocking .output() with no poll loop, no event emission. GIT_EDITOR script exits 0 when no queued message exists. Frontend blocks squash from openMessageEditor (line 285). No rebase-message-needed listener in App.svelte."
+  artifacts:
+    - path: "src-tauri/src/commands/interactive_rebase.rs"
+      issue: "GIT_EDITOR script exits 0 with no modifications when no queued file exists (line 163)"
+    - path: "src/components/RebaseEditor.svelte"
+      issue: "openMessageEditor blocks squash actions (line 285)"
+    - path: "src/App.svelte"
+      issue: "No rebase-message-needed listener, no InputDialog for rebase messages"
+  missing:
+    - "Re-implement interactive message editing during rebase (fix the hang bug), OR allow pre-editing squash messages before rebase starts by combining messages of squash target + squash commits"
+  debug_session: ".planning/debug/squash-message-no-dialog.md"
 
 - truth: "SHA column is positioned to the right of the Message column"
   status: failed
   reason: "User reported: SHA is currently to the left of the message, it should be to the right."
   severity: minor
   test: 11
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "In RebaseEditor.svelte, both header (lines 383-397) and data row (lines 457-470) render SHA block before Message block. Order is Action→SHA→Message but should be Action→Message→SHA."
+  artifacts:
+    - path: "src/components/RebaseEditor.svelte"
+      issue: "SHA column block rendered before Message column block in header and data row templates"
+  missing:
+    - "Swap SHA and Message block positions in both header and data row templates"
+  debug_session: ".planning/debug/rebase-editor-column-order-squash-arrow.md"
+
+- truth: "Squash arrow indicator renders next to commit dot, not in validation error row"
+  status: failed
+  reason: "User reported: squash arrow ended up in the error message area instead of next to the commit dot"
+  severity: minor
+  test: 7
+  root_cause: "Squash arrow uses position: absolute with bottom: -4px relative to rebase-row-wrapper. When validation error div is inside the same wrapper, the wrapper grows taller and the arrow shifts down into the error area."
+  artifacts:
+    - path: "src/components/RebaseEditor.svelte"
+      issue: "Arrow span (line 425) positioned absolute bottom:-4px inside wrapper that also contains validation error div (lines 494-498)"
+  missing:
+    - "Either move validation error div outside rebase-row-wrapper, or make rebase-row the positioning context instead of the wrapper"
+  debug_session: ".planning/debug/rebase-editor-column-order-squash-arrow.md"

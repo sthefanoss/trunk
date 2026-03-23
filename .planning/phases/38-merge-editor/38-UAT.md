@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 38-merge-editor
 source: 38-01-SUMMARY.md, 38-02-SUMMARY.md, 38-03-SUMMARY.md, 38-04-SUMMARY.md, 38-05-SUMMARY.md, 38-06-SUMMARY.md
 started: 2026-03-22T00:00:00Z
@@ -71,17 +71,25 @@ skipped: 0
   reason: "User reported: reject, it overrides"
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "All toggle/take handlers unconditionally set manualEdit = false, clearing the manual-edit guard. Lines 206, 212, 217, 238, 244 in MergeEditor.svelte."
+  artifacts:
+    - path: "src/components/MergeEditor.svelte"
+      issue: "handleTakeAllCurrent, handleTakeAllIncoming, handleToggleHunk, handleToggleLine all reset manualEdit = false"
+  missing:
+    - "Remove manualEdit = false from all toggle/take handlers — flag should only reset on file reload"
+  debug_session: ".planning/debug/merge-editor-manual-edit-overridden.md"
 
 - truth: "Take All Current/Incoming resolves the file entirely without opening the editor"
   status: failed
   reason: "User reported: It just selects all of that file, it doesn't continue the action, I still need to click Save and Mark Resolved on the bottom pane in the output."
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "resolveConflictedFile in StagingPanel.svelte correctly saves and stages via save_merge_result, but does not notify App.svelte. selectedFile remains { kind: 'conflicted' }, so MergeEditor stays mounted with stale state."
+  artifacts:
+    - path: "src/components/StagingPanel.svelte"
+      issue: "resolveConflictedFile (line 155) has no parent callback after resolving"
+    - path: "src/App.svelte"
+      issue: "selectedFile/showMergeEditor not updated by StagingPanel resolution path"
+  missing:
+    - "After resolveConflictedFile succeeds, call a parent callback (like onresolved) to clear selectedFile or advance to next conflicted file"
+  debug_session: ".planning/debug/context-menu-take-all-no-resolve.md"
