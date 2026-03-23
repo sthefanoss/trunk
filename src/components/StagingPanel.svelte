@@ -822,7 +822,7 @@
             opacity: {rebaseLoading ? 0.4 : 1};
           "
         >
-          Skip Commit
+          Skip
         </button>
         <button
           onclick={abortRebase}

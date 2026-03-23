@@ -257,11 +257,9 @@
         scrollRowIntoView(focusedIndex);
         break;
       case 'Escape':
-        e.preventDefault();
         if (editingIdx !== null) {
+          e.preventDefault();
           handleMessageCancel();
-        } else {
-          onclose();
         }
         break;
     }
@@ -408,7 +406,7 @@
       <span class="rebase-toolbar-meta">Rebasing <span class="rebase-branch-pill">{branchName}</span> onto <span class="rebase-branch-pill">{baseName}</span></span>
     </div>
     <div class="rebase-toolbar-right">
-      <button class="rebase-btn rebase-btn-cancel" onclick={handleCancel}>Cancel Rebase</button>
+      <button class="rebase-btn rebase-btn-ghost" disabled={!hasChanges} onclick={handleReset}>Reset</button>
     </div>
   </div>
 
@@ -581,7 +579,6 @@
       <span class="rebase-shortcut-key">Shift+↓</span> Move Down
     </div>
     <div class="rebase-bottombar-right">
-      <button class="rebase-btn rebase-btn-ghost" disabled={!hasChanges} onclick={handleReset}>Reset</button>
       <button class="rebase-btn rebase-btn-cancel" onclick={handleCancel}>Cancel Rebase</button>
       <button class="rebase-btn rebase-btn-start" disabled={!canStart} onclick={handleStartRebase}>Start Rebase</button>
     </div>
@@ -885,7 +882,7 @@
   /* --- Inline message editor --- */
 
   .rebase-row-wrapper {
-    /* no position: relative — arrow is inside .rebase-row instead */
+    position: relative;
   }
 
   .rebase-msg-editor {
