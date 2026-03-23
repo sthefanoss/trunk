@@ -143,14 +143,15 @@ Plans:
   3. User can directly type in the output panel to manually adjust the merged result
   4. "Take All Current" and "Take All Incoming" buttons resolve the entire file with one click (available in toolbar and as right-click on conflicted file); Prev/Next conflict arrows navigate between conflict sections within the file
   5. "Save and Mark Resolved" saves the output to disk, stages the file, and auto-opens the next conflicted file (or returns to staging panel if none remain)
-**Plans**: 6 plans
+**Plans**: 7 plans
 Plans:
 - [x] 38-01-PLAN.md -- Backend: MergeSides type, get_merge_sides and save_merge_result commands
 - [x] 38-02-PLAN.md -- Merge parser: conflict region parsing, selection helpers, output computation
 - [x] 38-03-PLAN.md -- MergeEditor component: three-panel layout, selection, sync scroll, navigation
 - [x] 38-04-PLAN.md -- Integration: App.svelte routing, StagingPanel context menu, resolution flow
 - [x] 38-05-PLAN.md -- Gap closure: wire output textarea into three-way scroll sync
-- [ ] 38-06-PLAN.md -- Gap closure: auto-open next conflicted file after resolution (CONF-09)
+- [x] 38-06-PLAN.md -- Gap closure: auto-open next conflicted file after resolution (CONF-09)
+- [ ] 38-07-PLAN.md -- Gap closure: fix manual edit override and context menu Take All resolution (UAT)
 
 ### Phase 39: Merge Workflow
 **Goal**: Users can initiate and complete merges through the GUI without touching the terminal
@@ -202,11 +203,11 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 37. Conflict Detection & Operation State | 3/3 | Complete    | 2026-03-20 | - |
-| 38. Merge Editor | 6/6 | Complete    | 2026-03-21 | - |
+| 38. Merge Editor | 6/7 | In Progress | - | - |
 | 39. Merge Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 40. Rebase Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 41. Interactive Rebase Editor | 4/4 | Complete   | 2026-03-21 | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-21 — Phase 41 planned (4 plans, 3 waves)*
+*Last updated: 2026-03-23 — Phase 38 gap closure plan 07 added (UAT fixes)*
