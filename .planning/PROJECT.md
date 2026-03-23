@@ -84,11 +84,18 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 ### Active
 
-(Planning next milestone)
+## Current Milestone: v0.9 Multi-tab & Tree View
+
+**Goal:** Enable working with multiple repositories via tabs and browsing files as directory trees instead of flat lists.
+
+**Target features:**
+- Multiple repo tabs — each tab opens a different repository with independent state
+- Splash screen as new-tab page — opening a new tab shows the project picker / recent repos
+- Tree view toggle — switch between flat file list and directory tree view everywhere (staging panel, commit diffs, merge editor)
 
 ### Planned
 
-- **v0.9**: Multi-tab & Views — multiple tabs, list/preview toggle for file lists
+- **v0.9**: Multi-tab & Tree View — multiple repo tabs, directory tree file lists
 - **v0.10**: CI/CD & Releases — GitHub Actions CI, cross-platform release publishing (macOS, Linux, Windows)
 - **v1.0**: Infrastructure — E2E test harness (GOOS-style), performance benchmarks
 
@@ -167,5 +174,22 @@ A developer can open any Git repository, browse its full commit history as a vis
 | Sequential scan for three-way merge parsing | Simple sync-point search instead of full LCS/Myers diff | ✓ Good — adequate for conflict region detection, minimal complexity |
 | No success toast on merge/rebase/skip | Graph refresh via repo-changed event is sufficient feedback | ✓ Good — consistent silent-success pattern across all operations |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-23 after v0.8 milestone*
+*Last updated: 2026-03-23 after v0.9 milestone started*

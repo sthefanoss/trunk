@@ -1,30 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.8
-milestone_name: Conflict & Rebase
-status: Complete
-stopped_at: v0.8 milestone archived
-last_updated: "2026-03-23T15:55:50.942Z"
+milestone: v0.9
+milestone_name: Multi-tab & Tree View
+status: Requirements
+stopped_at: Defining requirements
+last_updated: "2026-03-23T16:00:00.000Z"
 last_activity: 2026-03-23
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 19
-  completed_plans: 19
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-23 after v0.8 milestone)
+See: .planning/PROJECT.md (updated 2026-03-23 after v0.9 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v0.9 Multi-tab & Tree View
 
 ## Current Position
 
-Milestone v0.8 complete. Ready for `/gsd:new-milestone`.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-23 — Milestone v0.9 started
 
 ## Performance Metrics
 
@@ -61,6 +64,6 @@ Milestone v0.8 complete. Ready for `/gsd:new-milestone`.
 
 Last activity: 2026-03-23
 Last session: 2026-03-23
-Stopped at: v0.8 milestone archived
+Stopped at: Defining requirements for v0.9
 Resume file: None
-Next action: Run `/gsd:new-milestone` to start v0.9
+Next action: Define requirements and create roadmap
