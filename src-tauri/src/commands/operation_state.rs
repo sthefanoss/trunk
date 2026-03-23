@@ -178,10 +178,28 @@ pub fn merge_abort_inner(
 
 pub fn rebase_continue_inner(
     path: &str,
+    message: Option<&str>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
     let path_buf = state_map.get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
+
+    // Write edited message to .git/rebase-merge/message before continuing
+    if let Some(msg) = message {
+        let repo = git2::Repository::open(path_buf)?;
+        let git_dir = repo.path();
+        let rebase_dir = if git_dir.join("rebase-merge").exists() {
+            git_dir.join("rebase-merge")
+        } else {
+            git_dir.join("rebase-apply")
+        };
+        let msg_file = rebase_dir.join("message");
+        if msg_file.exists() {
+            std::fs::write(&msg_file, msg)
+                .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
+        }
+    }
+
     let output = std::process::Command::new("git")
         .args(["rebase", "--continue"])
         .current_dir(path_buf)
@@ -378,6 +396,7 @@ pub async fn merge_abort(
 #[tauri::command]
 pub async fn rebase_continue(
     path: String,
+    message: Option<String>,
     state: State<'_, RepoState>,
     cache: State<'_, CommitCache>,
     app: AppHandle,
@@ -385,7 +404,7 @@ pub async fn rebase_continue(
     let state_map = state.0.lock().unwrap().clone();
     let path_clone = path.clone();
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        rebase_continue_inner(&path_clone, &state_map)
+        rebase_continue_inner(&path_clone, message.as_deref(), &state_map)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?

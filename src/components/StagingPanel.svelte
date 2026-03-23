@@ -37,11 +37,21 @@
 
   let rebaseProgressNum = $derived(operationInfo?.progress?.split('/')[0] ?? '?');
   let rebaseProgressTotal = $derived(operationInfo?.progress?.split('/')[1] ?? '?');
-  let rebaseCleanMessage = $derived(
-    operationInfo?.rebase_message?.split('\n').filter((l: string) => !l.startsWith('#')).join('\n').trim() ?? ''
-  );
-  let rebaseMsgSummary = $derived(rebaseCleanMessage.split('\n')[0] ?? '');
-  let rebaseMsgBody = $derived(rebaseCleanMessage.split('\n').slice(1).join('\n').trim());
+  let rebaseMsgSummary = $state('');
+  let rebaseMsgBody = $state('');
+  let lastRebaseMessage = $state('');
+
+  // Sync editable message when operation info changes (new rebase step)
+  $effect(() => {
+    const raw = operationInfo?.rebase_message ?? '';
+    if (raw !== lastRebaseMessage) {
+      lastRebaseMessage = raw;
+      const clean = raw.split('\n').filter((l: string) => !l.startsWith('#')).join('\n').trim();
+      const lines = clean.split('\n');
+      rebaseMsgSummary = lines[0] ?? '';
+      rebaseMsgBody = lines.slice(1).join('\n').replace(/^\n/, '');
+    }
+  });
   let totalCount = $derived(
     (status?.unstaged.length ?? 0) +
     (status?.staged.length ?? 0) +
@@ -257,7 +267,10 @@
   async function continueRebase() {
     rebaseLoading = true;
     try {
-      await safeInvoke('rebase_continue', { path: repoPath });
+      const msg = rebaseMsgBody.trim()
+        ? `${rebaseMsgSummary.trim()}\n\n${rebaseMsgBody.trim()}`
+        : rebaseMsgSummary.trim();
+      await safeInvoke('rebase_continue', { path: repoPath, message: msg || null });
     } catch (e) {
       const err = e as TrunkError;
       showToast(err.message ?? 'Rebase continue failed', 'error');
@@ -415,8 +428,8 @@
 
   <!-- File sections flex container (50/50 split when both expanded) -->
   <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
-    <!-- Conflicted Files section (rebase: shown as top section like unstaged; merge: shown inside unstaged) -->
-    {#if !isMerge && (status?.conflicted.length ?? 0) > 0}
+    <!-- Conflicted Files section (rebase: always shown; non-rebase: only when conflicts exist) -->
+    {#if !isMerge && (isRebase || (status?.conflicted.length ?? 0) > 0)}
       <div style="
         {conflicted_expanded && staged_expanded ? 'flex: 1;' : conflicted_expanded ? 'max-height: calc(100% - 28px);' : ''}
         display: flex;
@@ -686,30 +699,40 @@
       gap: 6px;
       flex-shrink: 0;
     ">
-      <div style="
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-        padding: 8px;
-        font-size: 12px;
-        color: var(--color-text-muted);
-        overflow-y: auto;
-        max-height: 200px;
-      ">
-        <div style="margin-bottom: 4px;">
-          Rebasing commit {rebaseProgressNum} out of {rebaseProgressTotal}
-        </div>
-        {#if rebaseMsgSummary}
-          <div style="color: var(--color-text); font-size: 13px; font-weight: 600; margin-bottom: 4px;">
-            {rebaseMsgSummary}
-          </div>
-        {/if}
-        {#if rebaseMsgBody}
-          <div style="color: var(--color-text); white-space: pre-wrap; font-size: 12px;">
-            {rebaseMsgBody}
-          </div>
-        {/if}
+      <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 2px;">
+        Rebasing commit {rebaseProgressNum} out of {rebaseProgressTotal}
       </div>
+      <input
+        type="text"
+        bind:value={rebaseMsgSummary}
+        placeholder="Commit message summary"
+        style="
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text);
+          border-radius: 4px;
+          padding: 4px 6px;
+          font-size: 12px;
+        "
+      />
+      <textarea
+        bind:value={rebaseMsgBody}
+        rows={3}
+        placeholder="Description (optional)"
+        style="
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text);
+          border-radius: 4px;
+          padding: 4px 6px;
+          font-size: 12px;
+          resize: vertical;
+        "
+      ></textarea>
       <div style="display: flex; gap: 6px;">
         <button
           onclick={continueRebase}
