@@ -189,12 +189,13 @@ Plans:
   3. "Start Rebase" validates the plan (e.g., cannot squash the first commit), executes the rebase, and closes the editor; "Cancel" closes with no changes; "Reset" restores all commits to original Pick state and order
   4. Reword action prompts a message editor dialog when the rebase reaches that commit; Squash action combines the commit with its predecessor and shows a message editor with concatenated messages
   5. Mid-rebase conflicts during interactive rebase pause execution and show conflicted files for resolution via the merge editor, then resume on "Continue"
-**Plans**: 4 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 41-01-PLAN.md -- Foundation: backend types, get_rebase_todo command, validation logic with tests, CSS tokens, InputDialog extension, LazyStore keys
-- [ ] 41-02-PLAN.md -- RebaseEditor component: column layout, action dropdowns, drag-and-drop, keyboard shortcuts, validation display
-- [ ] 41-03-PLAN.md -- Backend execution: start_interactive_rebase with GIT_SEQUENCE_EDITOR/GIT_EDITOR, submit_rebase_message
-- [ ] 41-04-PLAN.md -- Integration: App.svelte center pane swap, context menus, message dialog, end-to-end flow
+- [x] 41-01-PLAN.md -- Foundation: backend types, get_rebase_todo command, validation logic with tests, CSS tokens, InputDialog extension, LazyStore keys
+- [x] 41-02-PLAN.md -- RebaseEditor component: column layout, action dropdowns, drag-and-drop, keyboard shortcuts, validation display
+- [x] 41-03-PLAN.md -- Backend execution: start_interactive_rebase with GIT_SEQUENCE_EDITOR/GIT_EDITOR, submit_rebase_message
+- [x] 41-04-PLAN.md -- Integration: App.svelte center pane swap, context menus, message dialog, end-to-end flow
+- [ ] 41-05-PLAN.md -- Gap closure: squash message pre-editing, column order fix, squash arrow positioning
 
 ## Progress
 
@@ -206,8 +207,8 @@ Plans:
 | 38. Merge Editor | 6/7 | In Progress | - | - |
 | 39. Merge Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 40. Rebase Workflow | 1/1 | Complete    | 2026-03-21 | - |
-| 41. Interactive Rebase Editor | 4/4 | Complete   | 2026-03-21 | - |
+| 41. Interactive Rebase Editor | 4/5 | In Progress | - | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-23 — Phase 38 gap closure plan 07 added (UAT fixes)*
+*Last updated: 2026-03-23 — Phase 41 gap closure plan 05 added (UAT fixes)*
