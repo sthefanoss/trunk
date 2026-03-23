@@ -282,8 +282,49 @@
 
   async function openMessageEditor(idx: number) {
     const item = items[idx];
-    if (item.action === 'drop' || item.action === 'squash') return;
+    if (item.action === 'drop') return;
     focusedIndex = idx;
+
+    if (item.action === 'squash') {
+      // Find predecessor: in display order (newest-first), predecessor is at idx + 1
+      const predIdx = idx + 1;
+      if (predIdx >= items.length) return; // shouldn't happen (validation prevents)
+      const pred = items[predIdx];
+
+      if (item.newMessage != null) {
+        // Already edited — reuse stored combined message
+        const lines = item.newMessage.split('\n');
+        editingSummary = lines[0] ?? '';
+        editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
+      } else {
+        // Fetch full messages for both predecessor and squash commit
+        try {
+          const [predDetail, squashDetail] = await Promise.all([
+            safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
+              path: repoPath, oid: pred.oid,
+            }),
+            safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
+              path: repoPath, oid: item.oid,
+            }),
+          ]);
+          const predMsg = predDetail.body
+            ? `${predDetail.summary}\n\n${predDetail.body}`
+            : predDetail.summary;
+          const squashMsg = squashDetail.body
+            ? `${squashDetail.summary}\n\n${squashDetail.body}`
+            : squashDetail.summary;
+          const combined = `${predMsg}\n\n${squashMsg}`;
+          const lines = combined.split('\n');
+          editingSummary = lines[0] ?? '';
+          editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
+        } catch {
+          editingSummary = `${pred.summary}\n\n${item.summary}`;
+          editingBody = '';
+        }
+      }
+      editingIdx = idx;
+      return;
+    }
 
     if (item.newMessage != null) {
       // Already edited — split summary/body from stored message
@@ -432,7 +473,7 @@
         class:rebase-row-squash={item.action === 'squash'}
         data-rebase-row={idx}
         onclick={() => (focusedIndex = idx)}
-        ondblclick={() => { if (item.action === 'pick' || item.action === 'reword') openMessageEditor(idx); }}
+        ondblclick={() => { if (item.action !== 'drop') openMessageEditor(idx); }}
         style="height: {ROW_HEIGHT}px;"
       >
         <!-- Action column -->
@@ -445,7 +486,7 @@
             class="rebase-select"
             bind:value={item.action}
             onclick={(e) => e.stopPropagation()}
-            onchange={() => { if (item.action === 'reword') openMessageEditor(idx); }}
+            onchange={() => { if (item.action === 'reword' || item.action === 'squash') openMessageEditor(idx); }}
           >
             <option value="pick">Pick</option>
             <option value="reword">Reword</option>
@@ -501,7 +542,7 @@
       {#if editingIdx === idx}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="rebase-msg-editor" onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Escape') handleMessageCancel(); }}>
-          <div class="rebase-msg-editor-title">Reword commit message</div>
+          <div class="rebase-msg-editor-title">{items[editingIdx]?.action === 'squash' ? 'Edit squash message' : 'Reword commit message'}</div>
           <input
             class="rebase-msg-editor-summary"
             type="text"
