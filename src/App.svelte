@@ -8,7 +8,6 @@
   import DiffPanel from './components/DiffPanel.svelte';
   import MergeEditor from './components/MergeEditor.svelte';
   import RebaseEditor from './components/RebaseEditor.svelte';
-  import InputDialog from './components/InputDialog.svelte';
   import CommitDetail from './components/CommitDetail.svelte';
   import Toast from './components/Toast.svelte';
   import { safeInvoke } from './lib/invoke.js';
@@ -410,11 +409,19 @@
       try {
         const refs = await safeInvoke<RefsResponse>('list_refs', { path: repoPath! });
         const allBranches = [...refs.local, ...refs.remote];
-        const baseRef = allBranches.find(b => {
-          // Try to match OID - need to resolve ref to OID
-          return false; // fallback below
-        });
-        rebaseBaseName = baseOid.slice(0, 7);
+        let foundName: string | null = null;
+        for (const b of allBranches) {
+          try {
+            const branchOid = await safeInvoke<string>('resolve_ref', { path: repoPath!, refName: b.name });
+            if (branchOid === baseOid) {
+              foundName = b.name;
+              break;
+            }
+          } catch {
+            // ref resolution failed -- skip
+          }
+        }
+        rebaseBaseName = foundName ?? baseOid.slice(0, 7);
       } catch {
         rebaseBaseName = baseOid.slice(0, 7);
       }
@@ -587,7 +594,7 @@
             fileDiffs={currentDiffFiles}
             commitDetail={null}
             selectedPath={selectedCommitFile ?? selectedFile?.path ?? null}
-            diffKind={selectedCommitFile ? 'commit' : (selectedFile?.kind ?? 'commit')}
+            diffKind={selectedCommitFile ? 'commit' : (selectedFile?.kind === 'conflicted' ? 'commit' : selectedFile?.kind ?? 'commit')}
             repoPath={repoPath!}
             onhunkaction={async (filePath) => {
               if (selectedFile) {
