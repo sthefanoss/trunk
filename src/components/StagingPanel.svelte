@@ -477,7 +477,8 @@
       </div>
     {/if}
 
-    <!-- Unstaged Files section -->
+    <!-- Unstaged Files section (hidden during rebase — only conflicted + resolved shown) -->
+    {#if !isRebase}
     <div style="
       {unstaged_expanded && staged_expanded ? 'flex: 1;' : unstaged_expanded ? 'max-height: calc(100% - 28px);' : ''}
       display: flex;
@@ -598,6 +599,7 @@
         </div>
       {/if}
     </div>
+    {/if}
 
     <!-- Staged Files section -->
     <div style="
