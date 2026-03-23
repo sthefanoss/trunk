@@ -221,11 +221,13 @@ Plans:
   3. `rebaseBaseName` lookup fixed to show branch name instead of always showing short OID
   4. `submit_rebase_message` dead references cleaned up
   5. Pre-existing type error in App.svelte resolved (remove dead `'conflicted'` diffKind path)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 43-01-PLAN.md -- Remove diff_conflicted backend, fix App.svelte dead import/rebaseBaseName/diffKind type
 
 ## Progress
 
-**Execution Order:** 37 → 38 → 39 → 40 → 41 → 42
+**Execution Order:** 37 → 38 → 39 → 40 → 41 → 42 → 43
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -235,8 +237,8 @@ Plans:
 | 40. Rebase Workflow | 1/1 | Complete    | 2026-03-21 | - |
 | 41. Interactive Rebase Editor | 5/5 | Complete    | 2026-03-23 | - |
 | 42. Rebase Skip in Inline UI | 1/1 | Complete   | Complete    | 2026-03-23 |
-| 43. Tech Debt Cleanup | 0/0 | Pending     | - | - |
+| 43. Tech Debt Cleanup | 0/1 | Pending     | - | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-23 — Phase 42 plan created (1 plan, REB-06 gap closure)*
+*Last updated: 2026-03-23 -- Phase 43 plan created (1 plan, tech debt cleanup)*
