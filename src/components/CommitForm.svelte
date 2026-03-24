@@ -1,16 +1,16 @@
 <script lang="ts">
   import { safeInvoke } from '../lib/invoke.js';
   import type { HeadCommitMessage } from '../lib/types.js';
-  import { clearRedoStack } from '../lib/undo-redo.svelte.js';
   import { showToast } from '../lib/toast.svelte.js';
 
   interface Props {
     repoPath: string;
     stagedCount: number;
     onsubjectchange?: (value: string) => void;
+    clearRedoStack: () => void;
   }
 
-  let { repoPath, stagedCount, onsubjectchange }: Props = $props();
+  let { repoPath, stagedCount, onsubjectchange, clearRedoStack }: Props = $props();
 
   let subject = $state('');
   let body = $state('');

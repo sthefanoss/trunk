@@ -1,8 +1,8 @@
 <script lang="ts">
   import { safeInvoke } from '../lib/invoke.js';
   import type { TrunkError } from '../lib/invoke.js';
-  import { remoteState } from '../lib/remote-state.svelte.js';
-  import { undoRedoState, pushToRedoStack, popFromRedoStack } from '../lib/undo-redo.svelte.js';
+  import type { RemoteState } from '../lib/remote-state.svelte.js';
+  import type { UndoRedoManager } from '../lib/undo-redo.svelte.js';
   import { showToast } from '../lib/toast.svelte.js';
   import { listen } from '@tauri-apps/api/event';
   import PullDropdown from './PullDropdown.svelte';
@@ -11,9 +11,11 @@
 
   interface Props {
     repoPath: string;
+    remoteState: RemoteState;
+    undoRedo: UndoRedoManager;
   }
 
-  let { repoPath }: Props = $props();
+  let { repoPath, remoteState, undoRedo }: Props = $props();
 
   // Listen to remote-progress events from backend (relocated from StatusBar)
   $effect(() => {
@@ -63,14 +65,14 @@
   async function handleUndo() {
     try {
       const result = await safeInvoke<{ subject: string; body: string | null }>('undo_commit', { path: repoPath });
-      pushToRedoStack({ subject: result.subject, body: result.body });
+      undoRedo.push({ subject: result.subject, body: result.body });
     } catch (e) {
       console.error('undo failed:', e);
     }
   }
 
   async function handleRedo() {
-    const entry = popFromRedoStack();
+    const entry = undoRedo.pop();
     if (!entry) return;
     try {
       await safeInvoke('redo_commit', {
@@ -81,7 +83,7 @@
     } catch (e) {
       console.error('redo failed:', e);
       // Push back on failure
-      pushToRedoStack(entry);
+      undoRedo.push(entry);
     }
   }
 
@@ -222,7 +224,7 @@
     <button class="toolbar-btn" disabled={!canUndo} onclick={handleUndo}>
       <Undo2 size={14} /> Undo
     </button>
-    <button class="toolbar-btn" disabled={undoRedoState.redoStack.length === 0} onclick={handleRedo}>
+    <button class="toolbar-btn" disabled={undoRedo.state.redoStack.length === 0} onclick={handleRedo}>
       <Redo2 size={14} /> Redo
     </button>
   </div>
@@ -232,7 +234,7 @@
       <button class="toolbar-btn" disabled={remoteState.isRunning} onclick={handlePull}>
         <ArrowDown size={14} /> Pull
       </button>
-      <PullDropdown {repoPath} disabled={remoteState.isRunning} />
+      <PullDropdown {repoPath} disabled={remoteState.isRunning} {remoteState} />
     </div>
     <button class="toolbar-btn" disabled={remoteState.isRunning} onclick={handlePush}>
       <ArrowUp size={14} /> Push

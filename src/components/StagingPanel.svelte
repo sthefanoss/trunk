@@ -15,6 +15,7 @@
     onfileselect?: (path: string, kind: 'unstaged' | 'staged' | 'conflicted') => void;
     onsubjectchange?: (value: string) => void;
     onfileresolved?: () => void;
+    clearRedoStack: () => void;
   }
 
   let {
@@ -23,6 +24,7 @@
     onfileselect,
     onsubjectchange,
     onfileresolved,
+    clearRedoStack,
   }: Props = $props();
 
   let status = $state<WorkingTreeStatus | null>(null);
@@ -926,6 +928,6 @@
     </div>
   {:else}
     <!-- CommitForm — normal mode -->
-    <CommitForm {repoPath} stagedCount={status?.staged.length ?? 0} {onsubjectchange} />
+    <CommitForm {repoPath} stagedCount={status?.staged.length ?? 0} {onsubjectchange} {clearRedoStack} />
   {/if}
 </div>

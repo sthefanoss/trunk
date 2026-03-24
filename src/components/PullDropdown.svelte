@@ -1,16 +1,17 @@
 <script lang="ts">
   import { safeInvoke } from '../lib/invoke.js';
   import type { TrunkError } from '../lib/invoke.js';
-  import { remoteState } from '../lib/remote-state.svelte.js';
+  import type { RemoteState } from '../lib/remote-state.svelte.js';
   import { showToast } from '../lib/toast.svelte.js';
   import { ChevronDown } from '@lucide/svelte';
 
   interface Props {
     repoPath: string;
     disabled: boolean;
+    remoteState: RemoteState;
   }
 
-  let { repoPath, disabled }: Props = $props();
+  let { repoPath, disabled, remoteState }: Props = $props();
   let open = $state(false);
 
   interface PullOption {

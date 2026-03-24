@@ -3,7 +3,6 @@
   import { tick, untrack } from 'svelte';
   import { safeInvoke, type TrunkError } from '../lib/invoke.js';
   import { showToast } from '../lib/toast.svelte.js';
-  import { clearRedoStack } from '../lib/undo-redo.svelte.js';
   import type { GraphCommit, GraphResponse, EdgeType, StashEntry } from '../lib/types.js';
   import { getColumnWidths, setColumnWidths, type ColumnWidths, getColumnVisibility, setColumnVisibility, type ColumnVisibility } from '../lib/store.js';
   import { DEFAULT_GRAPH_SETTINGS, PILL_HEIGHT, PILL_PADDING_X, PILL_FONT_SIZE, PILL_GAP, BADGE_HEIGHT, BADGE_FONT_SIZE, ICON_WIDTH, ICON_GAP, COLUMN_PADDING_X } from '../lib/graph-constants.js';
@@ -32,9 +31,10 @@
     refreshSignal?: number;
     selectedCommitOid?: string | null;
     onopenrebaseeditor?: (baseOid: string, inclusive?: boolean) => void;
+    clearRedoStack: () => void;
   }
 
-  let { repoPath, oncommitselect, wipCount = 0, wipMessage = 'WIP', onWipClick, refreshSignal, selectedCommitOid, onopenrebaseeditor }: Props = $props();
+  let { repoPath, oncommitselect, wipCount = 0, wipMessage = 'WIP', onWipClick, refreshSignal, selectedCommitOid, onopenrebaseeditor, clearRedoStack }: Props = $props();
 
   const BATCH = 200;
   const SKELETON_COUNT = 10;
