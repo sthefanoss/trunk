@@ -5,6 +5,7 @@
   import RepoView from './components/RepoView.svelte';
   import Toast from './components/Toast.svelte';
   import { safeInvoke } from './lib/invoke.js';
+  import { listen } from '@tauri-apps/api/event';
   import { getZoomLevel, setZoomLevel, getLeftPaneWidth, setLeftPaneWidth, getRightPaneWidth, setRightPaneWidth, getLeftPaneCollapsed, setLeftPaneCollapsed, getRightPaneCollapsed, setRightPaneCollapsed, getOpenRepo, setOpenRepo, getOpenTabs, setOpenTabs, getActiveTabId, setActiveTabId } from './lib/store.js';
   import type { TabInfo } from './lib/tab-types.js';
   import { createTabId } from './lib/tab-types.js';
@@ -166,6 +167,13 @@
             // Repo no longer exists -- skip this tab
             continue;
           }
+          // Initial dirty check for restored tab
+          try {
+            const counts = await safeInvoke<{ staged: number; unstaged: number; conflicted: number }>('get_dirty_counts', { path: pt.repoPath });
+            tab.dirty = counts.staged + counts.unstaged > 0;
+          } catch {
+            // non-fatal
+          }
         }
         restoredTabs.push(tab);
       }
@@ -280,12 +288,37 @@
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
   });
+
+  // Dirty detection: listen for repo-changed events and update tab.dirty for ALL tabs (TAB-07, D-04, D-05)
+  $effect(() => {
+    let unlisten: (() => void) | undefined;
+
+    listen<string>('repo-changed', async (event) => {
+      const repoPath = event.payload;
+      const tab = tabs.find(t => t.repoPath === repoPath);
+      if (!tab) return;
+      try {
+        const counts = await safeInvoke<{ staged: number; unstaged: number; conflicted: number }>('get_dirty_counts', { path: repoPath });
+        tab.dirty = counts.staged + counts.unstaged > 0;
+      } catch {
+        // non-fatal -- keep previous dirty state
+      }
+    }).then((fn) => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
+  });
 </script>
 
 <div class="flex flex-col h-screen" style="background: var(--color-bg);">
   <!-- LAYOUT-02: unified title bar + toolbar -->
   <div data-tauri-drag-region class="flex items-center flex-shrink-0" style="height: 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding-left: {78 / zoomLevel}px;">
-    <TabBar repoName={activeTab?.repoName ?? 'New Tab'} onclose={() => closeTab(activeTabId)} />
+    <TabBar
+      {tabs}
+      {activeTabId}
+      onactivate={(id) => { activeTabId = id; persistTabs(); }}
+      onclose={(id, force) => { if (force) forceCloseTab(id); else closeTab(id); }}
+      onnew={addNewTab}
+    />
     <div data-tauri-drag-region class="flex-1 h-full"></div>
     {#if activeTab?.repoPath}
       {@const activeState = getOrCreateTabState(activeTabId)}
