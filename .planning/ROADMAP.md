@@ -171,7 +171,9 @@ Plans:
   1. buildTree produces a correct nested tree from flat file paths with directories sorted before files
   2. Single-child directory chains are compressed into combined paths (e.g. src/lib/ instead of src > lib)
   3. Unit tests cover edge cases: empty input, deeply nested paths, single-file repos, unicode filenames, paths with only directories
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 46-01-PLAN.md — TDD: buildTree types, comprehensive tests, implementation with path compression and sorting
 
 ### Phase 47: Tree View UI Integration
 **Goal**: Users can browse files as a directory tree (instead of flat list) in all file list contexts
@@ -217,10 +219,10 @@ Phases execute in numeric order: 44 → 45 → 46 → 47 → 48
 | 37-43 | v0.8 | 19/19 | Complete | 2026-03-23 |
 | 44. Backend State Scoping | v0.9 | 1/1 | Complete | 2026-03-23 |
 | 45. Frontend Tab Architecture | v0.9 | 3/3 | Complete    | 2026-03-24 |
-| 46. Tree View Data Layer | v0.9 | 0/? | Not started | - |
+| 46. Tree View Data Layer | v0.9 | 0/1 | Not started | - |
 | 47. Tree View UI Integration | v0.9 | 0/? | Not started | - |
 | 48. Polish & Differentiators | v0.9 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 45 planned (3 plans)*
+*Last updated: 2026-03-24 — Phase 46 planned (1 plan)*
