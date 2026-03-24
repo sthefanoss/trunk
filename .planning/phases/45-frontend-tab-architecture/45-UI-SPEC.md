@@ -33,11 +33,10 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Tab internal gaps (icon-to-label, label-to-close-button), toolbar icon gaps |
 | sm | 8px | Compact groupings — not primary in this phase |
-| md | 12px | Tab horizontal padding, toolbar group gaps |
-| lg | 16px | Section-level spacing — not primary in this phase |
-| xl | 32px | Title bar height (32px) |
+| md | 16px | Section-level spacing — not primary in this phase |
+| lg | 32px | Title bar height (32px) |
 
-Exceptions: Traffic light padding = 78px / zoomLevel (existing Tauri constraint, not a spacing token). Tab close button hit area = 16x16px (existing pattern from current TabBar).
+Exceptions: Traffic light padding = 78px / zoomLevel (existing Tauri constraint, not a spacing token). Tab close button hit area = 16x16px (existing pattern from current TabBar). 12px used for tab horizontal padding to achieve compact tab density in 32px title bar — approved exception to standard spacing set.
 
 ---
 
@@ -99,7 +98,7 @@ New and modified components for this phase:
 
 **Dimensions:**
 - Tab bar height: 32px (inherits from title bar)
-- Tab horizontal padding: 10px left + 10px right
+- Tab horizontal padding: 12px left + 12px right (exception: 12px for compact tab density in 32px title bar)
 - Tab internal gap: 4px between elements
 - Close button: 16x16px, 4px border-radius, centered X icon at 12px
 - Dirty dot: 6px width, 6px height, border-radius 50%
