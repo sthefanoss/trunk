@@ -10,6 +10,9 @@
     onaction: () => void;
     onclick?: () => void;
     oncontextmenu?: (e: MouseEvent) => void;
+    depth?: number;
+    displayName?: string;
+    focused?: boolean;
   }
 
   let {
@@ -19,6 +22,9 @@
     onaction,
     onclick,
     oncontextmenu,
+    depth = 0,
+    displayName,
+    focused = false,
   }: Props = $props();
 
   let hovered = $state(false);
@@ -38,7 +44,8 @@
 </script>
 
 <div
-  role="listitem"
+  role={depth > 0 ? 'treeitem' : 'listitem'}
+  aria-level={depth > 0 ? depth + 1 : undefined}
   onmouseenter={() => (hovered = true)}
   onmouseleave={() => (hovered = false)}
   onclick={() => onclick?.()}
@@ -46,11 +53,12 @@
   style="
     height: 26px;
     padding: 0 8px;
+    padding-left: {8 + depth * 16}px;
     display: flex;
     align-items: center;
     gap: 6px;
     cursor: {onclick ? 'pointer' : 'default'};
-    background: {hovered ? 'var(--color-surface)' : 'transparent'};
+    background: {focused ? 'var(--color-tree-focus)' : hovered ? 'var(--color-surface)' : 'transparent'};
     color: {isLoading ? 'var(--color-text-muted)' : 'var(--color-text)'};
   "
 >
@@ -74,7 +82,7 @@
     white-space: nowrap;
     font-size: 12px;
   ">
-    {file.path}
+    {displayName ?? file.path}
   </span>
 
   <!-- Hover action button (hidden during loading or when no actionLabel) -->
