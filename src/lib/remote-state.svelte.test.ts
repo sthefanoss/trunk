@@ -15,4 +15,18 @@ describe('createRemoteState', () => {
     a.isRunning = true;
     expect(b.isRunning).toBe(false);
   });
+
+  it('returns independent instances for progressLine', () => {
+    const a = createRemoteState();
+    const b = createRemoteState();
+    a.progressLine = 'fetching';
+    expect(b.progressLine).toBe('');
+  });
+
+  it('returns independent instances for error', () => {
+    const a = createRemoteState();
+    const b = createRemoteState();
+    a.error = { code: 'test', message: 'err' };
+    expect(b.error).toBe(null);
+  });
 });
