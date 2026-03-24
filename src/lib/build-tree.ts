@@ -16,7 +16,109 @@ export interface FileNode {
 
 export type TreeNode = DirectoryNode | FileNode;
 
-/** Stub — returns empty array. Implementation in Task 2. */
-export function buildTree(_files: FileStatus[]): TreeNode[] {
-  return [];
+/** Intermediate trie node used during tree construction. */
+interface IntermediateDir {
+  children: Map<string, IntermediateDir>;
+  files: FileStatus[];
+  path: string;
+}
+
+/**
+ * Transform a flat array of FileStatus into a nested TreeNode[] tree.
+ *
+ * - Single-child directory chains are compressed (e.g. src/lib/utils becomes one node)
+ * - A directory with exactly one child that is a file is NOT compressed
+ * - Directories sort before files at every level
+ * - Items within each group sort alphabetically case-insensitive
+ * - Does not mutate the input array
+ */
+export function buildTree(files: FileStatus[]): TreeNode[] {
+  if (files.length === 0) return [];
+
+  // Phase 1: Build intermediate trie
+  const root: IntermediateDir = { children: new Map(), files: [], path: '' };
+
+  for (const file of files) {
+    const segments = file.path.split('/');
+    let current = root;
+
+    // Walk directory segments (all but last, which is the filename)
+    for (let i = 0; i < segments.length - 1; i++) {
+      const seg = segments[i];
+      let child = current.children.get(seg);
+      if (!child) {
+        child = {
+          children: new Map(),
+          files: [],
+          path: segments.slice(0, i + 1).join('/'),
+        };
+        current.children.set(seg, child);
+      }
+      current = child;
+    }
+
+    // Push file into the deepest directory
+    current.files.push(file);
+  }
+
+  // Phase 2: Convert trie to TreeNode[]
+  return convert(root);
+}
+
+/** Recursively convert an IntermediateDir into sorted TreeNode[]. */
+function convert(dir: IntermediateDir): TreeNode[] {
+  const result: TreeNode[] = [];
+
+  // Convert subdirectories
+  for (const [name, child] of dir.children) {
+    const dirNode: DirectoryNode = {
+      type: 'directory',
+      name,
+      path: child.path,
+      children: convert(child),
+    };
+    result.push(compress(dirNode));
+  }
+
+  // Convert files
+  for (const file of dir.files) {
+    const filename = file.path.split('/').pop()!;
+    result.push({
+      type: 'file',
+      name: filename,
+      path: file.path,
+      file,
+    });
+  }
+
+  return sortNodes(result);
+}
+
+/**
+ * Compress single-child directory chains into combined names.
+ * Only compresses when the single child is another directory (D-05:
+ * a directory with exactly one child that is a file is NOT compressed).
+ */
+function compress(node: DirectoryNode): DirectoryNode {
+  while (node.children.length === 1 && node.children[0].type === 'directory') {
+    const child = node.children[0] as DirectoryNode;
+    node = {
+      type: 'directory',
+      name: node.name + '/' + child.name,
+      path: child.path,
+      children: child.children,
+    };
+  }
+  return node;
+}
+
+/**
+ * Sort nodes: directories before files (D-06),
+ * alphabetically case-insensitive within each group (D-07).
+ */
+function sortNodes(nodes: TreeNode[]): TreeNode[] {
+  return nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
 }
