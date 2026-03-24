@@ -185,7 +185,11 @@ Plans:
   3. Expand/collapse state survives status refreshes — staging a file does not collapse the tree
   4. User can navigate the tree with arrow keys (up/down to move, left/right to collapse/expand parent/child)
   5. View mode preference (flat vs tree) is persisted and restored across sessions
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 47-01-PLAN.md — flattenTree TDD, DirectoryRow component, FileRow props, store persistence, CSS token
+- [ ] 47-02-PLAN.md — TreeFileList component, StagingPanel/CommitDetail/RepoView integration, toggle button, keyboard nav
+- [ ] 47-03-PLAN.md — Human verification of all TREE requirements
 **UI hint**: yes
 
 ### Phase 48: Polish & Differentiators
@@ -220,9 +224,9 @@ Phases execute in numeric order: 44 → 45 → 46 → 47 → 48
 | 44. Backend State Scoping | v0.9 | 1/1 | Complete | 2026-03-23 |
 | 45. Frontend Tab Architecture | v0.9 | 3/3 | Complete    | 2026-03-24 |
 | 46. Tree View Data Layer | v0.9 | 0/1 | Complete    | 2026-03-24 |
-| 47. Tree View UI Integration | v0.9 | 0/? | Not started | - |
+| 47. Tree View UI Integration | v0.9 | 0/3 | Not started | - |
 | 48. Polish & Differentiators | v0.9 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 46 planned (1 plan)*
+*Last updated: 2026-03-24 — Phase 47 planned (3 plans)*
