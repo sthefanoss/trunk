@@ -5,9 +5,10 @@
   import { showToast } from '../lib/toast.svelte.js';
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
   import FileRow from './FileRow.svelte';
+  import TreeFileList from './TreeFileList.svelte';
   import CommitForm from './CommitForm.svelte';
   import OperationBanner from './OperationBanner.svelte';
-  import { ChevronDown, ChevronRight, AlertTriangle } from '@lucide/svelte';
+  import { ChevronDown, ChevronRight, AlertTriangle, List, FolderTree } from '@lucide/svelte';
 
   interface Props {
     repoPath: string;
@@ -16,6 +17,8 @@
     onsubjectchange?: (value: string) => void;
     onfileresolved?: () => void;
     clearRedoStack: () => void;
+    treeViewEnabled?: boolean;
+    ontreeviewtoggle?: () => void;
   }
 
   let {
@@ -25,6 +28,8 @@
     onsubjectchange,
     onfileresolved,
     clearRedoStack,
+    treeViewEnabled = false,
+    ontreeviewtoggle,
   }: Props = $props();
 
   let status = $state<WorkingTreeStatus | null>(null);
@@ -381,27 +386,56 @@
     gap: 6px;
     flex-shrink: 0;
   ">
-    <span style="font-size: 12px; color: var(--color-text);">
-      {totalCount} file{totalCount === 1 ? '' : 's'} changed
-    </span>
-    {#if currentBranch}
-      <span style="font-size: 11px; color: var(--color-text-muted);">on</span>
-      <span style="
-        background: var(--lane-0);
-        border-radius: 9999px;
-        padding: 0 6px;
-        font-size: 11px;
-        line-height: 16px;
-        color: white;
-        font-weight: 700;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-width: 0;
-      ">
-        {currentBranch}
+    <span style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0;">
+      <span style="font-size: 12px; color: var(--color-text);">
+        {totalCount} file{totalCount === 1 ? '' : 's'} changed
       </span>
-    {/if}
+      {#if currentBranch}
+        <span style="font-size: 11px; color: var(--color-text-muted);">on</span>
+        <span style="
+          background: var(--lane-0);
+          border-radius: 9999px;
+          padding: 0 6px;
+          font-size: 11px;
+          line-height: 16px;
+          color: white;
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+        ">
+          {currentBranch}
+        </span>
+      {/if}
+    </span>
+    <button
+      role="switch"
+      aria-checked={treeViewEnabled}
+      aria-label={treeViewEnabled ? 'Switch to list view' : 'Switch to tree view'}
+      title={treeViewEnabled ? 'List view' : 'Tree view'}
+      onclick={(e) => { e.stopPropagation(); ontreeviewtoggle?.(); }}
+      style="
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: {treeViewEnabled ? 'var(--color-accent)' : 'var(--color-text-muted)'};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        padding: 0;
+      "
+    >
+      {#if treeViewEnabled}
+        <FolderTree size={14} />
+      {:else}
+        <List size={14} />
+      {/if}
+    </button>
   </div>
 
   <!-- Operation banners -->
@@ -520,17 +554,14 @@
         </div>
 
         {#if conflicted_expanded}
-          <div style="flex: 1; overflow-y: auto; min-height: 0;" role="list">
-            {#each status?.conflicted ?? [] as f (f.path)}
-              <FileRow
-                file={f}
-                actionLabel=""
-                onaction={() => {}}
-                onclick={() => onfileselect?.(f.path, 'conflicted')}
-                oncontextmenu={(e) => showConflictedContextMenu(e, f.path)}
-              />
-            {/each}
-          </div>
+          <TreeFileList
+            files={status?.conflicted ?? []}
+            treeMode={treeViewEnabled}
+            actionLabel=""
+            onfileaction={() => {}}
+            onfileclick={(path) => onfileselect?.(path, 'conflicted')}
+            onfilecontextmenu={(e, path) => showConflictedContextMenu(e, path)}
+          />
         {/if}
       </div>
     {/if}
@@ -630,31 +661,27 @@
       </div>
 
       {#if unstaged_expanded}
-        <div style="flex: 1; overflow-y: auto; min-height: 0;" role="list">
-          {#if isMerge}
-            {#each status?.conflicted ?? [] as f (f.path)}
-              <FileRow
-                file={f}
-                actionLabel="✓"
-                isLoading={loadingFiles.has(f.path)}
-                onaction={() => stageFile(f.path)}
-                onclick={() => onfileselect?.(f.path, 'conflicted')}
-                oncontextmenu={(e) => showConflictedContextMenu(e, f.path)}
-              />
-            {/each}
-          {:else}
-            {#each status?.unstaged ?? [] as f (f.path)}
-              <FileRow
-                file={f}
-                actionLabel="+"
-                isLoading={loadingFiles.has(f.path)}
-                onaction={() => stageFile(f.path)}
-                onclick={() => onfileselect?.(f.path, 'unstaged')}
-                oncontextmenu={(e) => showUnstagedContextMenu(e, f.path, f.status)}
-              />
-            {/each}
-          {/if}
-        </div>
+        {#if isMerge}
+          <TreeFileList
+            files={status?.conflicted ?? []}
+            treeMode={treeViewEnabled}
+            actionLabel="+"
+            {loadingFiles}
+            onfileaction={(path) => stageFile(path)}
+            onfileclick={(path) => onfileselect?.(path, 'conflicted')}
+            onfilecontextmenu={(e, path) => showConflictedContextMenu(e, path)}
+          />
+        {:else}
+          <TreeFileList
+            files={status?.unstaged ?? []}
+            treeMode={treeViewEnabled}
+            actionLabel="+"
+            {loadingFiles}
+            onfileaction={(path) => stageFile(path)}
+            onfileclick={(path) => onfileselect?.(path, 'unstaged')}
+            onfilecontextmenu={(e, path, file) => showUnstagedContextMenu(e, path, file.status)}
+          />
+        {/if}
       {/if}
     </div>
     {/if}
@@ -709,18 +736,15 @@
       </div>
 
       {#if staged_expanded}
-        <div style="flex: 1; overflow-y: auto; min-height: 0;" role="list">
-          {#each status?.staged ?? [] as f (f.path)}
-            <FileRow
-              file={f}
-              actionLabel="−"
-              isLoading={loadingFiles.has(f.path)}
-              onaction={() => unstageFile(f.path)}
-              onclick={() => onfileselect?.(f.path, 'staged')}
-              oncontextmenu={(e) => showStagedContextMenu(e, f.path)}
-            />
-          {/each}
-        </div>
+        <TreeFileList
+          files={status?.staged ?? []}
+          treeMode={treeViewEnabled}
+          actionLabel="−"
+          {loadingFiles}
+          onfileaction={(path) => unstageFile(path)}
+          onfileclick={(path) => onfileselect?.(path, 'staged')}
+          onfilecontextmenu={(e, path) => showStagedContextMenu(e, path)}
+        />
       {/if}
     </div>
 

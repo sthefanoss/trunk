@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { FileDiff, CommitDetail, DiffStatus } from '../lib/types.js';
+  import type { FileDiff, CommitDetail, DiffStatus, FileStatus, FileStatusType } from '../lib/types.js';
   import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+  import TreeFileList from './TreeFileList.svelte';
 
   const STATUS_ICONS: Record<DiffStatus, { symbol: string; color: string }> = {
     Added:     { symbol: '+',  color: '#4ade80' },
@@ -19,9 +20,28 @@
     onfileselect: (path: string) => void;
     onclose: () => void;
     repoPath?: string;
+    treeViewEnabled?: boolean;
   }
 
-  let { commitDetail, fileDiffs, selectedFile, onfileselect, onclose, repoPath = '' }: Props = $props();
+  let { commitDetail, fileDiffs, selectedFile, onfileselect, onclose, repoPath = '', treeViewEnabled = false }: Props = $props();
+
+  const DIFF_STATUS_MAP: Record<string, FileStatusType> = {
+    Added: 'New',
+    Deleted: 'Deleted',
+    Modified: 'Modified',
+    Renamed: 'Renamed',
+    Copied: 'Modified',
+    Untracked: 'New',
+    Unknown: 'Modified',
+  };
+
+  let fileStatusList = $derived<FileStatus[]>(
+    fileDiffs.map(fd => ({
+      path: fd.path,
+      status: DIFF_STATUS_MAP[fd.status] ?? 'Modified',
+      is_binary: fd.is_binary,
+    }))
+  );
 
   async function showFileContextMenu(e: MouseEvent, filePath: string) {
     e.preventDefault();
@@ -154,45 +174,14 @@
           {fileDiffs.length} file{fileDiffs.length === 1 ? '' : 's'} changed
         </span>
       </div>
-      <div role="list">
-        {#each fileDiffs as fd (fd.path)}
-          <button
-            type="button"
-            onclick={() => onfileselect(fd.path)}
-            oncontextmenu={(e) => showFileContextMenu(e, fd.path)}
-            style="
-              width: 100%;
-              height: 26px;
-              padding: 0 8px;
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              cursor: pointer;
-              background: {selectedFile === fd.path ? 'var(--color-surface)' : 'transparent'};
-              border: none;
-              text-align: left;
-            "
-          >
-            <span style="
-              color: {STATUS_ICONS[fd.status].color};
-              font-size: 12px;
-              font-weight: 700;
-              min-width: 14px;
-              text-align: center;
-            ">{STATUS_ICONS[fd.status].symbol}</span>
-            <span style="
-              flex: 1;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              font-size: 12px;
-              color: var(--color-text);
-            ">
-              {fd.path}
-            </span>
-          </button>
-        {/each}
-      </div>
+      <TreeFileList
+        files={fileStatusList}
+        treeMode={treeViewEnabled}
+        actionLabel=""
+        onfileaction={() => {}}
+        onfileclick={(path) => onfileselect(path)}
+        onfilecontextmenu={(e, path) => showFileContextMenu(e, path)}
+      />
     </div>
 
   </div>

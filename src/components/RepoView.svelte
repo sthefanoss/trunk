@@ -8,7 +8,7 @@
   import CommitDetail from './CommitDetail.svelte';
   import { safeInvoke } from '../lib/invoke.js';
   import { showToast } from '../lib/toast.svelte.js';
-  import { setLeftPaneWidth, setLeftPaneCollapsed, setRightPaneWidth, setRightPaneCollapsed } from '../lib/store.js';
+  import { setLeftPaneWidth, setLeftPaneCollapsed, setRightPaneWidth, setRightPaneCollapsed, getTreeViewEnabled, setTreeViewEnabled } from '../lib/store.js';
   import type { RemoteState } from '../lib/remote-state.svelte.js';
   import type { UndoRedoManager } from '../lib/undo-redo.svelte.js';
   import type { FileDiff, CommitDetail as CommitDetailType, RefsResponse, WorkingTreeStatus, RebaseTodoItem } from '../lib/types.js';
@@ -55,6 +55,7 @@
   let dirtyCounts = $state<DirtyCounts>({ staged: 0, unstaged: 0, conflicted: 0 });
   let headBranch = $state<string | undefined>(undefined);
   let wipSubject = $state('');
+  let treeViewEnabled = $state(false);
 
   // Staging file selection (from StagingPanel)
   let selectedFile = $state<{ path: string; kind: 'unstaged' | 'staged' | 'conflicted' } | null>(null);
@@ -254,11 +255,17 @@
     }
   }
 
+  function handleTreeViewToggle() {
+    treeViewEnabled = !treeViewEnabled;
+    setTreeViewEnabled(treeViewEnabled);
+  }
+
   // Load initial data
   $effect(() => {
     void repoPath;
     loadDirtyCounts();
     loadHeadBranch();
+    getTreeViewEnabled().then(v => { treeViewEnabled = v; });
   });
 
   // Listen for repo-changed events scoped to this repo
@@ -504,6 +511,7 @@
           }}
           onclose={() => { rebaseFocusedCommitDetail = null; }}
           {repoPath}
+          {treeViewEnabled}
         />
       {:else}
         <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted); font-size: 13px;">
@@ -554,9 +562,10 @@
         onfileselect={handleCommitFileSelect}
         onclose={clearCommit}
         {repoPath}
+        {treeViewEnabled}
       />
     {:else}
-      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} clearRedoStack={undoRedo.clear} />
+      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
     {/if}
   </div>
   {/if}
