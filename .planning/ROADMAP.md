@@ -171,7 +171,9 @@ Plans:
   3. The release workflow produces portable .tar.gz archives alongside the installers for each platform
   4. All build artifacts are uploaded as GitHub Actions workflow artifacts, downloadable from the workflow run page
   5. Linux builds run on ubuntu-22.04 (not ubuntu-latest) to ensure AppImage glibc compatibility with older distributions
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 51-01-PLAN.md -- Create release workflow with matrix builds, portable archives, and artifact upload
 
 ### Phase 52: Homebrew Distribution
 **Goal**: macOS users can install Trunk via Homebrew with a single command
@@ -195,8 +197,8 @@ Plans:
 | v0.7 Hunk Staging & Search | 32-36 | 8/8 | Complete | 2026-03-19 |
 | v0.8 Conflict & Rebase | 37-43 | 19/19 | Complete | 2026-03-23 |
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
-| v0.10 CI/CD & Releases | 50-52 | 0/2 | In progress | - |
+| v0.10 CI/CD & Releases | 50-52 | 2/3 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-25 -- Phase 50 plans created*
+*Last updated: 2026-03-25 -- Phase 51 plans created*
