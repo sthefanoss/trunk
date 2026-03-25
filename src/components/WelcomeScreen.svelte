@@ -6,9 +6,10 @@
 
   interface Props {
     onopen: (path: string, name: string) => void;
+    isFullscreen?: boolean;
   }
 
-  let { onopen }: Props = $props();
+  let { onopen, isFullscreen = false }: Props = $props();
 
   let recentRepos = $state<RecentRepo[]>([]);
   let loading = $state(false);
@@ -62,7 +63,7 @@
 
 <div class="flex flex-col h-screen" style="background: var(--color-bg);">
   <!-- LAYOUT-02: drag region for window movement on welcome screen -->
-  <div data-tauri-drag-region class="flex-shrink-0" style="height: 36px; padding-left: 78px;"></div>
+  <div data-tauri-drag-region class="flex-shrink-0" style="height: 36px; padding-left: {isFullscreen ? 0 : 78}px;"></div>
   <div class="flex-1 flex flex-col items-center justify-center gap-6">
   <div class="flex flex-col items-center gap-4 w-full max-w-md px-4">
     <h1 class="text-2xl font-semibold tracking-tight" style="color: var(--color-text);">Trunk</h1>
