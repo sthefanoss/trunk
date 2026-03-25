@@ -800,16 +800,16 @@ fn build_partial_patch_text(
 
     // Check delta status for diff header
     let delta_status = patch.delta().status();
-    let old_header = if !reverse && delta_status == git2::Delta::Added {
-        "--- /dev/null".to_string()
-    } else if reverse && delta_status == git2::Delta::Deleted {
+    let old_header = if (!reverse && delta_status == git2::Delta::Added)
+        || (reverse && delta_status == git2::Delta::Deleted)
+    {
         "--- /dev/null".to_string()
     } else {
         format!("--- a/{}", file_path)
     };
-    let new_header = if !reverse && delta_status == git2::Delta::Deleted {
-        "+++ /dev/null".to_string()
-    } else if reverse && delta_status == git2::Delta::Added {
+    let new_header = if (!reverse && delta_status == git2::Delta::Deleted)
+        || (reverse && delta_status == git2::Delta::Added)
+    {
         "+++ /dev/null".to_string()
     } else {
         format!("+++ b/{}", file_path)

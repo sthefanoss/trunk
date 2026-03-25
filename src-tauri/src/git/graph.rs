@@ -122,8 +122,8 @@ pub fn walk_commits(
         oids.push(base_oid);
     }
     // Any remaining stashes (older than all base_oids — rare but possible)
-    for i in stash_idx..stash_with_time.len() {
-        oids.push(stash_with_time[i].0);
+    for item in stash_with_time.iter().skip(stash_idx) {
+        oids.push(item.0);
     }
 
     // Step 3: Compute page slice
@@ -202,10 +202,9 @@ pub fn walk_commits(
             // commits at that column).
             let can_inline = is_stash
                 && parent_col.is_some()
-                && parent_oid.map_or(false, |p| !head_chain.contains(&p) || head_tip == Some(p))
-                && parent_col.map_or(false, |pcol| {
-                    pcol >= active_lanes.len() || active_lanes[pcol].is_none()
-                });
+                && parent_oid.is_some_and(|p| !head_chain.contains(&p) || head_tip == Some(p))
+                && parent_col
+                    .is_some_and(|pcol| pcol >= active_lanes.len() || active_lanes[pcol].is_none());
 
             if can_inline {
                 let c = parent_col.unwrap();

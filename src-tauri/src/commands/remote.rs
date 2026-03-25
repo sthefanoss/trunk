@@ -87,8 +87,7 @@ async fn run_git_remote(
         // Git progress uses \r for in-place updates; take the last segment
         let display = line
             .split('\r')
-            .filter(|s| !s.trim().is_empty())
-            .last()
+            .rfind(|s| !s.trim().is_empty())
             .unwrap_or("")
             .trim();
 
@@ -141,7 +140,7 @@ async fn refresh_graph(
     let graph_result: GraphResult = tauri::async_runtime::spawn_blocking(move || {
         let mut repo = git2::Repository::open(&path_buf)
             .map_err(|e| TrunkError::new("git_error", e.to_string()))?;
-        graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+        graph::walk_commits(&mut repo, 0, usize::MAX)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?

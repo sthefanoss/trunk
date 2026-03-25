@@ -135,7 +135,7 @@ pub async fn save_merge_result(
             .get(&path_for_cache)
             .ok_or_else(|| TrunkError::new("not_open", "Repository not open"))?;
         let mut repo = git2::Repository::open(path_buf)?;
-        graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+        graph::walk_commits(&mut repo, 0, usize::MAX)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?

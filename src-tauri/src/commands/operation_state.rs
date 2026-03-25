@@ -176,7 +176,7 @@ pub fn merge_continue_inner(
         return Err(TrunkError::new("merge_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn merge_abort_inner(
@@ -198,7 +198,7 @@ pub fn merge_abort_inner(
         return Err(TrunkError::new("merge_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn rebase_continue_inner(
@@ -243,7 +243,7 @@ pub fn rebase_continue_inner(
         }
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn rebase_skip_inner(
@@ -265,7 +265,7 @@ pub fn rebase_skip_inner(
         return Err(TrunkError::new("rebase_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn rebase_abort_inner(
@@ -287,7 +287,7 @@ pub fn rebase_abort_inner(
         return Err(TrunkError::new("rebase_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 // --- Start merge/rebase ---
@@ -312,12 +312,12 @@ pub fn merge_branch_inner(
         if stderr.to_lowercase().contains("conflict") {
             // Conflicts: rebuild graph so UI picks up the merge state
             let mut repo = git2::Repository::open(path_buf)?;
-            return graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from);
+            return graph::walk_commits(&mut repo, 0, usize::MAX);
         }
         return Err(TrunkError::new("merge_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn rebase_branch_inner(
@@ -339,12 +339,12 @@ pub fn rebase_branch_inner(
         let stderr = String::from_utf8_lossy(&output.stderr);
         if stderr.to_lowercase().contains("conflict") {
             let mut repo = git2::Repository::open(path_buf)?;
-            return graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from);
+            return graph::walk_commits(&mut repo, 0, usize::MAX);
         }
         return Err(TrunkError::new("rebase_error", stderr.to_string()));
     }
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 // --- Tauri command wrappers ---

@@ -74,7 +74,7 @@ pub fn stash_save_inner(
             TrunkError::from(e)
         }
     })?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn stash_pop_inner(
@@ -100,7 +100,7 @@ pub fn stash_pop_inner(
             return Err(TrunkError::new("conflict_state", "Stash applied with conflicts — resolve conflicts before continuing. Note: stash was NOT removed."));
         }
     }
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn stash_apply_inner(
@@ -131,7 +131,7 @@ pub fn stash_apply_inner(
             ));
         }
     }
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn stash_drop_inner(
@@ -141,7 +141,7 @@ pub fn stash_drop_inner(
 ) -> Result<GraphResult, TrunkError> {
     let mut repo = open_repo(path, state_map)?;
     repo.stash_drop(index).map_err(TrunkError::from)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 #[tauri::command]

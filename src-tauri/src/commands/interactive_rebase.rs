@@ -199,7 +199,7 @@ exit 0
     }
 
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 #[tauri::command]

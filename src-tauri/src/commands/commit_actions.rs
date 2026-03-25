@@ -61,7 +61,7 @@ pub fn checkout_commit_inner(
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let mut repo2 = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo2, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo2, 0, usize::MAX)
 }
 
 pub fn create_tag_inner(
@@ -87,7 +87,7 @@ pub fn create_tag_inner(
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let mut repo2 = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo2, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo2, 0, usize::MAX)
 }
 
 pub fn delete_tag_inner(
@@ -106,7 +106,7 @@ pub fn delete_tag_inner(
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let mut repo2 = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo2, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo2, 0, usize::MAX)
 }
 
 pub fn cherry_pick_inner(
@@ -136,7 +136,7 @@ pub fn cherry_pick_inner(
     }
 
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn revert_commit_inner(
@@ -166,7 +166,7 @@ pub fn revert_commit_inner(
     }
 
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 pub fn reset_to_commit_inner(
@@ -200,7 +200,7 @@ pub fn reset_to_commit_inner(
     }
 
     let mut repo = git2::Repository::open(path_buf)?;
-    graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+    graph::walk_commits(&mut repo, 0, usize::MAX)
 }
 
 #[tauri::command]
@@ -453,7 +453,7 @@ pub async fn redo_commit(
             TrunkError::new("not_open", format!("Repository not open: {}", path_clone))
         })?;
         let mut repo = git2::Repository::open(path_buf).map_err(TrunkError::from)?;
-        graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
+        graph::walk_commits(&mut repo, 0, usize::MAX)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
