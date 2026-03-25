@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TabInfo } from '../lib/tab-types.js';
   import { X, Plus } from '@lucide/svelte';
+  import Sortable from 'sortablejs';
 
   interface Props {
     tabs: TabInfo[];
@@ -10,9 +11,10 @@
     onnew: () => void;
     oncontextmenu: (tabId: string, event: MouseEvent) => void;
     onauxclose: (tabId: string) => void;
+    onreorder: (newTabs: TabInfo[]) => void;
   }
 
-  let { tabs, activeTabId, onactivate, onclose, onnew, oncontextmenu, onauxclose }: Props = $props();
+  let { tabs, activeTabId, onactivate, onclose, onnew, oncontextmenu, onauxclose, onreorder }: Props = $props();
 
   let tabBarEl: HTMLDivElement;
 
@@ -20,8 +22,33 @@
     const activeButton = tabBarEl?.querySelector(`[data-tab-id="${activeTabId}"]`);
     activeButton?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
+
+  $effect(() => {
+    if (!tabBarEl) return;
+    const sortable = Sortable.create(tabBarEl, {
+      animation: 150,
+      direction: 'horizontal',
+      forceFallback: true,
+      ghostClass: 'tab-ghost',
+      chosenClass: 'tab-chosen',
+      dragClass: 'tab-drag',
+      filter: '.new-tab-btn',
+      preventOnFilter: false,
+      scroll: true,
+      scrollSensitivity: 50,
+      onEnd: (e) => {
+        if (e.oldIndex == null || e.newIndex == null || e.oldIndex === e.newIndex) return;
+        const updated = [...tabs];
+        const [moved] = updated.splice(e.oldIndex, 1);
+        updated.splice(e.newIndex, 0, moved);
+        onreorder(updated);
+      },
+    });
+    return () => sortable.destroy();
+  });
 </script>
 
+{#key tabs}
 <div class="tab-bar" bind:this={tabBarEl}>
   {#each tabs as tab (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -52,6 +79,7 @@
     <Plus size={14} />
   </button>
 </div>
+{/key}
 
 <style>
   .tab-bar {
@@ -144,5 +172,17 @@
 
   .new-tab-btn:hover {
     background: var(--color-border);
+  }
+
+  :global(.tab-ghost) {
+    opacity: 0.4;
+  }
+
+  :global(.tab-chosen) {
+    background: var(--color-selected-row) !important;
+  }
+
+  :global(.tab-drag) {
+    opacity: 0;
   }
 </style>
