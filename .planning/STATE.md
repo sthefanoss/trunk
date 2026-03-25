@@ -99,11 +99,12 @@ Plan: Not started
 |---|-------------|------|--------|-----------|
 | 260320-wz2 | Simplify splash screen project cards to single-line items, save 10 projects instead of 5 | 2026-03-21 | ca345bf | [260320-wz2-simplify-splash-screen-project-cards-to-](./quick/260320-wz2-simplify-splash-screen-project-cards-to-/) |
 | 260325-j3y | Remove left tab offset when window is maximized/fullscreen | 2026-03-25 | 13597f5 | [260325-j3y-remove-left-tab-offset-when-window-is-ma](./quick/260325-j3y-remove-left-tab-offset-when-window-is-ma/) |
+| 260325-jb3 | Prevent Ctrl+Cmd+F from being captured by Cmd+F search handler | 2026-03-25 | 8b3dcd9 | [260325-jb3-prevent-ctrl-cmd-f-from-being-captured-b](./quick/260325-jb3-prevent-ctrl-cmd-f-from-being-captured-b/) |
 
 ## Session Continuity
 
 Last activity: 2026-03-25
-Last session: 2026-03-25T16:50:56Z
-Stopped at: Completed quick task 260325-j3y
+Last session: 2026-03-25T16:58:04Z
+Stopped at: Completed quick task 260325-jb3
 Resume file: None
 Next action: Re-verify TREE-01, TREE-02, TREE-05, TREE-06
