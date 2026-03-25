@@ -61,7 +61,7 @@
   let listRef = $state<{ scroll: (opts: { index: number; smoothScroll?: boolean; align?: string }) => Promise<void> } | null>(null);
   let scrolledToHead = false;
 
-  let columnWidths = $state<ColumnWidths>({ ref: 120, graph: 24, author: 120, date: 100, sha: 80 });
+  let columnWidths = $state<ColumnWidths>({ ref: 120, graph: 24, author: 60, date: 40, sha: 50 });
   let columnVisibility = $state<ColumnVisibility>({ ref: true, graph: true, message: true, author: true, date: true, sha: true });
 
   const ORDERED_COLUMNS = ['ref', 'graph', 'message', 'author', 'date', 'sha'] as const;
@@ -99,20 +99,95 @@
     if (graphScrollX > maxGraphScrollX) graphScrollX = maxGraphScrollX;
   });
 
-  // Track whether the user has explicitly resized the graph column this session.
-  let userResizedGraph = false;
+  // Font strings for measuring header labels and column content
+  const HEADER_FONT = '11px ui-sans-serif, system-ui, sans-serif';
+  const AUTHOR_CONTENT_FONT = '12px ui-sans-serif, system-ui, sans-serif';
+  const DATE_CONTENT_FONT = '11px ui-sans-serif, system-ui, sans-serif';
+  const SHA_CONTENT_FONT = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
 
-  // Auto-fit graph column width to content when maxColumns changes (data loads/refreshes).
-  // If user hasn't manually resized, snap to fit. If they have, clamp to natural max.
+  // Minimum column widths = header label text width + column padding (border-box) + breathing room
+  const HEADER_PAD = 4 * COLUMN_PADDING_X; // 2× for CSS padding + 2× for breathing room
+  const headerMinGraph = measureTextWidth('Graph', HEADER_FONT) + HEADER_PAD;
+  const headerMinAuthor = measureTextWidth('Author', HEADER_FONT) + HEADER_PAD;
+  const headerMinDate = measureTextWidth('Date', HEADER_FONT) + HEADER_PAD;
+  const headerMinSha = measureTextWidth('SHA', HEADER_FONT) + HEADER_PAD;
+
+  // Track which columns the user has explicitly resized this session.
+  const userResizedColumns = new Set<keyof ColumnWidths>();
+
+  // Max content widths for auto-fit (updated when commits load)
+  let maxAuthorContentWidth = $state(0);
+  let maxDateContentWidth = $state(0);
+  let shaContentWidth = $state(0);
+
+  function relativeDateStr(ts: number): string {
+    if (ts === 0) return '';
+    const now = Date.now() / 1000;
+    const diff = Math.max(0, now - ts);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+    if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
+    return `${Math.floor(diff / 31536000)}y ago`;
+  }
+
+  function updateContentWidths(newCommits: GraphCommit[], reset = false) {
+    if (reset) {
+      maxAuthorContentWidth = 0;
+      maxDateContentWidth = 0;
+      shaContentWidth = 0;
+    }
+    for (const c of newCommits) {
+      if (c.oid === '__wip__' || c.is_stash) continue;
+      const aw = measureTextWidth(c.author_name, AUTHOR_CONTENT_FONT) + 2 * COLUMN_PADDING_X;
+      if (aw > maxAuthorContentWidth) maxAuthorContentWidth = aw;
+      const dw = measureTextWidth(relativeDateStr(c.author_timestamp), DATE_CONTENT_FONT) + 2 * COLUMN_PADDING_X;
+      if (dw > maxDateContentWidth) maxDateContentWidth = dw;
+    }
+    if (newCommits.length > 0 && shaContentWidth === 0) {
+      shaContentWidth = measureTextWidth('0000000', SHA_CONTENT_FONT) + 2 * COLUMN_PADDING_X;
+    }
+  }
+
+  // Auto-fit column widths to content. Uses untrack on columnWidths reads to avoid
+  // infinite reactive loops (each effect writes columnWidths, which would re-trigger others).
   $effect(() => {
     const cols = maxColumns;
     const fitWidth = Math.max(cols, 1) * displaySettings.laneWidth + 2 * COLUMN_PADDING_X;
-    if (!userResizedGraph) {
-      columnWidths = { ...columnWidths, graph: fitWidth };
-    } else {
-      if (columnWidths.graph > fitWidth) {
-        columnWidths = { ...columnWidths, graph: fitWidth };
-      }
+    const targetWidth = Math.max(fitWidth, headerMinGraph);
+    const cur = untrack(() => columnWidths);
+    if (!userResizedColumns.has('graph')) {
+      columnWidths = { ...cur, graph: targetWidth };
+    } else if (cur.graph > targetWidth) {
+      columnWidths = { ...cur, graph: targetWidth };
+    }
+  });
+
+  $effect(() => {
+    const w = maxAuthorContentWidth;
+    if (w <= 0) return;
+    const targetWidth = Math.max(w, headerMinAuthor);
+    if (!userResizedColumns.has('author')) {
+      columnWidths = { ...untrack(() => columnWidths), author: targetWidth };
+    }
+  });
+
+  $effect(() => {
+    const w = maxDateContentWidth;
+    if (w <= 0) return;
+    const targetWidth = Math.max(w, headerMinDate);
+    if (!userResizedColumns.has('date')) {
+      columnWidths = { ...untrack(() => columnWidths), date: targetWidth };
+    }
+  });
+
+  $effect(() => {
+    const w = shaContentWidth;
+    if (w <= 0) return;
+    const targetWidth = Math.max(w, headerMinSha);
+    if (!userResizedColumns.has('sha')) {
+      columnWidths = { ...untrack(() => columnWidths), sha: targetWidth };
     }
   });
 
@@ -147,19 +222,19 @@
 
   function startColumnResize(column: keyof ColumnWidths, e: MouseEvent, invert = false) {
     e.preventDefault();
-    if (column === 'graph') userResizedGraph = true;
+    userResizedColumns.add(column);
     const startX = e.clientX;
     const startWidth = columnWidths[column];
     const minWidths: Record<keyof ColumnWidths, number> = {
       ref: 60,
-      graph: 20, // GRAPH-02: allow graph column to shrink below lane content width
-      author: 60,
-      date: 60,
-      sha: 50,
+      graph: headerMinGraph,
+      author: headerMinAuthor,
+      date: headerMinDate,
+      sha: headerMinSha,
     };
     const maxWidths: Record<keyof ColumnWidths, number> = {
       ref: 400,
-      graph: naturalGraphWidth + 2 * COLUMN_PADDING_X, // GRAPH-02: cap at natural content width + padding
+      graph: Math.max(naturalGraphWidth + displaySettings.laneWidth + 2 * COLUMN_PADDING_X, headerMinGraph),
       author: 400,
       date: 400,
       sha: 400,
@@ -709,6 +784,7 @@
       });
       commits.push(...response.commits);
       maxColumns = response.max_columns;
+      updateContentWidths(response.commits);
       offset += response.commits.length;
       if (response.commits.length < BATCH) hasMore = false;
     } catch (e) {
@@ -757,6 +833,7 @@
       // Swap data atomically -- old data stays visible until this assignment
       commits = response.commits;
       maxColumns = response.max_columns;
+      updateContentWidths(response.commits, true);
       offset = response.commits.length;
       hasMore = response.commits.length >= BATCH;
       error = null;

@@ -105,9 +105,9 @@ const COLUMN_WIDTHS_KEY = 'column_widths';
 const DEFAULT_WIDTHS: ColumnWidths = {
   ref: 120,
   graph: 24,
-  author: 120,
-  date: 100,
-  sha: 80,
+  author: 60,
+  date: 40,
+  sha: 50,
 };
 
 export async function getColumnWidths(): Promise<ColumnWidths> {
