@@ -156,9 +156,9 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
   3. The same CI workflow runs biome ci on all frontend files -- and fails if any file is unformatted or has lint errors
   4. Biome is installed as a devDependency with biome.json config, and all existing frontend files pass biome ci without changes
   5. Rust compilation in CI uses swatinem/rust-cache so repeat runs complete significantly faster than uncached builds
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 50-01-PLAN.md -- Fix pre-existing check failures + install and configure Biome
+- [x] 50-01-PLAN.md -- Fix pre-existing check failures + install and configure Biome
 - [ ] 50-02-PLAN.md -- Create GitHub Actions CI workflow with two-gate pipeline
 
 ### Phase 51: Cross-Platform Release Pipeline
