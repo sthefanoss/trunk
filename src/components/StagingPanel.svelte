@@ -558,6 +558,7 @@
             files={status?.conflicted ?? []}
             treeMode={treeViewEnabled}
             actionLabel=""
+            storageKey="conflicted"
             onfileaction={() => {}}
             onfileclick={(path) => onfileselect?.(path, 'conflicted')}
             onfilecontextmenu={(e, path) => showConflictedContextMenu(e, path)}
@@ -666,6 +667,7 @@
             files={status?.conflicted ?? []}
             treeMode={treeViewEnabled}
             actionLabel="+"
+            storageKey="merge_conflicted"
             {loadingFiles}
             onfileaction={(path) => stageFile(path)}
             onfileclick={(path) => onfileselect?.(path, 'conflicted')}
@@ -676,6 +678,7 @@
             files={status?.unstaged ?? []}
             treeMode={treeViewEnabled}
             actionLabel="+"
+            storageKey="unstaged"
             {loadingFiles}
             onfileaction={(path) => stageFile(path)}
             onfileclick={(path) => onfileselect?.(path, 'unstaged')}
@@ -740,6 +743,7 @@
           files={status?.staged ?? []}
           treeMode={treeViewEnabled}
           actionLabel="−"
+          storageKey="staged"
           {loadingFiles}
           onfileaction={(path) => unstageFile(path)}
           onfileclick={(path) => onfileselect?.(path, 'staged')}

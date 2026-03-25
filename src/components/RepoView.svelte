@@ -564,6 +564,7 @@
         onclose={clearCommit}
         {repoPath}
         {treeViewEnabled}
+        ontreeviewtoggle={handleTreeViewToggle}
       />
     {:else}
       <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
