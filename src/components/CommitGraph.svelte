@@ -783,7 +783,7 @@
   // Cmd+F keyboard handler — capture phase to intercept before WebView native find (P7)
   $effect(() => {
     function handleSearchKeydown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      if (e.key === 'f' && ((e.metaKey && !e.ctrlKey) || (e.ctrlKey && !e.metaKey))) {
         e.preventDefault();
         e.stopPropagation();
         if (searchOpen) {
