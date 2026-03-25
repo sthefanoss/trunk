@@ -61,7 +61,7 @@
   let listRef = $state<{ scroll: (opts: { index: number; smoothScroll?: boolean; align?: string }) => Promise<void> } | null>(null);
   let scrolledToHead = false;
 
-  let columnWidths = $state<ColumnWidths>({ ref: 120, graph: 120, author: 120, date: 100, sha: 80 });
+  let columnWidths = $state<ColumnWidths>({ ref: 120, graph: 24, author: 120, date: 100, sha: 80 });
   let columnVisibility = $state<ColumnVisibility>({ ref: true, graph: true, message: true, author: true, date: true, sha: true });
 
   const ORDERED_COLUMNS = ['ref', 'graph', 'message', 'author', 'date', 'sha'] as const;
@@ -99,6 +99,23 @@
     if (graphScrollX > maxGraphScrollX) graphScrollX = maxGraphScrollX;
   });
 
+  // Track whether the user has explicitly resized the graph column this session.
+  let userResizedGraph = false;
+
+  // Auto-fit graph column width to content when maxColumns changes (data loads/refreshes).
+  // If user hasn't manually resized, snap to fit. If they have, clamp to natural max.
+  $effect(() => {
+    const cols = maxColumns;
+    const fitWidth = Math.max(cols, 1) * displaySettings.laneWidth + 2 * COLUMN_PADDING_X;
+    if (!userResizedGraph) {
+      columnWidths = { ...columnWidths, graph: fitWidth };
+    } else {
+      if (columnWidths.graph > fitWidth) {
+        columnWidths = { ...columnWidths, graph: fitWidth };
+      }
+    }
+  });
+
   let stashOidToIndex = $state<Map<string, number>>(new Map());
 
   // Search state
@@ -130,6 +147,7 @@
 
   function startColumnResize(column: keyof ColumnWidths, e: MouseEvent, invert = false) {
     e.preventDefault();
+    if (column === 'graph') userResizedGraph = true;
     const startX = e.clientX;
     const startWidth = columnWidths[column];
     const minWidths: Record<keyof ColumnWidths, number> = {
