@@ -205,7 +205,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 48-01-PLAN.md — Tab context menu, middle-click close, duplicate tab detection
-- [ ] 48-02-PLAN.md — Directory count badges, directory staging actions, Expand All / Collapse All
+- [x] 48-02-PLAN.md — Directory count badges, directory staging actions, Expand All / Collapse All
 - [ ] 48-03-PLAN.md — Human verification of all Phase 48 features
 **UI hint**: yes
 
@@ -229,7 +229,7 @@ Phases execute in numeric order: 44 → 45 → 46 → 47 → 48
 | 45. Frontend Tab Architecture | v0.9 | 3/3 | Complete    | 2026-03-24 |
 | 46. Tree View Data Layer | v0.9 | 0/1 | Complete    | 2026-03-24 |
 | 47. Tree View UI Integration | v0.9 | 3/3 | Complete    | 2026-03-25 |
-| 48. Polish & Differentiators | v0.9 | 1/3 | In Progress|  |
+| 48. Polish & Differentiators | v0.9 | 2/3 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-13*

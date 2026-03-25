@@ -29,9 +29,9 @@ Requirements for milestone v0.9 Multi-tab & Tree View. Each maps to roadmap phas
 - [x] **TREE-05**: Expand/collapse state is preserved across status refreshes (staging a file doesn't collapse the tree)
 - [x] **TREE-06**: User can navigate the tree with arrow keys (up/down to move, left/right to collapse/expand)
 - [x] **TREE-07**: Single-child directory paths are compressed (e.g. src/lib/ instead of src > lib)
-- [ ] **TREE-08**: User can stage/unstage an entire directory via action on the directory node
-- [ ] **TREE-09**: Directory nodes show file count badges
-- [ ] **TREE-10**: User can Expand All / Collapse All via buttons in the file list header
+- [x] **TREE-08**: User can stage/unstage an entire directory via action on the directory node
+- [x] **TREE-09**: Directory nodes show file count badges
+- [x] **TREE-10**: User can Expand All / Collapse All via buttons in the file list header
 
 ### Backend
 
@@ -86,9 +86,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TAB-08 | Phase 48 | Complete |
 | TAB-09 | Phase 48 | Complete |
 | TAB-10 | Phase 48 | Complete |
-| TREE-08 | Phase 48 | Pending |
-| TREE-09 | Phase 48 | Pending |
-| TREE-10 | Phase 48 | Pending |
+| TREE-08 | Phase 48 | Complete |
+| TREE-09 | Phase 48 | Complete |
+| TREE-10 | Phase 48 | Complete |
 
 **Coverage:**
 - v0.9 requirements: 21 total
