@@ -136,6 +136,49 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
 
 </details>
 
+### v0.10 CI/CD & Releases (In Progress)
+
+**Milestone Goal:** Ship cross-platform release binaries and enforce code quality with automated CI.
+
+- [ ] **Phase 50: CI Quality Gates** - Prettier setup, Rust checks, frontend checks, and formatting enforcement on every push/PR
+- [ ] **Phase 51: Cross-Platform Release Pipeline** - Tag-triggered builds producing installers and archives for macOS, Linux, and Windows
+- [ ] **Phase 52: Homebrew Distribution** - Homebrew cask formula for macOS installation via `brew install --cask`
+
+## Phase Details
+
+### Phase 50: CI Quality Gates
+**Goal**: Every push and PR is automatically validated for Rust correctness, frontend type safety, test coverage, and code formatting
+**Depends on**: Nothing (first phase of v0.10)
+**Requirements**: CI-01, CI-02, CI-03, CI-04, CI-05
+**Success Criteria** (what must be TRUE):
+  1. Pushing a commit to any branch triggers a CI workflow that runs cargo check, clippy (-D warnings), cargo test, and cargo fmt --check -- and fails if any check fails
+  2. The same CI workflow runs bun install, bun run check (svelte-check), and bun run test (vitest) -- and fails if any check fails
+  3. The same CI workflow runs prettier --check on all frontend files -- and fails if any file is unformatted
+  4. Prettier is installed as a devDependency with .prettierrc config, and all existing frontend files pass prettier --check without changes
+  5. Rust compilation in CI uses swatinem/rust-cache so repeat runs complete significantly faster than uncached builds
+**Plans**: TBD
+
+### Phase 51: Cross-Platform Release Pipeline
+**Goal**: A git tag push produces downloadable platform-specific installers and archives for macOS (ARM + Intel), Linux, and Windows
+**Depends on**: Phase 50
+**Requirements**: REL-01, REL-02, REL-03, REL-04, REL-05
+**Success Criteria** (what must be TRUE):
+  1. Pushing a `v*` tag triggers a release workflow that builds for macOS ARM, macOS Intel, Linux x64, and Windows x64
+  2. The release workflow produces .dmg installers for both macOS architectures, .AppImage for Linux, and .msi for Windows
+  3. The release workflow produces portable .tar.gz archives alongside the installers for each platform
+  4. All build artifacts are uploaded as GitHub Actions workflow artifacts, downloadable from the workflow run page
+  5. Linux builds run on ubuntu-22.04 (not ubuntu-latest) to ensure AppImage glibc compatibility with older distributions
+**Plans**: TBD
+
+### Phase 52: Homebrew Distribution
+**Goal**: macOS users can install Trunk via Homebrew with a single command
+**Depends on**: Phase 51
+**Requirements**: DIST-01
+**Success Criteria** (what must be TRUE):
+  1. Running `brew install --cask joaofnds/tap/trunk` downloads and installs the macOS .dmg from the latest release
+  2. The cask formula lives in the joaofnds/homebrew-tap repository and references the correct .dmg artifact URL
+**Plans**: TBD
+
 ## Progress
 
 | Milestone | Phases | Plans | Status | Shipped |
@@ -149,7 +192,8 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
 | v0.7 Hunk Staging & Search | 32-36 | 8/8 | Complete | 2026-03-19 |
 | v0.8 Conflict & Rebase | 37-43 | 19/19 | Complete | 2026-03-23 |
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
+| v0.10 CI/CD & Releases | 50-52 | 0/0 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-25 — v0.9 shipped*
+*Last updated: 2026-03-25 -- v0.10 roadmap added*

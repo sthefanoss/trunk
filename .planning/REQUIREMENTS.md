@@ -51,23 +51,23 @@ Requirements for CI/CD & Releases milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CI-01 | — | Pending |
-| CI-02 | — | Pending |
-| CI-03 | — | Pending |
-| CI-04 | — | Pending |
-| CI-05 | — | Pending |
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
-| REL-04 | — | Pending |
-| REL-05 | — | Pending |
-| DIST-01 | — | Pending |
+| CI-01 | Phase 50 | Pending |
+| CI-02 | Phase 50 | Pending |
+| CI-03 | Phase 50 | Pending |
+| CI-04 | Phase 50 | Pending |
+| CI-05 | Phase 50 | Pending |
+| REL-01 | Phase 51 | Pending |
+| REL-02 | Phase 51 | Pending |
+| REL-03 | Phase 51 | Pending |
+| REL-04 | Phase 51 | Pending |
+| REL-05 | Phase 51 | Pending |
+| DIST-01 | Phase 52 | Pending |
 
 **Coverage:**
 - v0.10 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 after roadmap creation*
