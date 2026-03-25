@@ -24,6 +24,7 @@
     "sortablejs": "^1.15.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tauri-apps/cli": "^2",
