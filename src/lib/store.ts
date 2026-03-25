@@ -1,33 +1,36 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
-import type { PersistedTab } from './tab-types.js';
+import { LazyStore } from "@tauri-apps/plugin-store";
+import type { PersistedTab } from "./tab-types.js";
 
-export type { PersistedTab } from './tab-types.js';
+export type { PersistedTab } from "./tab-types.js";
 
-export interface RecentRepo { name: string; path: string; }
+export interface RecentRepo {
+  name: string;
+  path: string;
+}
 
-const store = new LazyStore('trunk-prefs.json');
-const RECENT_KEY = 'recent_repos';
+const store = new LazyStore("trunk-prefs.json");
+const RECENT_KEY = "recent_repos";
 const MAX_RECENT = 10;
 
 export async function addRecentRepo(repo: RecentRepo): Promise<void> {
-  const current = await store.get<RecentRepo[]>(RECENT_KEY) ?? [];
-  const updated = [repo, ...current.filter(r => r.path !== repo.path)].slice(0, MAX_RECENT);
+  const current = (await store.get<RecentRepo[]>(RECENT_KEY)) ?? [];
+  const updated = [repo, ...current.filter((r) => r.path !== repo.path)].slice(0, MAX_RECENT);
   await store.set(RECENT_KEY, updated);
   await store.save();
 }
 
 export async function getRecentRepos(): Promise<RecentRepo[]> {
-  return await store.get<RecentRepo[]>(RECENT_KEY) ?? [];
+  return (await store.get<RecentRepo[]>(RECENT_KEY)) ?? [];
 }
 
 export async function removeRecentRepo(path: string): Promise<void> {
-  const current = await store.get<RecentRepo[]>(RECENT_KEY) ?? [];
-  const updated = current.filter(r => r.path !== path);
+  const current = (await store.get<RecentRepo[]>(RECENT_KEY)) ?? [];
+  const updated = current.filter((r) => r.path !== path);
   await store.set(RECENT_KEY, updated);
   await store.save();
 }
 
-const ZOOM_KEY = 'zoom_level';
+const ZOOM_KEY = "zoom_level";
 
 export async function getZoomLevel(): Promise<number> {
   return (await store.get<number>(ZOOM_KEY)) ?? 1;
@@ -38,8 +41,8 @@ export async function setZoomLevel(level: number): Promise<void> {
   await store.save();
 }
 
-const LEFT_PANE_KEY = 'left_pane_width';
-const RIGHT_PANE_KEY = 'right_pane_width';
+const LEFT_PANE_KEY = "left_pane_width";
+const RIGHT_PANE_KEY = "right_pane_width";
 
 export async function getLeftPaneWidth(): Promise<number> {
   return (await store.get<number>(LEFT_PANE_KEY)) ?? 220;
@@ -59,8 +62,8 @@ export async function setRightPaneWidth(width: number): Promise<void> {
   await store.save();
 }
 
-const LEFT_PANE_COLLAPSED_KEY = 'left_pane_collapsed';
-const RIGHT_PANE_COLLAPSED_KEY = 'right_pane_collapsed';
+const LEFT_PANE_COLLAPSED_KEY = "left_pane_collapsed";
+const RIGHT_PANE_COLLAPSED_KEY = "right_pane_collapsed";
 
 export async function getLeftPaneCollapsed(): Promise<boolean> {
   return (await store.get<boolean>(LEFT_PANE_COLLAPSED_KEY)) ?? false;
@@ -80,7 +83,7 @@ export async function setRightPaneCollapsed(collapsed: boolean): Promise<void> {
   await store.save();
 }
 
-const OPEN_REPO_KEY = 'open_repo';
+const OPEN_REPO_KEY = "open_repo";
 
 export async function getOpenRepo(): Promise<RecentRepo | null> {
   return (await store.get<RecentRepo>(OPEN_REPO_KEY)) ?? null;
@@ -100,7 +103,7 @@ export interface ColumnWidths {
   // message is flex-1, no fixed width
 }
 
-const COLUMN_WIDTHS_KEY = 'column_widths';
+const COLUMN_WIDTHS_KEY = "column_widths";
 
 const DEFAULT_WIDTHS: ColumnWidths = {
   ref: 120,
@@ -128,7 +131,7 @@ export interface ColumnVisibility {
   sha: boolean;
 }
 
-const COLUMN_VISIBILITY_KEY = 'column_visibility';
+const COLUMN_VISIBILITY_KEY = "column_visibility";
 
 const DEFAULT_VISIBILITY: ColumnVisibility = {
   ref: true,
@@ -156,7 +159,7 @@ export interface RebaseColumnWidths {
   // action is fixed 90px, message is flex-1
 }
 
-const REBASE_COLUMN_WIDTHS_KEY = 'rebase_column_widths';
+const REBASE_COLUMN_WIDTHS_KEY = "rebase_column_widths";
 
 const DEFAULT_REBASE_WIDTHS: RebaseColumnWidths = {
   sha: 80,
@@ -181,7 +184,7 @@ export interface RebaseColumnVisibility {
   // action and message always visible
 }
 
-const REBASE_COLUMN_VISIBILITY_KEY = 'rebase_column_visibility';
+const REBASE_COLUMN_VISIBILITY_KEY = "rebase_column_visibility";
 
 const DEFAULT_REBASE_VISIBILITY: RebaseColumnVisibility = {
   sha: true,
@@ -190,7 +193,10 @@ const DEFAULT_REBASE_VISIBILITY: RebaseColumnVisibility = {
 };
 
 export async function getRebaseColumnVisibility(): Promise<RebaseColumnVisibility> {
-  return (await store.get<RebaseColumnVisibility>(REBASE_COLUMN_VISIBILITY_KEY)) ?? DEFAULT_REBASE_VISIBILITY;
+  return (
+    (await store.get<RebaseColumnVisibility>(REBASE_COLUMN_VISIBILITY_KEY)) ??
+    DEFAULT_REBASE_VISIBILITY
+  );
 }
 
 export async function setRebaseColumnVisibility(visibility: RebaseColumnVisibility): Promise<void> {
@@ -199,8 +205,8 @@ export async function setRebaseColumnVisibility(visibility: RebaseColumnVisibili
 }
 
 // Tab persistence
-const TABS_KEY = 'open_tabs';
-const ACTIVE_TAB_KEY = 'active_tab_id';
+const TABS_KEY = "open_tabs";
+const ACTIVE_TAB_KEY = "active_tab_id";
 
 export async function getOpenTabs(): Promise<PersistedTab[]> {
   return (await store.get<PersistedTab[]>(TABS_KEY)) ?? [];
@@ -221,7 +227,7 @@ export async function setActiveTabId(id: string): Promise<void> {
 }
 
 // Tree view preference
-const TREE_VIEW_KEY = 'tree_view_enabled';
+const TREE_VIEW_KEY = "tree_view_enabled";
 
 export async function getTreeViewEnabled(): Promise<boolean> {
   return (await store.get<boolean>(TREE_VIEW_KEY)) ?? false;
@@ -231,4 +237,3 @@ export async function setTreeViewEnabled(enabled: boolean): Promise<void> {
   await store.set(TREE_VIEW_KEY, enabled);
   await store.save();
 }
-

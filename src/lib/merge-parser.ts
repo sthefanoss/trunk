@@ -9,7 +9,7 @@
  */
 
 export interface ConflictRegion {
-  type: 'context' | 'conflict';
+  type: "context" | "conflict";
   baseLines: string[];
   oursLines: string[];
   theirsLines: string[];
@@ -20,8 +20,8 @@ export interface ConflictRegion {
  * (not `[""]` which would create a phantom line).
  */
 function splitLines(text: string): string[] {
-  if (text === '') return [];
-  return text.split('\n');
+  if (text === "") return [];
+  return text.split("\n");
 }
 
 /**
@@ -95,11 +95,7 @@ function findSyncPoint(
  * The parser walks through lines using three pointers and groups
  * consecutive matching lines as context and differing lines as conflict.
  */
-export function parseConflictRegions(
-  base: string,
-  ours: string,
-  theirs: string,
-): ConflictRegion[] {
+export function parseConflictRegions(base: string, ours: string, theirs: string): ConflictRegion[] {
   const baseLines = splitLines(base);
   const oursLines = splitLines(ours);
   const theirsLines = splitLines(theirs);
@@ -109,10 +105,10 @@ export function parseConflictRegions(
     // If ours equals theirs, everything is context
     if (ours === theirs) {
       if (oursLines.length === 0) return [];
-      return [{ type: 'context', baseLines: [], oursLines, theirsLines }];
+      return [{ type: "context", baseLines: [], oursLines, theirsLines }];
     }
     // Otherwise, the entire file is one conflict
-    return [{ type: 'conflict', baseLines: [], oursLines, theirsLines }];
+    return [{ type: "conflict", baseLines: [], oursLines, theirsLines }];
   }
 
   const oursIndex = buildLineIndex(oursLines);
@@ -150,7 +146,12 @@ export function parseConflictRegions(
         oi++;
         ti++;
       }
-      regions.push({ type: 'context', baseLines: ctxBase, oursLines: ctxOurs, theirsLines: ctxTheirs });
+      regions.push({
+        type: "context",
+        baseLines: ctxBase,
+        oursLines: ctxOurs,
+        theirsLines: ctxTheirs,
+      });
     } else {
       // Lines diverge -- find the next sync point
       const sync = findSyncPoint(baseLines, bi + 1, oi + 1, ti + 1, oursIndex, theirsIndex);
@@ -158,7 +159,7 @@ export function parseConflictRegions(
       if (sync) {
         // Everything between current position and sync point is conflict
         regions.push({
-          type: 'conflict',
+          type: "conflict",
           baseLines: baseLines.slice(bi, sync.bi),
           oursLines: oursLines.slice(oi, sync.oi),
           theirsLines: theirsLines.slice(ti, sync.ti),
@@ -169,7 +170,7 @@ export function parseConflictRegions(
       } else {
         // No sync point found -- rest of all three is one conflict
         regions.push({
-          type: 'conflict',
+          type: "conflict",
           baseLines: baseLines.slice(bi),
           oursLines: oursLines.slice(oi),
           theirsLines: theirsLines.slice(ti),
@@ -194,7 +195,7 @@ export function computeOutput(regions: ConflictRegion[], takenLines: Set<string>
 
   for (let i = 0; i < regions.length; i++) {
     const region = regions[i];
-    if (region.type === 'context') {
+    if (region.type === "context") {
       // For context, include all lines (oursLines === theirsLines === baseLines)
       lines.push(...region.oursLines);
     } else {
@@ -212,7 +213,7 @@ export function computeOutput(regions: ConflictRegion[], takenLines: Set<string>
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -222,7 +223,7 @@ export function computeOutput(regions: ConflictRegion[], takenLines: Set<string>
 export function takeAllCurrent(regions: ConflictRegion[]): Set<string> {
   const keys = new Set<string>();
   for (let i = 0; i < regions.length; i++) {
-    if (regions[i].type === 'conflict') {
+    if (regions[i].type === "conflict") {
       for (let j = 0; j < regions[i].oursLines.length; j++) {
         keys.add(`ours-${i}-${j}`);
       }
@@ -238,7 +239,7 @@ export function takeAllCurrent(regions: ConflictRegion[]): Set<string> {
 export function takeAllIncoming(regions: ConflictRegion[]): Set<string> {
   const keys = new Set<string>();
   for (let i = 0; i < regions.length; i++) {
-    if (regions[i].type === 'conflict') {
+    if (regions[i].type === "conflict") {
       for (let j = 0; j < regions[i].theirsLines.length; j++) {
         keys.add(`theirs-${i}-${j}`);
       }
@@ -255,13 +256,13 @@ export function takeAllIncoming(regions: ConflictRegion[]): Set<string> {
  * Returns a new Set (immutable update).
  */
 export function toggleHunk(
-  side: 'ours' | 'theirs',
+  side: "ours" | "theirs",
   regionIdx: number,
   regions: ConflictRegion[],
   takenLines: Set<string>,
 ): Set<string> {
   const region = regions[regionIdx];
-  const lines = side === 'ours' ? region.oursLines : region.theirsLines;
+  const lines = side === "ours" ? region.oursLines : region.theirsLines;
   const keys = lines.map((_, j) => `${side}-${regionIdx}-${j}`);
 
   const allTaken = keys.every((k) => takenLines.has(k));
@@ -301,7 +302,5 @@ export function toggleLine(key: string, takenLines: Set<string>): Set<string> {
  * Return indices of all conflict regions (for Prev/Next navigation).
  */
 export function getConflictIndices(regions: ConflictRegion[]): number[] {
-  return regions
-    .map((r, i) => (r.type === 'conflict' ? i : -1))
-    .filter((i) => i !== -1);
+  return regions.map((r, i) => (r.type === "conflict" ? i : -1)).filter((i) => i !== -1);
 }

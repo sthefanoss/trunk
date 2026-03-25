@@ -1,64 +1,66 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { homeDir } from '@tauri-apps/api/path';
-  import { safeInvoke, type TrunkError } from '../lib/invoke.js';
-  import { addRecentRepo, getRecentRepos, removeRecentRepo, type RecentRepo } from '../lib/store.js';
+import { homeDir } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/plugin-dialog";
+import { safeInvoke, type TrunkError } from "../lib/invoke.js";
+import { addRecentRepo, getRecentRepos, type RecentRepo, removeRecentRepo } from "../lib/store.js";
 
-  interface Props {
-    onopen: (path: string, name: string) => void;
-    isFullscreen?: boolean;
-  }
+interface Props {
+  onopen: (path: string, name: string) => void;
+  isFullscreen?: boolean;
+}
 
-  let { onopen, isFullscreen = false }: Props = $props();
+let { onopen, isFullscreen = false }: Props = $props();
 
-  let recentRepos = $state<RecentRepo[]>([]);
-  let loading = $state(false);
-  let error = $state<string | null>(null);
-  let home = $state('');
+let recentRepos = $state<RecentRepo[]>([]);
+let loading = $state(false);
+let error = $state<string | null>(null);
+let home = $state("");
 
-  function displayPath(path: string): string {
-    if (!home || !path.startsWith(home)) return path;
-    const rest = path.slice(home.length).replace(/^\//, '');
-    return '~/' + rest;
-  }
+function displayPath(path: string): string {
+  if (!home || !path.startsWith(home)) return path;
+  const rest = path.slice(home.length).replace(/^\//, "");
+  return `~/${rest}`;
+}
 
-  $effect(() => {
-    homeDir().then((h) => { home = h; });
-    getRecentRepos().then((repos) => {
-      recentRepos = repos;
-    });
+$effect(() => {
+  homeDir().then((h) => {
+    home = h;
   });
+  getRecentRepos().then((repos) => {
+    recentRepos = repos;
+  });
+});
 
-  async function openRepository() {
-    error = null;
-    const selected = await open({ directory: true, multiple: false });
-    if (typeof selected !== 'string') return;
+async function openRepository() {
+  error = null;
+  const selected = await open({ directory: true, multiple: false });
+  if (typeof selected !== "string") return;
 
-    await openPath(selected);
-  }
+  await openPath(selected);
+}
 
-  async function openPath(path: string) {
-    error = null;
-    loading = true;
-    try {
-      await safeInvoke('open_repo', { path });
-      const name = path.split('/').at(-1) || path;
-      await addRecentRepo({ name, path });
-      recentRepos = await getRecentRepos();
-      onopen(path, name);
-    } catch (e: unknown) {
-      const trunk = e as TrunkError;
-      error = trunk.message ?? 'Failed to open repository';
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function handleRemoveRecent(path: string, event: MouseEvent) {
-    event.stopPropagation();
-    await removeRecentRepo(path);
+async function openPath(path: string) {
+  error = null;
+  loading = true;
+  try {
+    await safeInvoke("open_repo", { path });
+    const name = path.split("/").at(-1) || path;
+    await addRecentRepo({ name, path });
     recentRepos = await getRecentRepos();
+    onopen(path, name);
+  } catch (e: unknown) {
+    const trunk = e as TrunkError;
+    error = trunk.message ?? "Failed to open repository";
+  } finally {
+    loading = false;
   }
+}
+
+async function handleRemoveRecent(path: string, event: MouseEvent) {
+  event.stopPropagation();
+  await removeRecentRepo(path);
+  recentRepos = await getRecentRepos();
+}
 </script>
 
 <div class="flex flex-col h-screen" style="background: var(--color-bg);">

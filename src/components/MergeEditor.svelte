@@ -1,311 +1,396 @@
 <script lang="ts">
-  import { safeInvoke, type TrunkError } from '../lib/invoke.js';
-  import { showToast } from '../lib/toast.svelte.js';
-  import type { MergeSides } from '../lib/types.js';
-  import {
-    parseConflictRegions,
-    computeOutput,
-    takeAllCurrent,
-    takeAllIncoming,
-    toggleHunk,
-    toggleLine,
-    getConflictIndices,
-    type ConflictRegion,
-  } from '../lib/merge-parser.js';
-  import { tick } from 'svelte';
-  import { Check, CircleCheck, CircleX, ChevronUp, ChevronDown, X, RotateCcw } from '@lucide/svelte';
+import { Check, ChevronDown, ChevronUp, CircleCheck, CircleX, RotateCcw, X } from "@lucide/svelte";
+import { tick } from "svelte";
+import { safeInvoke, type TrunkError } from "../lib/invoke.js";
+import {
+  type ConflictRegion,
+  computeOutput,
+  getConflictIndices,
+  parseConflictRegions,
+  takeAllCurrent,
+  takeAllIncoming,
+  toggleHunk,
+  toggleLine,
+} from "../lib/merge-parser.js";
+import { showToast } from "../lib/toast.svelte.js";
+import type { MergeSides } from "../lib/types.js";
 
-  interface Props {
-    repoPath: string;
-    filePath: string;
-    onclose: () => void;
-    onresolved: () => void;
-  }
+interface Props {
+  repoPath: string;
+  filePath: string;
+  onclose: () => void;
+  onresolved: () => void;
+}
 
-  let { repoPath, filePath, onclose, onresolved }: Props = $props();
+let { repoPath, filePath, onclose, onresolved }: Props = $props();
 
-  // ---------- Constants ----------
-  const LINE_HEIGHT = 18;
-  const HEADER_HEIGHT = 24;
-  const OVERSCAN = 20;
+// ---------- Constants ----------
+const LINE_HEIGHT = 18;
+const HEADER_HEIGHT = 24;
+const OVERSCAN = 20;
 
-  // ---------- State ----------
-  let regions = $state<ConflictRegion[]>([]);
-  let takenLines = $state<Set<string>>(new Set());
-  let manualEdit = $state(false);
-  let manualText = $state('');
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let focusedConflictIdx = $state(0);
-  let saving = $state(false);
+// ---------- State ----------
+let regions = $state<ConflictRegion[]>([]);
+let takenLines = $state<Set<string>>(new Set());
+let manualEdit = $state(false);
+let manualText = $state("");
+let loading = $state(true);
+let error = $state<string | null>(null);
+let focusedConflictIdx = $state(0);
+let saving = $state(false);
 
-  let panelRefs: HTMLElement[] = [];
-  let panelScrollTop = $state(0);
-  let panelViewportHeight = $state(400);
+let panelRefs: HTMLElement[] = [];
+let panelScrollTop = $state(0);
+let panelViewportHeight = $state(400);
 
-  // ---------- Flat row types for virtualization ----------
-  interface FlatRow {
-    type: 'context' | 'conflict-header' | 'conflict-line' | 'padding';
-    regionIdx: number;
-    lineIdx: number;
-    text: string;
-    key: string;
-    lineNum: number;
-    conflictNum: number;
-    height: number;
-  }
+// ---------- Flat row types for virtualization ----------
+interface FlatRow {
+  type: "context" | "conflict-header" | "conflict-line" | "padding";
+  regionIdx: number;
+  lineIdx: number;
+  text: string;
+  key: string;
+  lineNum: number;
+  conflictNum: number;
+  height: number;
+}
 
-  /** Flatten both panels together so conflict regions are padded to equal height (aligned headers). */
-  function flattenAligned(regions: ConflictRegion[]): { ours: FlatRow[]; theirs: FlatRow[] } {
-    const ours: FlatRow[] = [];
-    const theirs: FlatRow[] = [];
-    let oursLineNum = 1, theirsLineNum = 1;
-    let conflictCount = 0;
+/** Flatten both panels together so conflict regions are padded to equal height (aligned headers). */
+function flattenAligned(regions: ConflictRegion[]): { ours: FlatRow[]; theirs: FlatRow[] } {
+  const ours: FlatRow[] = [];
+  const theirs: FlatRow[] = [];
+  let oursLineNum = 1,
+    theirsLineNum = 1;
+  let conflictCount = 0;
 
-    for (let i = 0; i < regions.length; i++) {
-      const region = regions[i];
-      if (region.type === 'context') {
-        for (let j = 0; j < region.oursLines.length; j++) {
-          ours.push({ type: 'context', regionIdx: i, lineIdx: j, text: region.oursLines[j], key: '', lineNum: oursLineNum + j, conflictNum: 0, height: LINE_HEIGHT });
-        }
-        for (let j = 0; j < region.theirsLines.length; j++) {
-          theirs.push({ type: 'context', regionIdx: i, lineIdx: j, text: region.theirsLines[j], key: '', lineNum: theirsLineNum + j, conflictNum: 0, height: LINE_HEIGHT });
-        }
-        oursLineNum += region.oursLines.length;
-        theirsLineNum += region.theirsLines.length;
-      } else {
-        conflictCount++;
-        // Headers
-        ours.push({ type: 'conflict-header', regionIdx: i, lineIdx: -1, text: '', key: '', lineNum: 0, conflictNum: conflictCount, height: HEADER_HEIGHT });
-        theirs.push({ type: 'conflict-header', regionIdx: i, lineIdx: -1, text: '', key: '', lineNum: 0, conflictNum: conflictCount, height: HEADER_HEIGHT });
-        // Conflict lines
-        for (let j = 0; j < region.oursLines.length; j++) {
-          ours.push({ type: 'conflict-line', regionIdx: i, lineIdx: j, text: region.oursLines[j], key: `ours-${i}-${j}`, lineNum: oursLineNum + j, conflictNum: 0, height: LINE_HEIGHT });
-        }
-        for (let j = 0; j < region.theirsLines.length; j++) {
-          theirs.push({ type: 'conflict-line', regionIdx: i, lineIdx: j, text: region.theirsLines[j], key: `theirs-${i}-${j}`, lineNum: theirsLineNum + j, conflictNum: 0, height: LINE_HEIGHT });
-        }
-        // Pad the shorter side so next region starts at the same offset
-        const diff = region.oursLines.length - region.theirsLines.length;
-        if (diff > 0) {
-          theirs.push({ type: 'padding', regionIdx: i, lineIdx: -2, text: '', key: '', lineNum: 0, conflictNum: 0, height: diff * LINE_HEIGHT });
-        } else if (diff < 0) {
-          ours.push({ type: 'padding', regionIdx: i, lineIdx: -2, text: '', key: '', lineNum: 0, conflictNum: 0, height: -diff * LINE_HEIGHT });
-        }
-        oursLineNum += region.oursLines.length;
-        theirsLineNum += region.theirsLines.length;
+  for (let i = 0; i < regions.length; i++) {
+    const region = regions[i];
+    if (region.type === "context") {
+      for (let j = 0; j < region.oursLines.length; j++) {
+        ours.push({
+          type: "context",
+          regionIdx: i,
+          lineIdx: j,
+          text: region.oursLines[j],
+          key: "",
+          lineNum: oursLineNum + j,
+          conflictNum: 0,
+          height: LINE_HEIGHT,
+        });
       }
+      for (let j = 0; j < region.theirsLines.length; j++) {
+        theirs.push({
+          type: "context",
+          regionIdx: i,
+          lineIdx: j,
+          text: region.theirsLines[j],
+          key: "",
+          lineNum: theirsLineNum + j,
+          conflictNum: 0,
+          height: LINE_HEIGHT,
+        });
+      }
+      oursLineNum += region.oursLines.length;
+      theirsLineNum += region.theirsLines.length;
+    } else {
+      conflictCount++;
+      // Headers
+      ours.push({
+        type: "conflict-header",
+        regionIdx: i,
+        lineIdx: -1,
+        text: "",
+        key: "",
+        lineNum: 0,
+        conflictNum: conflictCount,
+        height: HEADER_HEIGHT,
+      });
+      theirs.push({
+        type: "conflict-header",
+        regionIdx: i,
+        lineIdx: -1,
+        text: "",
+        key: "",
+        lineNum: 0,
+        conflictNum: conflictCount,
+        height: HEADER_HEIGHT,
+      });
+      // Conflict lines
+      for (let j = 0; j < region.oursLines.length; j++) {
+        ours.push({
+          type: "conflict-line",
+          regionIdx: i,
+          lineIdx: j,
+          text: region.oursLines[j],
+          key: `ours-${i}-${j}`,
+          lineNum: oursLineNum + j,
+          conflictNum: 0,
+          height: LINE_HEIGHT,
+        });
+      }
+      for (let j = 0; j < region.theirsLines.length; j++) {
+        theirs.push({
+          type: "conflict-line",
+          regionIdx: i,
+          lineIdx: j,
+          text: region.theirsLines[j],
+          key: `theirs-${i}-${j}`,
+          lineNum: theirsLineNum + j,
+          conflictNum: 0,
+          height: LINE_HEIGHT,
+        });
+      }
+      // Pad the shorter side so next region starts at the same offset
+      const diff = region.oursLines.length - region.theirsLines.length;
+      if (diff > 0) {
+        theirs.push({
+          type: "padding",
+          regionIdx: i,
+          lineIdx: -2,
+          text: "",
+          key: "",
+          lineNum: 0,
+          conflictNum: 0,
+          height: diff * LINE_HEIGHT,
+        });
+      } else if (diff < 0) {
+        ours.push({
+          type: "padding",
+          regionIdx: i,
+          lineIdx: -2,
+          text: "",
+          key: "",
+          lineNum: 0,
+          conflictNum: 0,
+          height: -diff * LINE_HEIGHT,
+        });
+      }
+      oursLineNum += region.oursLines.length;
+      theirsLineNum += region.theirsLines.length;
     }
-    return { ours, theirs };
   }
+  return { ours, theirs };
+}
 
-  function computeOffsets(rows: FlatRow[]): number[] {
-    const offsets = new Array(rows.length + 1);
-    offsets[0] = 0;
-    for (let i = 0; i < rows.length; i++) {
-      offsets[i + 1] = offsets[i] + rows[i].height;
-    }
-    return offsets;
+function computeOffsets(rows: FlatRow[]): number[] {
+  const offsets = new Array(rows.length + 1);
+  offsets[0] = 0;
+  for (let i = 0; i < rows.length; i++) {
+    offsets[i + 1] = offsets[i] + rows[i].height;
   }
+  return offsets;
+}
 
-  function getVisibleRange(scrollTop: number, viewportHeight: number, offsets: number[]): [number, number] {
-    const totalRows = offsets.length - 1;
-    if (totalRows === 0) return [0, 0];
-    // Binary search for first visible row
-    let lo = 0, hi = totalRows;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (offsets[mid + 1] <= scrollTop) lo = mid + 1;
-      else hi = mid;
-    }
-    const start = Math.max(0, lo - OVERSCAN);
-    // Find last visible row
-    const bottom = scrollTop + viewportHeight;
-    lo = start;
+function getVisibleRange(
+  scrollTop: number,
+  viewportHeight: number,
+  offsets: number[],
+): [number, number] {
+  const totalRows = offsets.length - 1;
+  if (totalRows === 0) return [0, 0];
+  // Binary search for first visible row
+  let lo = 0,
     hi = totalRows;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (offsets[mid] < bottom) lo = mid + 1;
-      else hi = mid;
-    }
-    const end = Math.min(totalRows, lo + OVERSCAN);
-    return [start, end];
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid + 1] <= scrollTop) lo = mid + 1;
+    else hi = mid;
   }
+  const start = Math.max(0, lo - OVERSCAN);
+  // Find last visible row
+  const bottom = scrollTop + viewportHeight;
+  lo = start;
+  hi = totalRows;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid] < bottom) lo = mid + 1;
+    else hi = mid;
+  }
+  const end = Math.min(totalRows, lo + OVERSCAN);
+  return [start, end];
+}
 
-  // ---------- Derived ----------
-  let conflictIndices = $derived(getConflictIndices(regions));
-  let outputText = $derived.by(() => {
-    if (manualEdit) return manualText;
-    return computeOutput(regions, takenLines);
-  });
-  let hasPrev = $derived(focusedConflictIdx > 0);
-  let hasNext = $derived(focusedConflictIdx < conflictIndices.length - 1);
-  let hasConflicts = $derived(conflictIndices.length > 0);
+// ---------- Derived ----------
+let conflictIndices = $derived(getConflictIndices(regions));
+let outputText = $derived.by(() => {
+  if (manualEdit) return manualText;
+  return computeOutput(regions, takenLines);
+});
+let hasPrev = $derived(focusedConflictIdx > 0);
+let hasNext = $derived(focusedConflictIdx < conflictIndices.length - 1);
+let hasConflicts = $derived(conflictIndices.length > 0);
 
-  // Virtualization derived state
-  let aligned = $derived(flattenAligned(regions));
-  let oursFlat = $derived(aligned.ours);
-  let theirsFlat = $derived(aligned.theirs);
-  let oursOffsets = $derived(computeOffsets(oursFlat));
-  let theirsOffsets = $derived(computeOffsets(theirsFlat));
-  let oursTotalHeight = $derived(oursOffsets[oursFlat.length] ?? 0);
-  let theirsTotalHeight = $derived(theirsOffsets[theirsFlat.length] ?? 0);
-  let oursVisible = $derived(getVisibleRange(panelScrollTop, panelViewportHeight, oursOffsets));
-  let theirsVisible = $derived(getVisibleRange(panelScrollTop, panelViewportHeight, theirsOffsets));
+// Virtualization derived state
+let aligned = $derived(flattenAligned(regions));
+let oursFlat = $derived(aligned.ours);
+let theirsFlat = $derived(aligned.theirs);
+let oursOffsets = $derived(computeOffsets(oursFlat));
+let theirsOffsets = $derived(computeOffsets(theirsFlat));
+let oursTotalHeight = $derived(oursOffsets[oursFlat.length] ?? 0);
+let theirsTotalHeight = $derived(theirsOffsets[theirsFlat.length] ?? 0);
+let oursVisible = $derived(getVisibleRange(panelScrollTop, panelViewportHeight, oursOffsets));
+let theirsVisible = $derived(getVisibleRange(panelScrollTop, panelViewportHeight, theirsOffsets));
 
-  // ---------- Data loading ----------
-  $effect(() => {
-    // Re-run when filePath changes
-    const currentPath = filePath;
-    loading = true;
-    error = null;
+// ---------- Data loading ----------
+$effect(() => {
+  // Re-run when filePath changes
+  const currentPath = filePath;
+  loading = true;
+  error = null;
 
-    safeInvoke<MergeSides>('get_merge_sides', { path: repoPath, filePath: currentPath })
-      .then((result) => {
-        regions = parseConflictRegions(result.base, result.ours, result.theirs);
-        takenLines = takeAllCurrent(regions);
-        manualEdit = false;
-        manualText = '';
-        focusedConflictIdx = 0;
-        panelScrollTop = 0;
-        loading = false;
-        tick().then(() => scrollToConflict(0));
-      })
-      .catch(() => {
-        // Merge state no longer available (e.g. git reset) — close the editor
-        onclose();
-      });
-  });
-
-  // ---------- Synchronized scroll ----------
-  let scrolling = false;
-  let scrollRaf = 0;
-
-  function handleScroll(sourceIdx: number) {
-    if (scrolling) return;
-    scrolling = true;
-    const source = panelRefs[sourceIdx];
-    if (!source) { scrolling = false; return; }
-    const st = source.scrollTop;
-    // Sync other panels immediately (no DOM mutation, so no jitter)
-    panelRefs.forEach((el, i) => {
-      if (el && i !== sourceIdx) el.scrollTop = st;
+  safeInvoke<MergeSides>("get_merge_sides", { path: repoPath, filePath: currentPath })
+    .then((result) => {
+      regions = parseConflictRegions(result.base, result.ours, result.theirs);
+      takenLines = takeAllCurrent(regions);
+      manualEdit = false;
+      manualText = "";
+      focusedConflictIdx = 0;
+      panelScrollTop = 0;
+      loading = false;
+      tick().then(() => scrollToConflict(0));
+    })
+    .catch(() => {
+      // Merge state no longer available (e.g. git reset) — close the editor
+      onclose();
     });
-    // Defer virtualization state update to next frame so DOM mutations
-    // don't happen mid-scroll (which causes jitter on the source panel)
-    cancelAnimationFrame(scrollRaf);
-    scrollRaf = requestAnimationFrame(() => {
-      panelScrollTop = st;
-      scrolling = false;
-    });
+});
+
+// ---------- Synchronized scroll ----------
+let scrolling = false;
+let scrollRaf = 0;
+
+function handleScroll(sourceIdx: number) {
+  if (scrolling) return;
+  scrolling = true;
+  const source = panelRefs[sourceIdx];
+  if (!source) {
+    scrolling = false;
+    return;
   }
+  const st = source.scrollTop;
+  // Sync other panels immediately (no DOM mutation, so no jitter)
+  panelRefs.forEach((el, i) => {
+    if (el && i !== sourceIdx) el.scrollTop = st;
+  });
+  // Defer virtualization state update to next frame so DOM mutations
+  // don't happen mid-scroll (which causes jitter on the source panel)
+  cancelAnimationFrame(scrollRaf);
+  scrollRaf = requestAnimationFrame(() => {
+    panelScrollTop = st;
+    scrolling = false;
+  });
+}
 
-  // ---------- Event handlers ----------
-  function handleTakeAllCurrent() {
-    takenLines = takeAllCurrent(regions);
-  }
+// ---------- Event handlers ----------
+function handleTakeAllCurrent() {
+  takenLines = takeAllCurrent(regions);
+}
 
-  function handleTakeAllIncoming() {
-    takenLines = takeAllIncoming(regions);
-  }
+function handleTakeAllIncoming() {
+  takenLines = takeAllIncoming(regions);
+}
 
-  function handleToggleHunk(side: 'ours' | 'theirs', regionIdx: number) {
-    takenLines = toggleHunk(side, regionIdx, regions, takenLines);
-  }
+function handleToggleHunk(side: "ours" | "theirs", regionIdx: number) {
+  takenLines = toggleHunk(side, regionIdx, regions, takenLines);
+}
 
-  let lastClickedKey = $state<string | null>(null);
+let lastClickedKey = $state<string | null>(null);
 
-  function handleToggleLine(key: string, event?: MouseEvent) {
-    if (event?.shiftKey && lastClickedKey) {
-      // Parse keys: "side-regionIdx-lineIdx"
-      const [side, regStr, lineStr] = key.split('-');
-      const [lastSide, lastRegStr, lastLineStr] = lastClickedKey.split('-');
-      if (side === lastSide && regStr === lastRegStr) {
-        const from = Math.min(+lineStr, +lastLineStr);
-        const to = Math.max(+lineStr, +lastLineStr);
-        // Determine action: if target line is not taken, select the range; otherwise deselect
-        const selecting = !takenLines.has(key);
-        const result = new Set(takenLines);
-        for (let j = from; j <= to; j++) {
-          const k = `${side}-${regStr}-${j}`;
-          if (selecting) result.add(k);
-          else result.delete(k);
-        }
-        takenLines = result;
-        lastClickedKey = key;
-        return;
+function handleToggleLine(key: string, event?: MouseEvent) {
+  if (event?.shiftKey && lastClickedKey) {
+    // Parse keys: "side-regionIdx-lineIdx"
+    const [side, regStr, lineStr] = key.split("-");
+    const [lastSide, lastRegStr, lastLineStr] = lastClickedKey.split("-");
+    if (side === lastSide && regStr === lastRegStr) {
+      const from = Math.min(+lineStr, +lastLineStr);
+      const to = Math.max(+lineStr, +lastLineStr);
+      // Determine action: if target line is not taken, select the range; otherwise deselect
+      const selecting = !takenLines.has(key);
+      const result = new Set(takenLines);
+      for (let j = from; j <= to; j++) {
+        const k = `${side}-${regStr}-${j}`;
+        if (selecting) result.add(k);
+        else result.delete(k);
       }
-    }
-    takenLines = toggleLine(key, takenLines);
-    lastClickedKey = key;
-  }
-
-  function handleOutputEdit(e: Event) {
-    manualEdit = true;
-    manualText = (e.target as HTMLTextAreaElement).value;
-  }
-
-  function handleReset() {
-    takenLines = takeAllCurrent(regions);
-    manualEdit = false;
-    manualText = '';
-  }
-
-  function handlePrevConflict() {
-    if (!hasPrev) return;
-    focusedConflictIdx--;
-    scrollToConflict(focusedConflictIdx);
-  }
-
-  function handleNextConflict() {
-    if (!hasNext) return;
-    focusedConflictIdx++;
-    scrollToConflict(focusedConflictIdx);
-  }
-
-  function scrollToConflict(idx: number) {
-    const regionIndex = conflictIndices[idx];
-    if (regionIndex == null) return;
-    // Find the conflict header row in the flat array
-    const rowIdx = oursFlat.findIndex(r => r.type === 'conflict-header' && r.regionIdx === regionIndex);
-    if (rowIdx === -1) return;
-    const targetTop = oursOffsets[rowIdx];
-    const scrollTo = Math.max(0, targetTop - panelViewportHeight / 2 + HEADER_HEIGHT / 2);
-    scrolling = true;
-    for (const panel of panelRefs) {
-      if (panel) panel.scrollTop = scrollTo;
-    }
-    panelScrollTop = scrollTo;
-    requestAnimationFrame(() => { scrolling = false; });
-  }
-
-  async function handleSaveAndResolve() {
-    saving = true;
-    try {
-      await safeInvoke('save_merge_result', {
-        path: repoPath,
-        filePath,
-        content: outputText,
-      });
-      // File resolved — staging panel updates automatically
-      onresolved();
-    } catch (e) {
-      const err = e as TrunkError;
-      showToast(err.message ?? 'Save failed', 'error');
-    } finally {
-      saving = false;
+      takenLines = result;
+      lastClickedKey = key;
+      return;
     }
   }
+  takenLines = toggleLine(key, takenLines);
+  lastClickedKey = key;
+}
 
-  // ---------- Helpers ----------
-  /** Check if all lines from one side of a conflict region are taken */
-  function isHunkAllTaken(side: 'ours' | 'theirs', regionIdx: number): boolean {
-    const region = regions[regionIdx];
-    if (!region || region.type !== 'conflict') return false;
-    const lines = side === 'ours' ? region.oursLines : region.theirsLines;
-    if (lines.length === 0) return false;
-    return lines.every((_, j) => takenLines.has(`${side}-${regionIdx}-${j}`));
+function handleOutputEdit(e: Event) {
+  manualEdit = true;
+  manualText = (e.target as HTMLTextAreaElement).value;
+}
+
+function handleReset() {
+  takenLines = takeAllCurrent(regions);
+  manualEdit = false;
+  manualText = "";
+}
+
+function handlePrevConflict() {
+  if (!hasPrev) return;
+  focusedConflictIdx--;
+  scrollToConflict(focusedConflictIdx);
+}
+
+function handleNextConflict() {
+  if (!hasNext) return;
+  focusedConflictIdx++;
+  scrollToConflict(focusedConflictIdx);
+}
+
+function scrollToConflict(idx: number) {
+  const regionIndex = conflictIndices[idx];
+  if (regionIndex == null) return;
+  // Find the conflict header row in the flat array
+  const rowIdx = oursFlat.findIndex(
+    (r) => r.type === "conflict-header" && r.regionIdx === regionIndex,
+  );
+  if (rowIdx === -1) return;
+  const targetTop = oursOffsets[rowIdx];
+  const scrollTo = Math.max(0, targetTop - panelViewportHeight / 2 + HEADER_HEIGHT / 2);
+  scrolling = true;
+  for (const panel of panelRefs) {
+    if (panel) panel.scrollTop = scrollTo;
   }
+  panelScrollTop = scrollTo;
+  requestAnimationFrame(() => {
+    scrolling = false;
+  });
+}
+
+async function handleSaveAndResolve() {
+  saving = true;
+  try {
+    await safeInvoke("save_merge_result", {
+      path: repoPath,
+      filePath,
+      content: outputText,
+    });
+    // File resolved — staging panel updates automatically
+    onresolved();
+  } catch (e) {
+    const err = e as TrunkError;
+    showToast(err.message ?? "Save failed", "error");
+  } finally {
+    saving = false;
+  }
+}
+
+// ---------- Helpers ----------
+/** Check if all lines from one side of a conflict region are taken */
+function isHunkAllTaken(side: "ours" | "theirs", regionIdx: number): boolean {
+  const region = regions[regionIdx];
+  if (!region || region.type !== "conflict") return false;
+  const lines = side === "ours" ? region.oursLines : region.theirsLines;
+  if (lines.length === 0) return false;
+  return lines.every((_, j) => takenLines.has(`${side}-${regionIdx}-${j}`));
+}
 </script>
 
 {#snippet conflictHeader(side: 'ours' | 'theirs', row: FlatRow)}

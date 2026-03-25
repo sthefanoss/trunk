@@ -1,4 +1,4 @@
-import type { TrunkError } from './invoke.js';
+import type { TrunkError } from "./invoke.js";
 
 export interface RemoteState {
   isRunning: boolean;
@@ -9,7 +9,7 @@ export interface RemoteState {
 export function createRemoteState(): RemoteState {
   const state: RemoteState = $state({
     isRunning: false,
-    progressLine: '',
+    progressLine: "",
     error: null as TrunkError | null,
   });
   return state;

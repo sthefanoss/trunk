@@ -1,38 +1,38 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, Laptop, Globe, Tag } from '@lucide/svelte';
+import { ArrowDown, ArrowUp, Globe, Laptop, Tag } from "@lucide/svelte";
 
-  interface Props {
-    name: string;
-    kind?: 'local' | 'remote' | 'tag';
-    isHead?: boolean;
-    isLoading?: boolean;
-    isError?: boolean;
-    errorText?: string;
-    ahead?: number;
-    behind?: number;
-    onclick?: () => void;
-    ondblclick?: () => void;
-    oncontextmenu?: (e: MouseEvent) => void;
-  }
+interface Props {
+  name: string;
+  kind?: "local" | "remote" | "tag";
+  isHead?: boolean;
+  isLoading?: boolean;
+  isError?: boolean;
+  errorText?: string;
+  ahead?: number;
+  behind?: number;
+  onclick?: () => void;
+  ondblclick?: () => void;
+  oncontextmenu?: (e: MouseEvent) => void;
+}
 
-  let {
-    name,
-    kind = 'local',
-    isHead = false,
-    isLoading = false,
-    isError = false,
-    errorText,
-    ahead = 0,
-    behind = 0,
-    onclick,
-    ondblclick,
-    oncontextmenu,
-  }: Props = $props();
+let {
+  name,
+  kind = "local",
+  isHead = false,
+  isLoading = false,
+  isError = false,
+  errorText,
+  ahead = 0,
+  behind = 0,
+  onclick,
+  ondblclick,
+  oncontextmenu,
+}: Props = $props();
 
-  const kindIcon = { local: Laptop, remote: Globe, tag: Tag } as const;
-  const KindIcon = $derived(kindIcon[kind]);
+const kindIcon = { local: Laptop, remote: Globe, tag: Tag } as const;
+const KindIcon = $derived(kindIcon[kind]);
 
-  let hovered = $state(false);
+let hovered = $state(false);
 </script>
 
 <div>

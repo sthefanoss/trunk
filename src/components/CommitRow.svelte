@@ -1,44 +1,57 @@
 <script lang="ts">
-  import type { GraphCommit } from '../lib/types.js';
-  import type { ColumnWidths, ColumnVisibility } from '../lib/store.js';
-  import { LANE_WIDTH, ROW_HEIGHT, COLUMN_PADDING_X } from '../lib/graph-constants.js';
+import { COLUMN_PADDING_X, LANE_WIDTH, ROW_HEIGHT } from "../lib/graph-constants.js";
+import type { ColumnVisibility, ColumnWidths } from "../lib/store.js";
+import type { GraphCommit } from "../lib/types.js";
 
-  interface Props {
-    commit: GraphCommit;
-    rowIndex: number;
-    onselect?: (oid: string) => void;
-    oncontextmenu?: (e: MouseEvent, commit: GraphCommit) => void;
-    maxColumns?: number;
-    columnWidths: ColumnWidths;
-    columnVisibility: ColumnVisibility;
-    selected?: boolean;
-    /** Row height in px. Defaults to ROW_HEIGHT constant.
-     *  Accepts displaySettings.rowHeight from CommitGraph for future settings-page wiring. */
-    rowHeight?: number;
-    /** True when this row's OID is in the search results */
-    isSearchMatch?: boolean;
-    /** True when this row is the current navigated match */
-    isCurrentMatch?: boolean;
-    /** True when any search is active (for dimming non-matches) */
-    isSearchActive?: boolean;
-  }
+interface Props {
+  commit: GraphCommit;
+  rowIndex: number;
+  onselect?: (oid: string) => void;
+  oncontextmenu?: (e: MouseEvent, commit: GraphCommit) => void;
+  maxColumns?: number;
+  columnWidths: ColumnWidths;
+  columnVisibility: ColumnVisibility;
+  selected?: boolean;
+  /** Row height in px. Defaults to ROW_HEIGHT constant.
+   *  Accepts displaySettings.rowHeight from CommitGraph for future settings-page wiring. */
+  rowHeight?: number;
+  /** True when this row's OID is in the search results */
+  isSearchMatch?: boolean;
+  /** True when this row is the current navigated match */
+  isCurrentMatch?: boolean;
+  /** True when any search is active (for dimming non-matches) */
+  isSearchActive?: boolean;
+}
 
-  let { commit, rowIndex, onselect, oncontextmenu, maxColumns = 1, columnWidths, columnVisibility, selected = false, rowHeight = ROW_HEIGHT, isSearchMatch = false, isCurrentMatch = false, isSearchActive = false }: Props = $props();
+let {
+  commit,
+  rowIndex,
+  onselect,
+  oncontextmenu,
+  maxColumns = 1,
+  columnWidths,
+  columnVisibility,
+  selected = false,
+  rowHeight = ROW_HEIGHT,
+  isSearchMatch = false,
+  isCurrentMatch = false,
+  isSearchActive = false,
+}: Props = $props();
 
-  function relativeDate(ts: number): string {
-    if (ts === 0) return '';
-    const now = Date.now() / 1000;
-    const diff = Math.max(0, now - ts);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-    if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
-    return `${Math.floor(diff / 31536000)}y ago`;
-  }
+function relativeDate(ts: number): string {
+  if (ts === 0) return "";
+  const now = Date.now() / 1000;
+  const diff = Math.max(0, now - ts);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
+  return `${Math.floor(diff / 31536000)}y ago`;
+}
 
-  const isWip = $derived(commit.oid === '__wip__');
-  const isStash = $derived(commit.is_stash);
+const isWip = $derived(commit.oid === "__wip__");
+const isStash = $derived(commit.is_stash);
 </script>
 
 <div

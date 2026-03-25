@@ -35,19 +35,20 @@
  * ```
  */
 // Export the main class under the new name; keep legacy name as alias
-export { ReactiveListManager } from './ReactiveListManager.svelte.js';
-import { ReactiveListManager as ReactiveListManagerType } from './ReactiveListManager.svelte.js';
+export { ReactiveListManager } from "./ReactiveListManager.svelte.js";
+
+import { ReactiveListManager as ReactiveListManagerType } from "./ReactiveListManager.svelte.js";
 // Export version for potential npm package
-export const VERSION = '1.0.0';
+export const VERSION = "1.0.0";
 // Export utility constants
 export const DEFAULT_ESTIMATED_HEIGHT = 40;
 export const DEFAULT_MEASUREMENT_THRESHOLD = 10; // percentage
 // New factory alias with the renamed type
 export function createListManager(itemLength, itemHeight = DEFAULT_ESTIMATED_HEIGHT) {
-    return new ReactiveListManagerType({ itemLength, itemHeight });
+  return new ReactiveListManagerType({ itemLength, itemHeight });
 }
 /**
  * Performance benchmarking utility
  */
 // Moved out to keep index clean; re-exported from benchmark.ts
-export { benchmarkListManager } from './benchmark.js';
+export { benchmarkListManager } from "./benchmark.js";

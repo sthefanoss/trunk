@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { toasts } from '../lib/toast.svelte.js';
-  import { fly } from 'svelte/transition';
+import { fly } from "svelte/transition";
+import { toasts } from "../lib/toast.svelte.js";
 </script>
 
 <div class="fixed bottom-4 right-4 flex flex-col gap-2 z-50 pointer-events-none">

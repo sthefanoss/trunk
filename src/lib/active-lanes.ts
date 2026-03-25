@@ -1,9 +1,6 @@
-import type { GraphCommit, OverlayNode, OverlayConnection, OverlayGraphData } from './types.js';
+import type { GraphCommit, OverlayConnection, OverlayGraphData, OverlayNode } from "./types.js";
 
-export function buildGraphData(
-  commits: GraphCommit[],
-  maxColumns: number,
-): OverlayGraphData {
+export function buildGraphData(commits: GraphCommit[], maxColumns: number): OverlayGraphData {
   const nodes: OverlayNode[] = [];
   const connections: OverlayConnection[] = [];
 
@@ -15,10 +12,10 @@ export function buildGraphData(
       x: commit.column,
       y,
       colorIndex: commit.color_index,
-      isMerge: commit.oid === '__wip__' ? false : commit.is_merge,
-      isBranchTip: commit.oid === '__wip__' ? false : commit.is_branch_tip,
-      isStash: commit.oid === '__wip__' ? false : commit.is_stash,
-      isWip: commit.oid === '__wip__',
+      isMerge: commit.oid === "__wip__" ? false : commit.is_merge,
+      isBranchTip: commit.oid === "__wip__" ? false : commit.is_branch_tip,
+      isStash: commit.oid === "__wip__" ? false : commit.is_stash,
+      isWip: commit.oid === "__wip__",
     });
   }
 
@@ -33,7 +30,7 @@ export function buildGraphData(
     const commit = commits[y];
 
     // --- WIP sentinel ---
-    if (commit.oid === '__wip__') {
+    if (commit.oid === "__wip__") {
       // Find HEAD commit row
       let headRow = -1;
       for (let r = y + 1; r < commits.length; r++) {
@@ -58,15 +55,23 @@ export function buildGraphData(
 
         if (stashRows.length === 0) {
           connections.push({
-            childX: wipCol, childY: y, parentX: wipCol, parentY: headRow,
-            colorIndex: commit.color_index, dashed: true,
+            childX: wipCol,
+            childY: y,
+            parentX: wipCol,
+            parentY: headRow,
+            colorIndex: commit.color_index,
+            dashed: true,
           });
         } else {
           const breakpoints = [y, ...stashRows, headRow];
           for (let i = 0; i < breakpoints.length - 1; i++) {
             connections.push({
-              childX: wipCol, childY: breakpoints[i], parentX: wipCol, parentY: breakpoints[i + 1],
-              colorIndex: commit.color_index, dashed: true,
+              childX: wipCol,
+              childY: breakpoints[i],
+              parentX: wipCol,
+              parentY: breakpoints[i + 1],
+              colorIndex: commit.color_index,
+              dashed: true,
             });
           }
         }
@@ -87,7 +92,9 @@ export function buildGraphData(
       const sameColumn = commit.column === parentNode.x;
       let colorIndex: number;
       if (sameColumn) {
-        const straightEdge = commit.edges.find(e => e.from_column === commit.column && e.to_column === commit.column);
+        const straightEdge = commit.edges.find(
+          (e) => e.from_column === commit.column && e.to_column === commit.column,
+        );
         colorIndex = straightEdge?.color_index ?? commit.color_index;
       } else if (commit.is_merge) {
         colorIndex = parentNode.colorIndex;

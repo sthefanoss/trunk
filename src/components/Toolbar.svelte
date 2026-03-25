@@ -1,174 +1,174 @@
 <script lang="ts">
-  import { safeInvoke } from '../lib/invoke.js';
-  import type { TrunkError } from '../lib/invoke.js';
-  import type { RemoteState } from '../lib/remote-state.svelte.js';
-  import type { UndoRedoManager } from '../lib/undo-redo.svelte.js';
-  import { showToast } from '../lib/toast.svelte.js';
-  import { listen } from '@tauri-apps/api/event';
-  import PullDropdown from './PullDropdown.svelte';
-  import InputDialog from './InputDialog.svelte';
-  import { Undo2, Redo2, ArrowDown, ArrowUp, GitBranch, Archive, PackageOpen } from '@lucide/svelte';
+import { Archive, ArrowDown, ArrowUp, GitBranch, PackageOpen, Redo2, Undo2 } from "@lucide/svelte";
+import { listen } from "@tauri-apps/api/event";
+import type { TrunkError } from "../lib/invoke.js";
+import { safeInvoke } from "../lib/invoke.js";
+import type { RemoteState } from "../lib/remote-state.svelte.js";
+import { showToast } from "../lib/toast.svelte.js";
+import type { UndoRedoManager } from "../lib/undo-redo.svelte.js";
+import InputDialog from "./InputDialog.svelte";
+import PullDropdown from "./PullDropdown.svelte";
 
-  interface Props {
-    repoPath: string;
-    remoteState: RemoteState;
-    undoRedo: UndoRedoManager;
-  }
+interface Props {
+  repoPath: string;
+  remoteState: RemoteState;
+  undoRedo: UndoRedoManager;
+}
 
-  let { repoPath, remoteState, undoRedo }: Props = $props();
+let { repoPath, remoteState, undoRedo }: Props = $props();
 
-  // Listen to remote-progress events from backend (relocated from StatusBar)
-  $effect(() => {
-    let unlisten: (() => void) | undefined;
-    const path = repoPath;
+// Listen to remote-progress events from backend (relocated from StatusBar)
+$effect(() => {
+  let unlisten: (() => void) | undefined;
+  const path = repoPath;
 
-    listen<{ path: string; line: string }>('remote-progress', (event) => {
-      if (event.payload.path === path) {
-        remoteState.progressLine = event.payload.line;
-      }
-    }).then((fn) => { unlisten = fn; });
-
-    return () => { unlisten?.(); };
+  listen<{ path: string; line: string }>("remote-progress", (event) => {
+    if (event.payload.path === path) {
+      remoteState.progressLine = event.payload.line;
+    }
+  }).then((fn) => {
+    unlisten = fn;
   });
 
-  // Branch creation dialog state
-  let branchDialogOpen = $state(false);
+  return () => {
+    unlisten?.();
+  };
+});
 
-  // Undo/redo state
-  let canUndo = $state(false);
+// Branch creation dialog state
+let branchDialogOpen = $state(false);
 
-  async function checkUndoAvailable() {
-    try {
-      canUndo = await safeInvoke<boolean>('check_undo_available', { path: repoPath });
-    } catch {
-      canUndo = false;
-    }
+// Undo/redo state
+let canUndo = $state(false);
+
+async function checkUndoAvailable() {
+  try {
+    canUndo = await safeInvoke<boolean>("check_undo_available", { path: repoPath });
+  } catch {
+    canUndo = false;
   }
+}
 
-  // Check undo availability on mount and repo changes
-  $effect(() => {
-    // Re-run when repoPath changes
-    void repoPath;
-    checkUndoAvailable();
+// Check undo availability on mount and repo changes
+$effect(() => {
+  // Re-run when repoPath changes
+  void repoPath;
+  checkUndoAvailable();
 
-    const unlistenPromise = listen<string>('repo-changed', (event) => {
-      if (event.payload === repoPath) {
-        checkUndoAvailable();
-      }
+  const unlistenPromise = listen<string>("repo-changed", (event) => {
+    if (event.payload === repoPath) {
+      checkUndoAvailable();
+    }
+  });
+
+  return () => {
+    unlistenPromise.then((fn) => fn());
+  };
+});
+
+async function handleUndo() {
+  try {
+    const result = await safeInvoke<{ subject: string; body: string | null }>("undo_commit", {
+      path: repoPath,
     });
+    undoRedo.push({ subject: result.subject, body: result.body });
+  } catch (e) {
+    console.error("undo failed:", e);
+  }
+}
 
-    return () => {
-      unlistenPromise.then((fn) => fn());
-    };
-  });
+async function handleRedo() {
+  const entry = undoRedo.pop();
+  if (!entry) return;
+  try {
+    await safeInvoke("redo_commit", {
+      path: repoPath,
+      subject: entry.subject,
+      body: entry.body,
+    });
+  } catch (e) {
+    console.error("redo failed:", e);
+    // Push back on failure
+    undoRedo.push(entry);
+  }
+}
 
-  async function handleUndo() {
-    try {
-      const result = await safeInvoke<{ subject: string; body: string | null }>('undo_commit', { path: repoPath });
-      undoRedo.push({ subject: result.subject, body: result.body });
-    } catch (e) {
-      console.error('undo failed:', e);
+function errorMessage(error: TrunkError): string {
+  switch (error.code) {
+    case "auth_failure":
+      return "Authentication failed \u2014 check your SSH key or credential helper";
+    case "non_fast_forward":
+      return "Push rejected (non-fast-forward)";
+    default:
+      return error.message;
+  }
+}
+
+async function runRemote(cmd: string, successMsg: string, extra: Record<string, unknown> = {}) {
+  remoteState.isRunning = true;
+  remoteState.error = null;
+  remoteState.progressLine = "";
+  try {
+    await safeInvoke(cmd, { path: repoPath, ...extra });
+    remoteState.isRunning = false;
+    remoteState.progressLine = "";
+    showToast(successMsg, "success");
+  } catch (e: unknown) {
+    remoteState.isRunning = false;
+    const err = e as TrunkError;
+    remoteState.error = err;
+    showToast(errorMessage(err), "error");
+  }
+}
+
+function handlePull() {
+  runRemote("git_pull", "Pulled successfully");
+}
+
+function handlePush() {
+  runRemote("git_push", "Pushed successfully");
+}
+
+async function handleStash() {
+  try {
+    await safeInvoke("stash_save", { path: repoPath, message: "" });
+    showToast("Stash created", "success");
+  } catch (e) {
+    console.error("stash_save failed:", e);
+    showToast("Failed to create stash", "error");
+  }
+}
+
+async function handlePop() {
+  try {
+    await safeInvoke("stash_pop", { path: repoPath, index: 0 });
+    showToast("Stash applied", "success");
+  } catch (e) {
+    console.error("stash_pop failed:", e);
+    showToast("Failed to apply stash", "error");
+  }
+}
+
+function handleBranch() {
+  branchDialogOpen = true;
+}
+
+async function handleBranchCreate(values: Record<string, string>) {
+  branchDialogOpen = false;
+  const name = values.name?.trim();
+  if (!name) return;
+  try {
+    await safeInvoke("create_branch", { path: repoPath, name });
+    showToast(`Checked out ${name}`, "success");
+  } catch (e) {
+    const err = e as TrunkError;
+    if (err.code === "dirty_workdir") {
+      showToast("Branch created (checkout skipped — uncommitted changes)", "success");
+    } else {
+      showToast("Failed to create branch", "error");
     }
   }
-
-  async function handleRedo() {
-    const entry = undoRedo.pop();
-    if (!entry) return;
-    try {
-      await safeInvoke('redo_commit', {
-        path: repoPath,
-        subject: entry.subject,
-        body: entry.body,
-      });
-    } catch (e) {
-      console.error('redo failed:', e);
-      // Push back on failure
-      undoRedo.push(entry);
-    }
-  }
-
-  function errorMessage(error: TrunkError): string {
-    switch (error.code) {
-      case 'auth_failure':
-        return 'Authentication failed \u2014 check your SSH key or credential helper';
-      case 'non_fast_forward':
-        return 'Push rejected (non-fast-forward)';
-      case 'no_upstream':
-      case 'remote_error':
-      default:
-        return error.message;
-    }
-  }
-
-  async function runRemote(
-    cmd: string,
-    successMsg: string,
-    extra: Record<string, unknown> = {}
-  ) {
-    remoteState.isRunning = true;
-    remoteState.error = null;
-    remoteState.progressLine = '';
-    try {
-      await safeInvoke(cmd, { path: repoPath, ...extra });
-      remoteState.isRunning = false;
-      remoteState.progressLine = '';
-      showToast(successMsg, 'success');
-    } catch (e: unknown) {
-      remoteState.isRunning = false;
-      const err = e as TrunkError;
-      remoteState.error = err;
-      showToast(errorMessage(err), 'error');
-    }
-  }
-
-  function handlePull() {
-    runRemote('git_pull', 'Pulled successfully');
-  }
-
-  function handlePush() {
-    runRemote('git_push', 'Pushed successfully');
-  }
-
-  async function handleStash() {
-    try {
-      await safeInvoke('stash_save', { path: repoPath, message: '' });
-      showToast('Stash created', 'success');
-    } catch (e) {
-      console.error('stash_save failed:', e);
-      showToast('Failed to create stash', 'error');
-    }
-  }
-
-  async function handlePop() {
-    try {
-      await safeInvoke('stash_pop', { path: repoPath, index: 0 });
-      showToast('Stash applied', 'success');
-    } catch (e) {
-      console.error('stash_pop failed:', e);
-      showToast('Failed to apply stash', 'error');
-    }
-  }
-
-  function handleBranch() {
-    branchDialogOpen = true;
-  }
-
-  async function handleBranchCreate(values: Record<string, string>) {
-    branchDialogOpen = false;
-    const name = values.name?.trim();
-    if (!name) return;
-    try {
-      await safeInvoke('create_branch', { path: repoPath, name });
-      showToast('Checked out ' + name, 'success');
-    } catch (e) {
-      const err = e as TrunkError;
-      if (err.code === 'dirty_workdir') {
-        showToast('Branch created (checkout skipped — uncommitted changes)', 'success');
-      } else {
-        showToast('Failed to create branch', 'error');
-      }
-    }
-  }
+}
 </script>
 
 <style>

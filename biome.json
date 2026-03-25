@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "files": {
+    "includes": ["src/**", "*.ts", "*.js", "*.json", "*.svelte"]
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
@@ -16,6 +23,15 @@
     "lineWidth": 100
   },
   "overrides": [
+    {
+      "includes": ["src/components/virtual-list/**"],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      }
+    },
     {
       "includes": ["**/*.svelte"],
       "linter": {

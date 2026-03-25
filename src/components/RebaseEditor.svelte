@@ -1,394 +1,423 @@
 <script lang="ts">
-  import Sortable from 'sortablejs';
-  import { safeInvoke } from '../lib/invoke.js';
-  import { ROW_HEIGHT, COLUMN_PADDING_X } from '../lib/graph-constants.js';
-  import { validateRebasePlan } from '../lib/rebase-validation.js';
-  import type { RebaseTodoItem } from '../lib/types.js';
-  import {
-    getRebaseColumnWidths,
-    setRebaseColumnWidths,
-    getRebaseColumnVisibility,
-    setRebaseColumnVisibility,
-  } from '../lib/store.js';
-  import type { RebaseColumnWidths, RebaseColumnVisibility } from '../lib/store.js';
+import Sortable from "sortablejs";
+import { COLUMN_PADDING_X, ROW_HEIGHT } from "../lib/graph-constants.js";
+import { safeInvoke } from "../lib/invoke.js";
+import { validateRebasePlan } from "../lib/rebase-validation.js";
+import type { RebaseColumnVisibility, RebaseColumnWidths } from "../lib/store.js";
+import {
+  getRebaseColumnVisibility,
+  getRebaseColumnWidths,
+  setRebaseColumnVisibility,
+  setRebaseColumnWidths,
+} from "../lib/store.js";
+import type { RebaseTodoItem } from "../lib/types.js";
 
-  type RebaseAction = 'pick' | 'squash' | 'reword' | 'drop';
+type RebaseAction = "pick" | "squash" | "reword" | "drop";
 
-  interface RebaseCommit {
-    oid: string;
-    shortOid: string;
-    summary: string;
-    authorName: string;
-    authorTimestamp: number;
-    action: RebaseAction;
-    newMessage: string | null;
+interface RebaseCommit {
+  oid: string;
+  shortOid: string;
+  summary: string;
+  authorName: string;
+  authorTimestamp: number;
+  action: RebaseAction;
+  newMessage: string | null;
+}
+
+interface Props {
+  repoPath: string;
+  commits: RebaseTodoItem[];
+  branchName: string;
+  baseName: string;
+  onclose: () => void;
+  onstart: (
+    items: { oid: string; action: string; summary: string; newMessage: string | null }[],
+  ) => void;
+  onfocuschange?: (oid: string) => void;
+}
+
+let { repoPath, commits, branchName, baseName, onclose, onstart, onfocuschange }: Props = $props();
+
+function toRebaseCommits(source: RebaseTodoItem[]): RebaseCommit[] {
+  // Reverse: backend sends oldest-first (for git), but we display newest-first (like the graph)
+  return [...source].reverse().map((c) => ({
+    oid: c.oid,
+    shortOid: c.short_oid,
+    summary: c.summary,
+    authorName: c.author_name,
+    authorTimestamp: c.author_timestamp,
+    action: "pick" as RebaseAction,
+    newMessage: null,
+  }));
+}
+
+let items = $state<RebaseCommit[]>(toRebaseCommits(commits));
+let originalItems = $state<RebaseCommit[]>(structuredClone(toRebaseCommits(commits)));
+let focusedIndex = $state<number>(0);
+let listEl: HTMLDivElement | undefined = $state();
+
+// Inline message editor state
+let editingIdx = $state<number | null>(null);
+let editingSummary = $state("");
+let editingBody = $state("");
+let columnWidths = $state<RebaseColumnWidths>({ sha: 80, author: 120, date: 100 });
+let columnVisibility = $state<RebaseColumnVisibility>({ sha: true, author: true, date: true });
+
+// Validate in git order (oldest-first = reversed display), remap indices back to display order
+let validationErrors = $derived.by(() => {
+  const gitOrder = [...items].reverse();
+  const errors = validateRebasePlan(gitOrder);
+  const lastIdx = items.length - 1;
+  return errors.map((e) => ({ ...e, index: lastIdx - e.index }));
+});
+let hasChanges = $derived(JSON.stringify(items) !== JSON.stringify(originalItems));
+let canStart = $derived(validationErrors.length === 0);
+
+// Emit focus change when focused commit changes
+$effect(() => {
+  if (items[focusedIndex]) onfocuschange?.(items[focusedIndex].oid);
+});
+
+// Load persisted column state on mount
+$effect(() => {
+  getRebaseColumnWidths().then((w) => (columnWidths = w));
+  getRebaseColumnVisibility().then((v) => (columnVisibility = v));
+});
+
+// --- Helpers ---
+
+function actionColor(action: string): string {
+  switch (action) {
+    case "pick":
+      return "var(--color-success)";
+    case "reword":
+      return "var(--color-warning)";
+    case "squash":
+      return "var(--color-accent-alt)";
+    case "drop":
+      return "var(--color-danger)";
+    default:
+      return "var(--color-text-muted)";
+  }
+}
+
+function formatRelativeDate(timestamp: number): string {
+  const now = Date.now() / 1000;
+  const diff = Math.max(0, now - timestamp);
+  const minutes = Math.floor(diff / 60);
+  const hours = Math.floor(diff / 3600);
+  const days = Math.floor(diff / 86400);
+
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  return `${minutes}m ago`;
+}
+
+function errorForIndex(idx: number): string | null {
+  const err = validationErrors.find((e) => e.index === idx);
+  return err ? err.message : null;
+}
+
+// --- Column resize ---
+
+function startColumnResize(column: keyof RebaseColumnWidths, e: MouseEvent, invert = false) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = columnWidths[column];
+  const minWidths: Record<keyof RebaseColumnWidths, number> = { sha: 50, author: 60, date: 60 };
+  const maxWidths: Record<keyof RebaseColumnWidths, number> = { sha: 120, author: 400, date: 400 };
+
+  function onMouseMove(ev: MouseEvent) {
+    const delta = (ev.clientX - startX) * (invert ? -1 : 1);
+    const newWidth = Math.max(minWidths[column], Math.min(maxWidths[column], startWidth + delta));
+    columnWidths = { ...columnWidths, [column]: newWidth };
   }
 
-  interface Props {
-    repoPath: string;
-    commits: RebaseTodoItem[];
-    branchName: string;
-    baseName: string;
-    onclose: () => void;
-    onstart: (items: { oid: string; action: string; summary: string; newMessage: string | null }[]) => void;
-    onfocuschange?: (oid: string) => void;
+  function onMouseUp() {
+    setRebaseColumnWidths(columnWidths);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
   }
 
-  let { repoPath, commits, branchName, baseName, onclose, onstart, onfocuschange }: Props = $props();
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+}
 
-  function toRebaseCommits(source: RebaseTodoItem[]): RebaseCommit[] {
-    // Reverse: backend sends oldest-first (for git), but we display newest-first (like the graph)
-    return [...source].reverse().map((c) => ({
-      oid: c.oid,
-      shortOid: c.short_oid,
-      summary: c.summary,
-      authorName: c.author_name,
-      authorTimestamp: c.author_timestamp,
-      action: 'pick' as RebaseAction,
-      newMessage: null,
-    }));
-  }
+// --- Header context menu ---
 
-  let items = $state<RebaseCommit[]>(toRebaseCommits(commits));
-  let originalItems = $state<RebaseCommit[]>(structuredClone(toRebaseCommits(commits)));
-  let focusedIndex = $state<number>(0);
-  let listEl: HTMLDivElement | undefined = $state();
+async function showHeaderContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  const { Menu, CheckMenuItem } = await import("@tauri-apps/api/menu");
+  const cols: { key: keyof RebaseColumnVisibility; label: string }[] = [
+    { key: "sha", label: "SHA" },
+    { key: "author", label: "Author" },
+    { key: "date", label: "Date" },
+  ];
+  const menuItems = await Promise.all(
+    cols.map((col) =>
+      CheckMenuItem.new({
+        text: col.label,
+        checked: columnVisibility[col.key],
+        action: () => {
+          columnVisibility = { ...columnVisibility, [col.key]: !columnVisibility[col.key] };
+          setRebaseColumnVisibility(columnVisibility);
+        },
+      }),
+    ),
+  );
+  const menu = await Menu.new({ items: menuItems });
+  await menu.popup();
+}
 
-  // Inline message editor state
-  let editingIdx = $state<number | null>(null);
-  let editingSummary = $state('');
-  let editingBody = $state('');
-  let columnWidths = $state<RebaseColumnWidths>({ sha: 80, author: 120, date: 100 });
-  let columnVisibility = $state<RebaseColumnVisibility>({ sha: true, author: true, date: true });
+// --- Drag-and-drop (SortableJS) ---
 
-  // Validate in git order (oldest-first = reversed display), remap indices back to display order
-  let validationErrors = $derived.by(() => {
-    const gitOrder = [...items].reverse();
-    const errors = validateRebasePlan(gitOrder);
-    const lastIdx = items.length - 1;
-    return errors.map((e) => ({ ...e, index: lastIdx - e.index }));
+$effect(() => {
+  if (!listEl) return;
+  const sortable = Sortable.create(listEl, {
+    animation: 150,
+    forceFallback: true,
+    ghostClass: "rebase-row-ghost",
+    chosenClass: "rebase-row-chosen",
+    dragClass: "rebase-row-drag",
+    fallbackClass: "rebase-row-fallback",
+    filter: "select, option",
+    preventOnFilter: false,
+    onStart: (e) => {
+      if (e.oldIndex != null) focusedIndex = e.oldIndex;
+    },
+    onEnd: (e) => {
+      if (e.oldIndex == null || e.newIndex == null || e.oldIndex === e.newIndex) return;
+      // Update state — {#key items} forces full DOM recreation so no conflict
+      const updated = [...items];
+      const [moved] = updated.splice(e.oldIndex, 1);
+      updated.splice(e.newIndex, 0, moved);
+      items = updated;
+      focusedIndex = e.newIndex;
+    },
   });
-  let hasChanges = $derived(JSON.stringify(items) !== JSON.stringify(originalItems));
-  let canStart = $derived(validationErrors.length === 0);
+  return () => sortable.destroy();
+});
 
-  // Emit focus change when focused commit changes
-  $effect(() => {
-    if (items[focusedIndex]) onfocuschange?.(items[focusedIndex].oid);
-  });
+// --- Keyboard shortcuts ---
 
-  // Load persisted column state on mount
-  $effect(() => {
-    getRebaseColumnWidths().then((w) => (columnWidths = w));
-    getRebaseColumnVisibility().then((v) => (columnVisibility = v));
-  });
+function scrollRowIntoView(idx: number) {
+  const row = document.querySelector(`[data-rebase-row="${idx}"]`);
+  row?.scrollIntoView({ block: "nearest" });
+}
 
-  // --- Helpers ---
+function handleEditorKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") return;
 
-  function actionColor(action: string): string {
-    switch (action) {
-      case 'pick':
-        return 'var(--color-success)';
-      case 'reword':
-        return 'var(--color-warning)';
-      case 'squash':
-        return 'var(--color-accent-alt)';
-      case 'drop':
-        return 'var(--color-danger)';
-      default:
-        return 'var(--color-text-muted)';
-    }
-  }
-
-  function formatRelativeDate(timestamp: number): string {
-    const now = Date.now() / 1000;
-    const diff = Math.max(0, now - timestamp);
-    const minutes = Math.floor(diff / 60);
-    const hours = Math.floor(diff / 3600);
-    const days = Math.floor(diff / 86400);
-
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    return `${minutes}m ago`;
-  }
-
-  function errorForIndex(idx: number): string | null {
-    const err = validationErrors.find((e) => e.index === idx);
-    return err ? err.message : null;
-  }
-
-  // --- Column resize ---
-
-  function startColumnResize(column: keyof RebaseColumnWidths, e: MouseEvent, invert = false) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = columnWidths[column];
-    const minWidths: Record<keyof RebaseColumnWidths, number> = { sha: 50, author: 60, date: 60 };
-    const maxWidths: Record<keyof RebaseColumnWidths, number> = { sha: 120, author: 400, date: 400 };
-
-    function onMouseMove(ev: MouseEvent) {
-      const delta = (ev.clientX - startX) * (invert ? -1 : 1);
-      const newWidth = Math.max(minWidths[column], Math.min(maxWidths[column], startWidth + delta));
-      columnWidths = { ...columnWidths, [column]: newWidth };
-    }
-
-    function onMouseUp() {
-      setRebaseColumnWidths(columnWidths);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    }
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }
-
-  // --- Header context menu ---
-
-  async function showHeaderContextMenu(e: MouseEvent) {
-    e.preventDefault();
-    const { Menu, CheckMenuItem } = await import('@tauri-apps/api/menu');
-    const cols: { key: keyof RebaseColumnVisibility; label: string }[] = [
-      { key: 'sha', label: 'SHA' },
-      { key: 'author', label: 'Author' },
-      { key: 'date', label: 'Date' },
-    ];
-    const menuItems = await Promise.all(
-      cols.map((col) =>
-        CheckMenuItem.new({
-          text: col.label,
-          checked: columnVisibility[col.key],
-          action: () => {
-            columnVisibility = { ...columnVisibility, [col.key]: !columnVisibility[col.key] };
-            setRebaseColumnVisibility(columnVisibility);
-          },
-        })
-      )
-    );
-    const menu = await Menu.new({ items: menuItems });
-    await menu.popup();
-  }
-
-  // --- Drag-and-drop (SortableJS) ---
-
-  $effect(() => {
-    if (!listEl) return;
-    const sortable = Sortable.create(listEl, {
-      animation: 150,
-      forceFallback: true,
-      ghostClass: 'rebase-row-ghost',
-      chosenClass: 'rebase-row-chosen',
-      dragClass: 'rebase-row-drag',
-      fallbackClass: 'rebase-row-fallback',
-      filter: 'select, option',
-      preventOnFilter: false,
-      onStart: (e) => {
-        if (e.oldIndex != null) focusedIndex = e.oldIndex;
-      },
-      onEnd: (e) => {
-        if (e.oldIndex == null || e.newIndex == null || e.oldIndex === e.newIndex) return;
-        // Update state — {#key items} forces full DOM recreation so no conflict
-        const updated = [...items];
-        const [moved] = updated.splice(e.oldIndex, 1);
-        updated.splice(e.newIndex, 0, moved);
-        items = updated;
-        focusedIndex = e.newIndex;
-      },
-    });
-    return () => sortable.destroy();
-  });
-
-  // --- Keyboard shortcuts ---
-
-  function scrollRowIntoView(idx: number) {
-    const row = document.querySelector(`[data-rebase-row="${idx}"]`);
-    row?.scrollIntoView({ block: 'nearest' });
-  }
-
-  function handleEditorKeydown(e: KeyboardEvent) {
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-    switch (e.key) {
-      case 'p':
-      case 'P':
-        e.preventDefault();
-        items[focusedIndex].action = 'pick';
-        if (focusedIndex < items.length - 1) { focusedIndex += 1; scrollRowIntoView(focusedIndex); }
-        break;
-      case 's':
-      case 'S':
-        e.preventDefault();
-        items[focusedIndex].action = 'squash';
-        if (focusedIndex < items.length - 1) { focusedIndex += 1; scrollRowIntoView(focusedIndex); }
-        break;
-      case 'r':
-      case 'R':
-        e.preventDefault();
-        items[focusedIndex].action = 'reword';
-        openMessageEditor(focusedIndex);
-        break;
-      case 'd':
-      case 'D':
-        e.preventDefault();
-        items[focusedIndex].action = 'drop';
-        if (focusedIndex < items.length - 1) { focusedIndex += 1; scrollRowIntoView(focusedIndex); }
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        if (e.shiftKey && focusedIndex > 0) {
-          const updated = [...items];
-          [updated[focusedIndex - 1], updated[focusedIndex]] = [updated[focusedIndex], updated[focusedIndex - 1]];
-          items = updated;
-          focusedIndex -= 1;
-        } else if (!e.shiftKey) {
-          focusedIndex = Math.max(0, focusedIndex - 1);
-        }
+  switch (e.key) {
+    case "p":
+    case "P":
+      e.preventDefault();
+      items[focusedIndex].action = "pick";
+      if (focusedIndex < items.length - 1) {
+        focusedIndex += 1;
         scrollRowIntoView(focusedIndex);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        if (e.shiftKey && focusedIndex < items.length - 1) {
-          const updated = [...items];
-          [updated[focusedIndex], updated[focusedIndex + 1]] = [updated[focusedIndex + 1], updated[focusedIndex]];
-          items = updated;
-          focusedIndex += 1;
-        } else if (!e.shiftKey) {
-          focusedIndex = Math.min(items.length - 1, focusedIndex + 1);
-        }
-        scrollRowIntoView(focusedIndex);
-        break;
-      case 'Escape':
-        if (editingIdx !== null) {
-          e.preventDefault();
-          handleMessageCancel();
-        }
-        break;
-    }
-  }
-
-  function autofocus(node: HTMLElement) {
-    node.focus();
-  }
-
-  function selectAll(node: HTMLInputElement) {
-    requestAnimationFrame(() => {
-      node.focus();
-      node.select();
-    });
-  }
-
-  // --- Inline message editor ---
-
-  async function openMessageEditor(idx: number) {
-    const item = items[idx];
-    if (item.action === 'drop') return;
-    focusedIndex = idx;
-
-    if (item.action === 'squash') {
-      // Find predecessor: in display order (newest-first), predecessor is at idx + 1
-      const predIdx = idx + 1;
-      if (predIdx >= items.length) return; // shouldn't happen (validation prevents)
-      const pred = items[predIdx];
-
-      if (item.newMessage != null) {
-        // Already edited — reuse stored combined message
-        const lines = item.newMessage.split('\n');
-        editingSummary = lines[0] ?? '';
-        editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
-      } else {
-        // Fetch full messages for both predecessor and squash commit
-        try {
-          const [predDetail, squashDetail] = await Promise.all([
-            safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
-              path: repoPath, oid: pred.oid,
-            }),
-            safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
-              path: repoPath, oid: item.oid,
-            }),
-          ]);
-          const predMsg = predDetail.body
-            ? `${predDetail.summary}\n\n${predDetail.body}`
-            : predDetail.summary;
-          const squashMsg = squashDetail.body
-            ? `${squashDetail.summary}\n\n${squashDetail.body}`
-            : squashDetail.summary;
-          const combined = `${predMsg}\n\n${squashMsg}`;
-          const lines = combined.split('\n');
-          editingSummary = lines[0] ?? '';
-          editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
-        } catch {
-          editingSummary = `${pred.summary}\n\n${item.summary}`;
-          editingBody = '';
-        }
       }
-      editingIdx = idx;
-      return;
-    }
+      break;
+    case "s":
+    case "S":
+      e.preventDefault();
+      items[focusedIndex].action = "squash";
+      if (focusedIndex < items.length - 1) {
+        focusedIndex += 1;
+        scrollRowIntoView(focusedIndex);
+      }
+      break;
+    case "r":
+    case "R":
+      e.preventDefault();
+      items[focusedIndex].action = "reword";
+      openMessageEditor(focusedIndex);
+      break;
+    case "d":
+    case "D":
+      e.preventDefault();
+      items[focusedIndex].action = "drop";
+      if (focusedIndex < items.length - 1) {
+        focusedIndex += 1;
+        scrollRowIntoView(focusedIndex);
+      }
+      break;
+    case "ArrowUp":
+      e.preventDefault();
+      if (e.shiftKey && focusedIndex > 0) {
+        const updated = [...items];
+        [updated[focusedIndex - 1], updated[focusedIndex]] = [
+          updated[focusedIndex],
+          updated[focusedIndex - 1],
+        ];
+        items = updated;
+        focusedIndex -= 1;
+      } else if (!e.shiftKey) {
+        focusedIndex = Math.max(0, focusedIndex - 1);
+      }
+      scrollRowIntoView(focusedIndex);
+      break;
+    case "ArrowDown":
+      e.preventDefault();
+      if (e.shiftKey && focusedIndex < items.length - 1) {
+        const updated = [...items];
+        [updated[focusedIndex], updated[focusedIndex + 1]] = [
+          updated[focusedIndex + 1],
+          updated[focusedIndex],
+        ];
+        items = updated;
+        focusedIndex += 1;
+      } else if (!e.shiftKey) {
+        focusedIndex = Math.min(items.length - 1, focusedIndex + 1);
+      }
+      scrollRowIntoView(focusedIndex);
+      break;
+    case "Escape":
+      if (editingIdx !== null) {
+        e.preventDefault();
+        handleMessageCancel();
+      }
+      break;
+  }
+}
+
+function autofocus(node: HTMLElement) {
+  node.focus();
+}
+
+function selectAll(node: HTMLInputElement) {
+  requestAnimationFrame(() => {
+    node.focus();
+    node.select();
+  });
+}
+
+// --- Inline message editor ---
+
+async function openMessageEditor(idx: number) {
+  const item = items[idx];
+  if (item.action === "drop") return;
+  focusedIndex = idx;
+
+  if (item.action === "squash") {
+    // Find predecessor: in display order (newest-first), predecessor is at idx + 1
+    const predIdx = idx + 1;
+    if (predIdx >= items.length) return; // shouldn't happen (validation prevents)
+    const pred = items[predIdx];
 
     if (item.newMessage != null) {
-      // Already edited — split summary/body from stored message
-      const lines = item.newMessage.split('\n');
-      editingSummary = lines[0] ?? '';
-      editingBody = lines.slice(1).join('\n').replace(/^\n/, '');
+      // Already edited — reuse stored combined message
+      const lines = item.newMessage.split("\n");
+      editingSummary = lines[0] ?? "";
+      editingBody = lines.slice(1).join("\n").replace(/^\n/, "");
     } else {
-      // Fetch full commit message
-      editingSummary = item.summary;
+      // Fetch full messages for both predecessor and squash commit
       try {
-        const detail = await safeInvoke<{ summary: string; body: string | null }>('get_commit_detail', {
-          path: repoPath,
-          oid: item.oid,
-        });
-        editingSummary = detail.summary;
-        editingBody = detail.body ?? '';
+        const [predDetail, squashDetail] = await Promise.all([
+          safeInvoke<{ summary: string; body: string | null }>("get_commit_detail", {
+            path: repoPath,
+            oid: pred.oid,
+          }),
+          safeInvoke<{ summary: string; body: string | null }>("get_commit_detail", {
+            path: repoPath,
+            oid: item.oid,
+          }),
+        ]);
+        const predMsg = predDetail.body
+          ? `${predDetail.summary}\n\n${predDetail.body}`
+          : predDetail.summary;
+        const squashMsg = squashDetail.body
+          ? `${squashDetail.summary}\n\n${squashDetail.body}`
+          : squashDetail.summary;
+        const combined = `${predMsg}\n\n${squashMsg}`;
+        const lines = combined.split("\n");
+        editingSummary = lines[0] ?? "";
+        editingBody = lines.slice(1).join("\n").replace(/^\n/, "");
       } catch {
-        editingBody = '';
+        editingSummary = `${pred.summary}\n\n${item.summary}`;
+        editingBody = "";
       }
     }
-
     editingIdx = idx;
-    // Auto-set to reword if currently pick
-    if (item.action === 'pick') item.action = 'reword';
+    return;
   }
 
-  function handleMessageUpdate() {
-    if (editingIdx === null) return;
-    const fullMsg = editingBody.trim()
-      ? `${editingSummary.trim()}\n\n${editingBody.trim()}`
-      : editingSummary.trim();
-    items[editingIdx].newMessage = fullMsg;
-    // Update displayed summary to match
-    items[editingIdx].summary = editingSummary.trim();
-    editingIdx = null;
+  if (item.newMessage != null) {
+    // Already edited — split summary/body from stored message
+    const lines = item.newMessage.split("\n");
+    editingSummary = lines[0] ?? "";
+    editingBody = lines.slice(1).join("\n").replace(/^\n/, "");
+  } else {
+    // Fetch full commit message
+    editingSummary = item.summary;
+    try {
+      const detail = await safeInvoke<{ summary: string; body: string | null }>(
+        "get_commit_detail",
+        {
+          path: repoPath,
+          oid: item.oid,
+        },
+      );
+      editingSummary = detail.summary;
+      editingBody = detail.body ?? "";
+    } catch {
+      editingBody = "";
+    }
   }
 
-  function handleMessageCancel() {
-    editingIdx = null;
-  }
+  editingIdx = idx;
+  // Auto-set to reword if currently pick
+  if (item.action === "pick") item.action = "reword";
+}
 
-  // --- Toolbar handlers ---
+function handleMessageUpdate() {
+  if (editingIdx === null) return;
+  const fullMsg = editingBody.trim()
+    ? `${editingSummary.trim()}\n\n${editingBody.trim()}`
+    : editingSummary.trim();
+  items[editingIdx].newMessage = fullMsg;
+  // Update displayed summary to match
+  items[editingIdx].summary = editingSummary.trim();
+  editingIdx = null;
+}
 
-  function handleReset() {
-    items = toRebaseCommits(commits);
-    focusedIndex = 0;
-  }
+function handleMessageCancel() {
+  editingIdx = null;
+}
 
-  function handleCancel() {
-    onclose();
-  }
+// --- Toolbar handlers ---
 
-  function handleStartRebase() {
-    if (!canStart) return;
-    // Reverse back to oldest-first for git's rebase todo
-    const reversed = [...items].reverse();
-    onstart(reversed.map((i) => ({ oid: i.oid, action: i.action, summary: i.summary, newMessage: i.newMessage })));
-  }
+function handleReset() {
+  items = toRebaseCommits(commits);
+  focusedIndex = 0;
+}
 
-  // Determine last visible resizable column for resize handle logic
-  let lastVisibleColumn = $derived.by(() => {
-    if (columnVisibility.date) return 'date';
-    if (columnVisibility.author) return 'author';
-    if (columnVisibility.sha) return 'sha';
-    return 'message';
-  });
+function handleCancel() {
+  onclose();
+}
+
+function handleStartRebase() {
+  if (!canStart) return;
+  // Reverse back to oldest-first for git's rebase todo
+  const reversed = [...items].reverse();
+  onstart(
+    reversed.map((i) => ({
+      oid: i.oid,
+      action: i.action,
+      summary: i.summary,
+      newMessage: i.newMessage,
+    })),
+  );
+}
+
+// Determine last visible resizable column for resize handle logic
+let lastVisibleColumn = $derived.by(() => {
+  if (columnVisibility.date) return "date";
+  if (columnVisibility.author) return "author";
+  if (columnVisibility.sha) return "sha";
+  return "message";
+});
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

@@ -1,81 +1,81 @@
 <script lang="ts">
-  import type { OperationInfo } from '../lib/types.js';
-  import { safeInvoke, type TrunkError } from '../lib/invoke.js';
-  import { showToast } from '../lib/toast.svelte.js';
-  import { GitMerge, GitBranch } from '@lucide/svelte';
+import { GitBranch, GitMerge } from "@lucide/svelte";
+import { safeInvoke, type TrunkError } from "../lib/invoke.js";
+import { showToast } from "../lib/toast.svelte.js";
+import type { OperationInfo } from "../lib/types.js";
 
-  interface Props {
-    info: OperationInfo;
-    repoPath: string;
-    onaction?: () => void;
+interface Props {
+  info: OperationInfo;
+  repoPath: string;
+  onaction?: () => void;
+}
+
+let { info, repoPath, onaction }: Props = $props();
+let loading = $state(false);
+
+let isMerge = $derived(info.op_type === "Merge");
+let isRebase = $derived(info.op_type === "Rebase");
+
+let sourceBranch = $derived(info.source_branch ?? "???");
+let targetBranch = $derived(info.target_branch ?? "???");
+let sourceColor = $derived(`var(--lane-${(info.source_color_index ?? 1) % 8})`);
+let targetColor = $derived(`var(--lane-${(info.target_color_index ?? 0) % 8})`);
+
+let label = $derived.by(() => {
+  if (info.op_type === "CherryPick") return "Cherry-pick in progress";
+  if (info.op_type === "Revert") return "Revert in progress";
+  return "";
+});
+
+async function handleContinue() {
+  loading = true;
+  try {
+    const cmd = isMerge ? "merge_continue" : "rebase_continue";
+    await safeInvoke(cmd, { path: repoPath });
+    showToast(isMerge ? "Merge completed" : "Rebase continued", "success");
+  } catch (e) {
+    const err = e as TrunkError;
+    showToast(err.message ?? "Continue failed", "error");
+  } finally {
+    loading = false;
+    onaction?.();
   }
+}
 
-  let { info, repoPath, onaction }: Props = $props();
-  let loading = $state(false);
-
-  let isMerge = $derived(info.op_type === 'Merge');
-  let isRebase = $derived(info.op_type === 'Rebase');
-
-  let sourceBranch = $derived(info.source_branch ?? '???');
-  let targetBranch = $derived(info.target_branch ?? '???');
-  let sourceColor = $derived(`var(--lane-${(info.source_color_index ?? 1) % 8})`);
-  let targetColor = $derived(`var(--lane-${(info.target_color_index ?? 0) % 8})`);
-
-  let label = $derived.by(() => {
-    if (info.op_type === 'CherryPick') return 'Cherry-pick in progress';
-    if (info.op_type === 'Revert') return 'Revert in progress';
-    return '';
-  });
-
-  async function handleContinue() {
-    loading = true;
-    try {
-      const cmd = isMerge ? 'merge_continue' : 'rebase_continue';
-      await safeInvoke(cmd, { path: repoPath });
-      showToast(isMerge ? 'Merge completed' : 'Rebase continued', 'success');
-    } catch (e) {
-      const err = e as TrunkError;
-      showToast(err.message ?? 'Continue failed', 'error');
-    } finally {
-      loading = false;
-      onaction?.();
-    }
+async function handleSkip() {
+  loading = true;
+  try {
+    await safeInvoke("rebase_skip", { path: repoPath });
+  } catch (e) {
+    const err = e as TrunkError;
+    showToast(err.message ?? "Skip failed", "error");
+  } finally {
+    loading = false;
+    onaction?.();
   }
+}
 
-  async function handleSkip() {
-    loading = true;
-    try {
-      await safeInvoke('rebase_skip', { path: repoPath });
-    } catch (e) {
-      const err = e as TrunkError;
-      showToast(err.message ?? 'Skip failed', 'error');
-    } finally {
-      loading = false;
-      onaction?.();
-    }
+async function handleAbort() {
+  const { ask } = await import("@tauri-apps/plugin-dialog");
+  const opName = isMerge ? "merge" : "rebase";
+  const confirmed = await ask(
+    `Abort ${opName}? This will discard all ${opName} progress and return to the previous state.`,
+    { title: `Abort ${opName.charAt(0).toUpperCase() + opName.slice(1)}`, kind: "warning" },
+  );
+  if (!confirmed) return;
+  loading = true;
+  try {
+    const cmd = isMerge ? "merge_abort" : "rebase_abort";
+    await safeInvoke(cmd, { path: repoPath });
+    showToast(`${opName.charAt(0).toUpperCase() + opName.slice(1)} aborted`, "success");
+  } catch (e) {
+    const err = e as TrunkError;
+    showToast(err.message ?? "Abort failed", "error");
+  } finally {
+    loading = false;
+    onaction?.();
   }
-
-  async function handleAbort() {
-    const { ask } = await import('@tauri-apps/plugin-dialog');
-    const opName = isMerge ? 'merge' : 'rebase';
-    const confirmed = await ask(
-      `Abort ${opName}? This will discard all ${opName} progress and return to the previous state.`,
-      { title: `Abort ${opName.charAt(0).toUpperCase() + opName.slice(1)}`, kind: 'warning' }
-    );
-    if (!confirmed) return;
-    loading = true;
-    try {
-      const cmd = isMerge ? 'merge_abort' : 'rebase_abort';
-      await safeInvoke(cmd, { path: repoPath });
-      showToast(`${opName.charAt(0).toUpperCase() + opName.slice(1)} aborted`, 'success');
-    } catch (e) {
-      const err = e as TrunkError;
-      showToast(err.message ?? 'Abort failed', 'error');
-    } finally {
-      loading = false;
-      onaction?.();
-    }
-  }
+}
 </script>
 
 <div style="

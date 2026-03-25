@@ -1,17 +1,17 @@
-import type { FileStatus } from './types.js';
+import type { FileStatus } from "./types.js";
 
 export interface DirectoryNode {
-  type: 'directory';
-  name: string;       // Display name, may be compressed ("src/lib")
-  path: string;       // Full relative path prefix ("src/lib")
+  type: "directory";
+  name: string; // Display name, may be compressed ("src/lib")
+  path: string; // Full relative path prefix ("src/lib")
   children: TreeNode[];
 }
 
 export interface FileNode {
-  type: 'file';
-  name: string;       // Filename only ("App.svelte")
-  path: string;       // Full relative path ("src/App.svelte")
-  file: FileStatus;   // Original FileStatus for downstream rendering
+  type: "file";
+  name: string; // Filename only ("App.svelte")
+  path: string; // Full relative path ("src/App.svelte")
+  file: FileStatus; // Original FileStatus for downstream rendering
 }
 
 export type TreeNode = DirectoryNode | FileNode;
@@ -36,10 +36,10 @@ export function buildTree(files: FileStatus[]): TreeNode[] {
   if (files.length === 0) return [];
 
   // Phase 1: Build intermediate trie
-  const root: IntermediateDir = { children: new Map(), files: [], path: '' };
+  const root: IntermediateDir = { children: new Map(), files: [], path: "" };
 
   for (const file of files) {
-    const segments = file.path.split('/');
+    const segments = file.path.split("/");
     let current = root;
 
     // Walk directory segments (all but last, which is the filename)
@@ -50,7 +50,7 @@ export function buildTree(files: FileStatus[]): TreeNode[] {
         child = {
           children: new Map(),
           files: [],
-          path: segments.slice(0, i + 1).join('/'),
+          path: segments.slice(0, i + 1).join("/"),
         };
         current.children.set(seg, child);
       }
@@ -72,7 +72,7 @@ function convert(dir: IntermediateDir): TreeNode[] {
   // Convert subdirectories
   for (const [name, child] of dir.children) {
     const dirNode: DirectoryNode = {
-      type: 'directory',
+      type: "directory",
       name,
       path: child.path,
       children: convert(child),
@@ -82,9 +82,9 @@ function convert(dir: IntermediateDir): TreeNode[] {
 
   // Convert files
   for (const file of dir.files) {
-    const filename = file.path.split('/').pop()!;
+    const filename = file.path.split("/").pop()!;
     result.push({
-      type: 'file',
+      type: "file",
       name: filename,
       path: file.path,
       file,
@@ -100,11 +100,11 @@ function convert(dir: IntermediateDir): TreeNode[] {
  * a directory with exactly one child that is a file is NOT compressed).
  */
 function compress(node: DirectoryNode): DirectoryNode {
-  while (node.children.length === 1 && node.children[0].type === 'directory') {
+  while (node.children.length === 1 && node.children[0].type === "directory") {
     const child = node.children[0] as DirectoryNode;
     node = {
-      type: 'directory',
-      name: node.name + '/' + child.name,
+      type: "directory",
+      name: `${node.name}/${child.name}`,
       path: child.path,
       children: child.children,
     };
@@ -118,8 +118,8 @@ function compress(node: DirectoryNode): DirectoryNode {
  */
 function sortNodes(nodes: TreeNode[]): TreeNode[] {
   return nodes.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 }
 
@@ -130,7 +130,7 @@ function sortNodes(nodes: TreeNode[]): TreeNode[] {
 export function countFiles(nodes: TreeNode[]): number {
   let count = 0;
   for (const node of nodes) {
-    if (node.type === 'file') {
+    if (node.type === "file") {
       count++;
     } else {
       count += countFiles(node.children);
@@ -145,7 +145,7 @@ export function countFiles(nodes: TreeNode[]): number {
 export function collectFilePaths(nodes: TreeNode[]): string[] {
   const paths: string[] = [];
   for (const node of nodes) {
-    if (node.type === 'file') {
+    if (node.type === "file") {
       paths.push(node.path);
     } else {
       paths.push(...collectFilePaths(node.children));

@@ -36,11 +36,11 @@
  * ```
  */
 export const isSignificantHeightChange = (itemIndex, newHeight, heightCache, marginOfError = 1) => {
-    const previousHeight = heightCache[itemIndex];
-    if (previousHeight === undefined) {
-        // First time seeing this item, mark as significant
-        return true;
-    }
-    const heightDifference = Math.abs(newHeight - previousHeight);
-    return heightDifference > marginOfError;
+  const previousHeight = heightCache[itemIndex];
+  if (previousHeight === undefined) {
+    // First time seeing this item, mark as significant
+    return true;
+  }
+  const heightDifference = Math.abs(newHeight - previousHeight);
+  return heightDifference > marginOfError;
 };

@@ -1,5 +1,11 @@
-import type { GraphDisplaySettings, OverlayConnection, OverlayGraphData, OverlayNode, OverlayPath } from './types.js';
-import { DEFAULT_GRAPH_SETTINGS } from './graph-constants.js';
+import { DEFAULT_GRAPH_SETTINGS } from "./graph-constants.js";
+import type {
+  GraphDisplaySettings,
+  OverlayConnection,
+  OverlayGraphData,
+  OverlayNode,
+  OverlayPath,
+} from "./types.js";
 
 // ─── Coordinate context ───────────────────────────────────────────────────────
 
@@ -15,8 +21,8 @@ interface PathContext {
 function makePathContext(s: GraphDisplaySettings): PathContext {
   const { rowHeight, laneWidth, dotRadius } = s;
   return {
-    cx: col => col * laneWidth + laneWidth / 2,
-    cy: row => row * rowHeight + rowHeight / 2,
+    cx: (col) => col * laneWidth + laneWidth / 2,
+    cy: (row) => row * rowHeight + rowHeight / 2,
     R: laneWidth / 2,
     dotRadius,
   };
@@ -29,7 +35,7 @@ function makePathContext(s: GraphDisplaySettings): PathContext {
  * κ = 4(√2−1)/3 ≈ 0.5522847498
  * Control point offset = R * κ
  */
-const KAPPA = 4 * (Math.SQRT2 - 1) / 3;
+const KAPPA = (4 * (Math.SQRT2 - 1)) / 3;
 
 /** Gap between path end and hollow dot edge — matches stroke-dasharray gap (3 3) */
 const DASH_GAP = 3;
@@ -67,7 +73,13 @@ function buildPath(
       : cy(conn.parentY);
 
     if (startY >= endY) {
-      return { d: '', colorIndex: conn.colorIndex, dashed: conn.dashed, minRow: conn.childY, maxRow: conn.parentY };
+      return {
+        d: "",
+        colorIndex: conn.colorIndex,
+        dashed: conn.dashed,
+        minRow: conn.childY,
+        maxRow: conn.parentY,
+      };
     }
 
     return {

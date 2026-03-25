@@ -1,24 +1,33 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Plus, Minus } from '@lucide/svelte';
-  import type { DirectoryNode } from '../lib/build-tree.js';
-  import { countFiles } from '../lib/build-tree.js';
+import { ChevronDown, ChevronRight, Minus, Plus } from "@lucide/svelte";
+import type { DirectoryNode } from "../lib/build-tree.js";
+import { countFiles } from "../lib/build-tree.js";
 
-  interface Props {
-    node: DirectoryNode;
-    depth: number;
-    expanded: boolean;
-    focused: boolean;
-    ontoggle: () => void;
-    actionLabel?: string;
-    onaction?: () => void;
-    oncontextmenu?: (e: MouseEvent) => void;
-  }
+interface Props {
+  node: DirectoryNode;
+  depth: number;
+  expanded: boolean;
+  focused: boolean;
+  ontoggle: () => void;
+  actionLabel?: string;
+  onaction?: () => void;
+  oncontextmenu?: (e: MouseEvent) => void;
+}
 
-  let { node, depth, expanded, focused, ontoggle, actionLabel = '', onaction, oncontextmenu }: Props = $props();
+let {
+  node,
+  depth,
+  expanded,
+  focused,
+  ontoggle,
+  actionLabel = "",
+  onaction,
+  oncontextmenu,
+}: Props = $props();
 
-  let hovered = $state(false);
+let hovered = $state(false);
 
-  let fileCount = $derived(countFiles(node.children));
+let fileCount = $derived(countFiles(node.children));
 </script>
 
 <div

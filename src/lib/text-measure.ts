@@ -10,11 +10,7 @@ const _cache = new Map<string, number>();
  * Accepts an optional `rawMeasureFn` for testability — when provided,
  * the Canvas context is bypassed entirely.
  */
-export function measureTextWidth(
-  text: string,
-  font: string,
-  rawMeasureFn?: MeasureFn,
-): number {
+export function measureTextWidth(text: string, font: string, rawMeasureFn?: MeasureFn): number {
   const key = `${font}::${text}`;
   const cached = _cache.get(key);
   if (cached !== undefined) return cached;
@@ -25,7 +21,7 @@ export function measureTextWidth(
   } else {
     if (!_ctx) {
       const canvas = new OffscreenCanvas(0, 0);
-      _ctx = canvas.getContext('2d')!;
+      _ctx = canvas.getContext("2d")!;
     }
     _ctx.font = font;
     width = _ctx.measureText(text).width;
@@ -50,13 +46,13 @@ export function truncateWithEllipsis(
   font: string,
   rawMeasureFn?: MeasureFn,
 ): { text: string; width: number } {
-  if (text === '') return { text: '', width: 0 };
+  if (text === "") return { text: "", width: 0 };
 
   const measure = (t: string) => measureTextWidth(t, font, rawMeasureFn);
   const fullWidth = measure(text);
   if (fullWidth <= maxWidth) return { text, width: fullWidth };
 
-  const ellipsis = '…';
+  const ellipsis = "…";
 
   // Try progressively shorter substrings + ellipsis
   for (let i = text.length - 1; i >= 1; i--) {

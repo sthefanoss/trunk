@@ -29,11 +29,12 @@
  * );
  */
 export const shouldShowDebugInfo = (prevRange, currentRange, prevHeight, currentHeight) => {
-    if (!prevRange)
-        return true;
-    return (prevRange.start !== currentRange.start ||
-        prevRange.end !== currentRange.end ||
-        prevHeight !== currentHeight);
+  if (!prevRange) return true;
+  return (
+    prevRange.start !== currentRange.start ||
+    prevRange.end !== currentRange.end ||
+    prevHeight !== currentHeight
+  );
 };
 /**
  * Creates a comprehensive debug information object for virtual list state analysis.
@@ -71,18 +72,26 @@ export const shouldShowDebugInfo = (prevRange, currentRange, prevHeight, current
  *
  * @throws {Error} Will throw if end index is less than start index in visibleRange
  */
-export const createDebugInfo = (visibleRange, totalItems, processedItems, averageItemHeight, scrollTop, viewportHeight, totalHeight) => {
-    const atTop = scrollTop <= 1; // Small tolerance for floating point precision
-    const atBottom = scrollTop >= totalHeight - viewportHeight - 1; // Small tolerance
-    return {
-        visibleItemsCount: visibleRange.end - visibleRange.start,
-        startIndex: visibleRange.start,
-        endIndex: visibleRange.end,
-        totalItems,
-        processedItems, // Number of items with measured heights in heightCache
-        averageItemHeight,
-        atTop,
-        atBottom,
-        totalHeight
-    };
+export const createDebugInfo = (
+  visibleRange,
+  totalItems,
+  processedItems,
+  averageItemHeight,
+  scrollTop,
+  viewportHeight,
+  totalHeight,
+) => {
+  const atTop = scrollTop <= 1; // Small tolerance for floating point precision
+  const atBottom = scrollTop >= totalHeight - viewportHeight - 1; // Small tolerance
+  return {
+    visibleItemsCount: visibleRange.end - visibleRange.start,
+    startIndex: visibleRange.start,
+    endIndex: visibleRange.end,
+    totalItems,
+    processedItems, // Number of items with measured heights in heightCache
+    averageItemHeight,
+    atTop,
+    atBottom,
+    totalHeight,
+  };
 };

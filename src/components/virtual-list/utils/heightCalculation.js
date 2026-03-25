@@ -1,6 +1,7 @@
 // @ts-nocheck
-import { calculateAverageHeight } from './virtualList.js';
-import { BROWSER } from 'esm-env';
+
+import { BROWSER } from "esm-env";
+import { calculateAverageHeight } from "./virtualList.js";
 /**
  * Calculates and updates the average height of visible items with debouncing.
  *
@@ -70,28 +71,55 @@ import { BROWSER } from 'esm-env';
  * @param debounceTime - Time to wait between calculations (default: 200ms)
  * @returns Timeout object or null if calculation was skipped
  */
-export const calculateAverageHeightDebounced = (isCalculatingHeight, heightUpdateTimeout, visibleItems, itemElements, heightCache, lastMeasuredIndex, calculatedItemHeight, 
-/* trunk-ignore(eslint/no-unused-vars) */
-onUpdate, debounceTime, dirtyItems, currentTotalHeight = 0, currentValidCount = 0, mode = 'topToBottom') => {
-    if (!BROWSER || isCalculatingHeight)
-        return null;
-    const currentIndex = visibleItems.start;
-    if (currentIndex === lastMeasuredIndex && dirtyItems.size === 0)
-        return null;
-    if (heightUpdateTimeout)
-        clearTimeout(heightUpdateTimeout);
-    return setTimeout(() => {
-        const { newHeight, newLastMeasuredIndex, updatedHeightCache, clearedDirtyItems, newTotalHeight, newValidCount, heightChanges } = calculateAverageHeight(itemElements, visibleItems, heightCache, calculatedItemHeight, dirtyItems, currentTotalHeight, currentValidCount, mode);
-        if (Math.abs(newHeight - calculatedItemHeight) > 1 || dirtyItems.size > 0) {
-            onUpdate({
-                newHeight,
-                newLastMeasuredIndex,
-                updatedHeightCache,
-                clearedDirtyItems,
-                newTotalHeight,
-                newValidCount,
-                heightChanges
-            });
-        }
-    }, debounceTime);
+export const calculateAverageHeightDebounced = (
+  isCalculatingHeight,
+  heightUpdateTimeout,
+  visibleItems,
+  itemElements,
+  heightCache,
+  lastMeasuredIndex,
+  calculatedItemHeight,
+  /* trunk-ignore(eslint/no-unused-vars) */
+  onUpdate,
+  debounceTime,
+  dirtyItems,
+  currentTotalHeight = 0,
+  currentValidCount = 0,
+  mode = "topToBottom",
+) => {
+  if (!BROWSER || isCalculatingHeight) return null;
+  const currentIndex = visibleItems.start;
+  if (currentIndex === lastMeasuredIndex && dirtyItems.size === 0) return null;
+  if (heightUpdateTimeout) clearTimeout(heightUpdateTimeout);
+  return setTimeout(() => {
+    const {
+      newHeight,
+      newLastMeasuredIndex,
+      updatedHeightCache,
+      clearedDirtyItems,
+      newTotalHeight,
+      newValidCount,
+      heightChanges,
+    } = calculateAverageHeight(
+      itemElements,
+      visibleItems,
+      heightCache,
+      calculatedItemHeight,
+      dirtyItems,
+      currentTotalHeight,
+      currentValidCount,
+      mode,
+    );
+    if (Math.abs(newHeight - calculatedItemHeight) > 1 || dirtyItems.size > 0) {
+      onUpdate({
+        newHeight,
+        newLastMeasuredIndex,
+        updatedHeightCache,
+        clearedDirtyItems,
+        newTotalHeight,
+        newValidCount,
+        heightChanges,
+      });
+    }
+  }, debounceTime);
 };

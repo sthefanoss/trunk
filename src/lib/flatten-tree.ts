@@ -1,14 +1,14 @@
-import type { TreeNode, DirectoryNode, FileNode } from './build-tree.js';
+import type { DirectoryNode, FileNode, TreeNode } from "./build-tree.js";
 
 export interface FlatFileRow {
-  type: 'file';
+  type: "file";
   depth: number;
   node: FileNode;
   parentPath: string | null;
 }
 
 export interface FlatDirRow {
-  type: 'directory';
+  type: "directory";
   depth: number;
   node: DirectoryNode;
   expanded: boolean;
@@ -32,14 +32,14 @@ export function flattenTree(
 ): FlatRow[] {
   const result: FlatRow[] = [];
   for (const node of nodes) {
-    if (node.type === 'directory') {
+    if (node.type === "directory") {
       const isExpanded = expanded.has(node.path);
-      result.push({ type: 'directory', depth, node, expanded: isExpanded, parentPath });
+      result.push({ type: "directory", depth, node, expanded: isExpanded, parentPath });
       if (isExpanded) {
         result.push(...flattenTree(node.children, expanded, depth + 1, node.path));
       }
     } else {
-      result.push({ type: 'file', depth, node, parentPath });
+      result.push({ type: "file", depth, node, parentPath });
     }
   }
   return result;
@@ -51,7 +51,7 @@ export function flattenTree(
 export function collectDirPaths(nodes: TreeNode[]): Set<string> {
   const paths = new Set<string>();
   for (const node of nodes) {
-    if (node.type === 'directory') {
+    if (node.type === "directory") {
       paths.add(node.path);
       for (const p of collectDirPaths(node.children)) {
         paths.add(p);
@@ -67,10 +67,7 @@ export function collectDirPaths(nodes: TreeNode[]): Set<string> {
  * now has "src/lib" (compressed), migrates "src" → "src/lib".
  * Returns null if no migration needed.
  */
-export function migrateExpanded(
-  expanded: Set<string>,
-  dirPaths: Set<string>,
-): Set<string> | null {
+export function migrateExpanded(expanded: Set<string>, dirPaths: Set<string>): Set<string> | null {
   const next = new Set<string>();
   let changed = false;
   for (const p of expanded) {
@@ -80,7 +77,7 @@ export function migrateExpanded(
       // Path no longer exists — find compressed successors
       changed = true;
       for (const dp of dirPaths) {
-        if (dp.startsWith(p + '/')) {
+        if (dp.startsWith(`${p}/`)) {
           next.add(dp);
         }
       }
@@ -94,6 +91,6 @@ export function migrateExpanded(
  */
 export function findFocusIndex(rows: FlatRow[], path: string): number {
   if (rows.length === 0) return 0;
-  const idx = rows.findIndex(r => r.node.path === path);
+  const idx = rows.findIndex((r) => r.node.path === path);
   return idx >= 0 ? idx : 0;
 }

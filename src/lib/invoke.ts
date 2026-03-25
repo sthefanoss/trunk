@@ -7,10 +7,7 @@ export interface TrunkError {
   message: string;
 }
 
-export async function safeInvoke<T>(
-  cmd: string,
-  args?: Record<string, unknown>
-): Promise<T> {
+export async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(cmd, args);
   } catch (e: unknown) {

@@ -1,4 +1,4 @@
-import type { OverlayNode, OverlayPath, OverlayRefPill } from './types.js';
+import type { OverlayNode, OverlayPath, OverlayRefPill } from "./types.js";
 
 export interface VisibleOverlayElements {
   paths: OverlayPath[];
@@ -21,8 +21,8 @@ export function getVisibleOverlayElements(
     }
   }
 
-  const dots = nodes.filter(n => n.y >= startRow && n.y <= endRow);
-  const visiblePills = pills.filter(p => p.rowIndex >= startRow && p.rowIndex <= endRow);
+  const dots = nodes.filter((n) => n.y >= startRow && n.y <= endRow);
+  const visiblePills = pills.filter((p) => p.rowIndex >= startRow && p.rowIndex <= endRow);
 
   return { paths: visiblePaths, dots, pills: visiblePills };
 }

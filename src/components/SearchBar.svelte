@@ -1,41 +1,41 @@
 <script lang="ts">
-  import { slide } from 'svelte/transition';
-  import { ChevronUp, ChevronDown, X } from '@lucide/svelte';
+import { ChevronDown, ChevronUp, X } from "@lucide/svelte";
+import { slide } from "svelte/transition";
 
-  interface Props {
-    query: string;
-    currentIndex: number;
-    totalMatches: number;
-    onquerychange: (query: string) => void;
-    onnext: () => void;
-    onprev: () => void;
-    onclose: () => void;
+interface Props {
+  query: string;
+  currentIndex: number;
+  totalMatches: number;
+  onquerychange: (query: string) => void;
+  onnext: () => void;
+  onprev: () => void;
+  onclose: () => void;
+}
+
+let { query, currentIndex, totalMatches, onquerychange, onnext, onprev, onclose }: Props = $props();
+
+let inputValue = $state(query);
+
+function handleInput() {
+  onquerychange(inputValue);
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    onclose();
+  } else if (e.key === "Enter" && e.shiftKey) {
+    e.preventDefault();
+    onprev();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    onnext();
   }
+}
 
-  let { query, currentIndex, totalMatches, onquerychange, onnext, onprev, onclose }: Props = $props();
-
-  let inputValue = $state(query);
-
-  function handleInput() {
-    onquerychange(inputValue);
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onclose();
-    } else if (e.key === 'Enter' && e.shiftKey) {
-      e.preventDefault();
-      onprev();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      onnext();
-    }
-  }
-
-  function autofocus(node: HTMLElement) {
-    node.focus();
-  }
+function autofocus(node: HTMLElement) {
+  node.focus();
+}
 </script>
 
 <div

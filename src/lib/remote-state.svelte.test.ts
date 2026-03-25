@@ -1,32 +1,32 @@
-import { describe, it, expect } from 'vitest';
-import { createRemoteState } from './remote-state.svelte.js';
+import { describe, expect, it } from "vitest";
+import { createRemoteState } from "./remote-state.svelte.js";
 
-describe('createRemoteState', () => {
-  it('returns object with correct defaults', () => {
+describe("createRemoteState", () => {
+  it("returns object with correct defaults", () => {
     const state = createRemoteState();
     expect(state.isRunning).toBe(false);
-    expect(state.progressLine).toBe('');
+    expect(state.progressLine).toBe("");
     expect(state.error).toBe(null);
   });
 
-  it('returns independent instances — mutating one does not affect the other', () => {
+  it("returns independent instances — mutating one does not affect the other", () => {
     const a = createRemoteState();
     const b = createRemoteState();
     a.isRunning = true;
     expect(b.isRunning).toBe(false);
   });
 
-  it('returns independent instances for progressLine', () => {
+  it("returns independent instances for progressLine", () => {
     const a = createRemoteState();
     const b = createRemoteState();
-    a.progressLine = 'fetching';
-    expect(b.progressLine).toBe('');
+    a.progressLine = "fetching";
+    expect(b.progressLine).toBe("");
   });
 
-  it('returns independent instances for error', () => {
+  it("returns independent instances for error", () => {
     const a = createRemoteState();
     const b = createRemoteState();
-    a.error = { code: 'test', message: 'err' };
+    a.error = { code: "test", message: "err" };
     expect(b.error).toBe(null);
   });
 });

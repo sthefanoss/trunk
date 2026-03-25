@@ -11,14 +11,14 @@
  * but can fallback to Date.now() for testing environments.
  */
 export const timeProvider = {
-    now: () => {
-        // Use performance.now() for high precision in production
-        if (typeof performance !== 'undefined' && performance.now) {
-            return performance.now();
-        }
-        // Fallback to Date.now() (mainly for testing or older environments)
-        return Date.now();
+  now: () => {
+    // Use performance.now() for high precision in production
+    if (typeof performance !== "undefined" && performance.now) {
+      return performance.now();
     }
+    // Fallback to Date.now() (mainly for testing or older environments)
+    return Date.now();
+  },
 };
 /**
  * Creates a throttled version of a callback function that limits execution frequency.
@@ -64,18 +64,20 @@ export const timeProvider = {
  * });
  * ```
  */
-export const createThrottledCallback = (callback, delay = 16 // ~60fps default for smooth UI updates
+export const createThrottledCallback = (
+  callback,
+  delay = 16, // ~60fps default for smooth UI updates
 ) => {
-    let lastExecutionTime = 0;
-    let isFirstCall = true;
-    return ((...args) => {
-        const now = timeProvider.now();
-        if (isFirstCall || now - lastExecutionTime >= delay) {
-            isFirstCall = false;
-            lastExecutionTime = now;
-            callback(...args);
-        }
-    });
+  let lastExecutionTime = 0;
+  let isFirstCall = true;
+  return (...args) => {
+    const now = timeProvider.now();
+    if (isFirstCall || now - lastExecutionTime >= delay) {
+      isFirstCall = false;
+      lastExecutionTime = now;
+      callback(...args);
+    }
+  };
 };
 /**
  * Creates a throttled callback with leading and trailing execution options.
@@ -102,55 +104,53 @@ export const createThrottledCallback = (callback, delay = 16 // ~60fps default f
  * ```
  */
 export const createAdvancedThrottledCallback = (callback, delay, options = {}) => {
-    const { leading = true, trailing = false } = options;
-    let lastExecutionTime = 0;
-    let trailingTimeoutId = null;
-    let lastArgs = null;
-    let isFirstCall = true;
-    const execute = (args) => {
-        lastExecutionTime = timeProvider.now();
-        callback(...args);
-    };
-    return ((...args) => {
-        const now = timeProvider.now();
-        const timeSinceLastExecution = isFirstCall ? delay : now - lastExecutionTime;
-        lastArgs = args;
-        // Clear any pending trailing execution
-        if (trailingTimeoutId) {
-            clearTimeout(trailingTimeoutId);
-            trailingTimeoutId = null;
-        }
-        if (timeSinceLastExecution >= delay) {
-            // Can execute immediately
-            if (leading) {
-                isFirstCall = false;
-                execute(args);
-            }
-            // Schedule trailing if needed
-            if (trailing && !leading) {
-                trailingTimeoutId = setTimeout(() => {
-                    if (lastArgs) {
-                        execute(lastArgs);
-                    }
-                    trailingTimeoutId = null;
-                }, delay);
-            }
-        }
-        else {
-            // Still within throttle window, but handle first call
-            if (isFirstCall && leading) {
-                isFirstCall = false;
-                execute(args);
-            }
-            else if (trailing) {
-                const remainingTime = delay - timeSinceLastExecution;
-                trailingTimeoutId = setTimeout(() => {
-                    if (lastArgs) {
-                        execute(lastArgs);
-                    }
-                    trailingTimeoutId = null;
-                }, remainingTime);
-            }
-        }
-    });
+  const { leading = true, trailing = false } = options;
+  let lastExecutionTime = 0;
+  let trailingTimeoutId = null;
+  let lastArgs = null;
+  let isFirstCall = true;
+  const execute = (args) => {
+    lastExecutionTime = timeProvider.now();
+    callback(...args);
+  };
+  return (...args) => {
+    const now = timeProvider.now();
+    const timeSinceLastExecution = isFirstCall ? delay : now - lastExecutionTime;
+    lastArgs = args;
+    // Clear any pending trailing execution
+    if (trailingTimeoutId) {
+      clearTimeout(trailingTimeoutId);
+      trailingTimeoutId = null;
+    }
+    if (timeSinceLastExecution >= delay) {
+      // Can execute immediately
+      if (leading) {
+        isFirstCall = false;
+        execute(args);
+      }
+      // Schedule trailing if needed
+      if (trailing && !leading) {
+        trailingTimeoutId = setTimeout(() => {
+          if (lastArgs) {
+            execute(lastArgs);
+          }
+          trailingTimeoutId = null;
+        }, delay);
+      }
+    } else {
+      // Still within throttle window, but handle first call
+      if (isFirstCall && leading) {
+        isFirstCall = false;
+        execute(args);
+      } else if (trailing) {
+        const remainingTime = delay - timeSinceLastExecution;
+        trailingTimeoutId = setTimeout(() => {
+          if (lastArgs) {
+            execute(lastArgs);
+          }
+          trailingTimeoutId = null;
+        }, remainingTime);
+      }
+    }
+  };
 };

@@ -1,4 +1,4 @@
-import type { GraphDisplaySettings } from './types.js';
+import type { GraphDisplaySettings } from "./types.js";
 
 export const LANE_WIDTH = 16;
 export const ROW_HEIGHT = 26;
@@ -25,8 +25,8 @@ export const COLUMN_PADDING_X = 4;
 export const PILL_HEIGHT = 20;
 export const PILL_PADDING_X = 6;
 export const PILL_FONT_SIZE = 11;
-export const PILL_FONT = '500 11px Inter, system-ui, -apple-system, sans-serif';
-export const PILL_FONT_BOLD = '700 11px Inter, system-ui, -apple-system, sans-serif';
+export const PILL_FONT = "500 11px Inter, system-ui, -apple-system, sans-serif";
+export const PILL_FONT_BOLD = "700 11px Inter, system-ui, -apple-system, sans-serif";
 export const PILL_GAP = 4;
 export const PILL_MARGIN_LEFT = 4;
 export const BADGE_HEIGHT = 16;

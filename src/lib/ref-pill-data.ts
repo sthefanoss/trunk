@@ -1,18 +1,23 @@
-import type { GraphCommit, GraphDisplaySettings, OverlayNode, OverlayRefPill, RefLabel } from './types.js';
 import {
+  COLUMN_PADDING_X,
   DEFAULT_GRAPH_SETTINGS,
-  PILL_HEIGHT,
-  PILL_PADDING_X,
+  ICON_GAP,
+  ICON_WIDTH,
   PILL_FONT,
   PILL_FONT_BOLD,
   PILL_GAP,
+  PILL_HEIGHT,
   PILL_MARGIN_LEFT,
-  ICON_WIDTH,
-  ICON_GAP,
-  BADGE_FONT_SIZE,
-  COLUMN_PADDING_X,
-} from './graph-constants.js';
-import { truncateWithEllipsis } from './text-measure.js';
+  PILL_PADDING_X,
+} from "./graph-constants.js";
+import { truncateWithEllipsis } from "./text-measure.js";
+import type {
+  GraphCommit,
+  GraphDisplaySettings,
+  OverlayNode,
+  OverlayRefPill,
+  RefLabel,
+} from "./types.js";
 
 /** Type priority for sorting: lower = higher priority */
 const TYPE_ORDER: Record<string, number> = {
@@ -42,10 +47,8 @@ export function sortRefs(refs: RefLabel[]): RefLabel[] {
  * Preserves exact logic from RefPill.svelte.
  */
 export function isRemoteOnlyRef(ref: RefLabel, allRefs: RefLabel[]): boolean {
-  if (ref.ref_type !== 'RemoteBranch') return false;
-  return !allRefs.some(
-    (r) => r !== ref && (r.ref_type === 'LocalBranch' || r.ref_type === 'Tag'),
-  );
+  if (ref.ref_type !== "RemoteBranch") return false;
+  return !allRefs.some((r) => r !== ref && (r.ref_type === "LocalBranch" || r.ref_type === "Tag"));
 }
 
 /** Estimate "+N" badge width based on character count */
@@ -100,7 +103,15 @@ export function buildRefPillData(
     // Right gap matches the dot's visual inset: COLUMN_PADDING_X + (laneWidth/2 - dotRadius)
     // so the pill and first dot are equidistant from the column divider
     const dotInset = settings.laneWidth / 2 - settings.dotRadius;
-    const maxTextWidth = refColumnWidth - PILL_MARGIN_LEFT - COLUMN_PADDING_X - dotInset - PILL_PADDING_X * 2 - iconWidth - ICON_GAP - badgeWidth;
+    const maxTextWidth =
+      refColumnWidth -
+      PILL_MARGIN_LEFT -
+      COLUMN_PADDING_X -
+      dotInset -
+      PILL_PADDING_X * 2 -
+      iconWidth -
+      ICON_GAP -
+      badgeWidth;
 
     // Measure and truncate text
     const font = primary.is_head ? PILL_FONT_BOLD : PILL_FONT;

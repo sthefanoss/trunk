@@ -1,26 +1,26 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { ChevronDown, ChevronRight, Plus } from '@lucide/svelte';
+import { ChevronDown, ChevronRight, Plus } from "@lucide/svelte";
+import type { Snippet } from "svelte";
 
-  interface Props {
-    label: string;
-    count: number;
-    expanded: boolean;
-    ontoggle: () => void;
-    showCreateButton?: boolean;
-    oncreate?: () => void;
-    children: Snippet;
-  }
+interface Props {
+  label: string;
+  count: number;
+  expanded: boolean;
+  ontoggle: () => void;
+  showCreateButton?: boolean;
+  oncreate?: () => void;
+  children: Snippet;
+}
 
-  let {
-    label,
-    count,
-    expanded,
-    ontoggle,
-    showCreateButton = false,
-    oncreate,
-    children,
-  }: Props = $props();
+let {
+  label,
+  count,
+  expanded,
+  ontoggle,
+  showCreateButton = false,
+  oncreate,
+  children,
+}: Props = $props();
 </script>
 
 <div>
