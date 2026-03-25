@@ -16,6 +16,7 @@
     onfileclick?: (path: string) => void;
     onfilecontextmenu?: (e: MouseEvent, path: string, status: FileStatus) => void;
     ondirectoryaction?: (dirPath: string) => void;
+    ondirectorycontextmenu?: (e: MouseEvent, dirPath: string) => void;
     expandAllSignal?: number;
     collapseAllSignal?: number;
   }
@@ -29,6 +30,7 @@
     onfileclick,
     onfilecontextmenu,
     ondirectoryaction,
+    ondirectorycontextmenu,
     expandAllSignal = 0,
     collapseAllSignal = 0,
   }: Props = $props();
@@ -191,6 +193,7 @@
         ontoggle={() => toggleExpanded(row.node.path)}
         actionLabel={ondirectoryaction ? actionLabel : ''}
         onaction={ondirectoryaction ? () => ondirectoryaction!(row.node.path) : undefined}
+        oncontextmenu={ondirectorycontextmenu ? (e) => ondirectorycontextmenu!(e, row.node.path) : undefined}
       />
     {:else}
       <FileRow

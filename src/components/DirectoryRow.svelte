@@ -11,9 +11,10 @@
     ontoggle: () => void;
     actionLabel?: string;
     onaction?: () => void;
+    oncontextmenu?: (e: MouseEvent) => void;
   }
 
-  let { node, depth, expanded, focused, ontoggle, actionLabel = '', onaction }: Props = $props();
+  let { node, depth, expanded, focused, ontoggle, actionLabel = '', onaction, oncontextmenu }: Props = $props();
 
   let hovered = $state(false);
 
@@ -27,6 +28,7 @@
   onmouseenter={() => (hovered = true)}
   onmouseleave={() => (hovered = false)}
   onclick={ontoggle}
+  oncontextmenu={(e) => { if (oncontextmenu) { e.preventDefault(); oncontextmenu(e); } }}
   style="
     height: 26px;
     padding: 0 8px;
