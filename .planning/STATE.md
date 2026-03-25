@@ -1,31 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.9
-milestone_name: Multi-tab & Tree View
-status: v0.9 milestone complete
-stopped_at: Completed 49-02-PLAN.md
-last_updated: "2026-03-25T03:39:53.940Z"
+milestone: v0.10
+milestone_name: CI/CD & Releases
+status: Defining requirements
+stopped_at: null
+last_updated: "2026-03-25T00:00:00.000Z"
 last_activity: 2026-03-25
 progress:
-  total_phases: 6
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 12
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-23 after v0.9 milestone started)
+See: .planning/PROJECT.md (updated 2026-03-25 after v0.10 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 49 — tab-drag-tree-context-menu
+**Current focus:** v0.10 CI/CD & Releases — defining requirements
 
 ## Current Position
 
-Phase: 49
-Plan: Not started
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-25 — Milestone v0.10 started
 
 ## Performance Metrics
 
@@ -105,7 +107,7 @@ Plan: Not started
 ## Session Continuity
 
 Last activity: 2026-03-25
-Last session: 2026-03-25T18:54:00Z
-Stopped at: Completed quick task 260325-lkj (extended: auto-fit all columns)
+Last session: 2026-03-25
+Stopped at: Defining v0.10 requirements
 Resume file: None
-Next action: Re-verify TREE-01, TREE-02, TREE-05, TREE-06
+Next action: Define requirements, then create roadmap
