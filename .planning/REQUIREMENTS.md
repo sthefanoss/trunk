@@ -9,11 +9,11 @@ Requirements for CI/CD & Releases milestone. Each maps to roadmap phases.
 
 ### CI
 
-- [ ] **CI-01**: CI workflow runs cargo check, clippy (-D warnings), cargo test, and cargo fmt --check on every push and PR
-- [ ] **CI-02**: CI workflow runs bun install, bun run check (svelte-check), and bun run test (vitest) on every push and PR
-- [ ] **CI-03**: CI workflow runs prettier --check on all frontend files
+- [x] **CI-01**: CI workflow runs cargo check, clippy (-D warnings), cargo test, and cargo fmt --check on every push and PR
+- [x] **CI-02**: CI workflow runs bun install, bun run check (svelte-check), and bun run test (vitest) on every push and PR
+- [x] **CI-03**: CI workflow runs prettier --check on all frontend files
 - [x] **CI-04**: Prettier is configured as a devDependency with .prettierrc and existing code is pre-formatted
-- [ ] **CI-05**: Rust builds are cached with swatinem/rust-cache for fast CI runs
+- [x] **CI-05**: Rust builds are cached with swatinem/rust-cache for fast CI runs
 
 ### Release
 
@@ -51,11 +51,11 @@ Requirements for CI/CD & Releases milestone. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CI-01 | Phase 50 | Pending |
-| CI-02 | Phase 50 | Pending |
-| CI-03 | Phase 50 | Pending |
+| CI-01 | Phase 50 | Complete |
+| CI-02 | Phase 50 | Complete |
+| CI-03 | Phase 50 | Complete |
 | CI-04 | Phase 50 | Complete |
-| CI-05 | Phase 50 | Pending |
+| CI-05 | Phase 50 | Complete |
 | REL-01 | Phase 51 | Pending |
 | REL-02 | Phase 51 | Pending |
 | REL-03 | Phase 51 | Pending |

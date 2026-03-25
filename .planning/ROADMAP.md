@@ -140,7 +140,7 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
 
 **Milestone Goal:** Ship cross-platform release binaries and enforce code quality with automated CI.
 
-- [ ] **Phase 50: CI Quality Gates** - Biome setup, Rust checks, frontend checks, and formatting enforcement on every push/PR
+- [x] **Phase 50: CI Quality Gates** - Biome setup, Rust checks, frontend checks, and formatting enforcement on every push/PR (completed 2026-03-25)
 - [ ] **Phase 51: Cross-Platform Release Pipeline** - Tag-triggered builds producing installers and archives for macOS, Linux, and Windows
 - [ ] **Phase 52: Homebrew Distribution** - Homebrew cask formula for macOS installation via `brew install --cask`
 
@@ -156,10 +156,10 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
   3. The same CI workflow runs biome ci on all frontend files -- and fails if any file is unformatted or has lint errors
   4. Biome is installed as a devDependency with biome.json config, and all existing frontend files pass biome ci without changes
   5. Rust compilation in CI uses swatinem/rust-cache so repeat runs complete significantly faster than uncached builds
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 50-01-PLAN.md -- Fix pre-existing check failures + install and configure Biome
-- [ ] 50-02-PLAN.md -- Create GitHub Actions CI workflow with two-gate pipeline
+- [x] 50-02-PLAN.md -- Create GitHub Actions CI workflow with two-gate pipeline
 
 ### Phase 51: Cross-Platform Release Pipeline
 **Goal**: A git tag push produces downloadable platform-specific installers and archives for macOS (ARM + Intel), Linux, and Windows
