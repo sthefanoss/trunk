@@ -94,6 +94,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 - ✓ Tree view toggle — switch between flat file list and directory tree view everywhere (staging panel, commit diffs, merge editor) — v0.9
 - ✓ Tab context menu (Close Others, Close All, Copy Path), middle-click close, duplicate tab detection — v0.9
 - ✓ Directory staging, file count badges, Expand All / Collapse All — v0.9
+- ✓ Tab drag-and-drop reorder with persisted order, directory right-click context menus for bulk operations — v0.9
 
 ### Planned
 
@@ -111,7 +112,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 ## Context
 
 - **Stack**: Tauri 2 + Svelte 5 (Vite SPA, not SvelteKit) + Rust with `git2` crate (libgit2 bindings)
-- **Current state**: Shipped v0.8, v0.9 complete with 48 phases across 9 milestones. ~12,000 LOC TypeScript/Svelte, ~9,300 LOC Rust.
+- **Current state**: Shipped v0.8, v0.9 in progress with 49 phases across 9 milestones. ~12,000 LOC TypeScript/Svelte, ~9,300 LOC Rust.
 - **Architecture**: Svelte UI communicates with Rust backend via Tauri `invoke` (commands) and `listen` (events). Rust holds `RepoState` (path-keyed PathBuf registry), `CommitCache` (cached GraphResult with max_columns), `WatcherState` (filesystem watchers), and `RunningOp` (active remote process PID) in managed state.
 - **Remote ops**: `git2` for all local read/write; git CLI subprocess for remote operations (fetch/pull/push) and cherry-pick/revert with `GIT_TERMINAL_PROMPT=0` + `GIT_SSH_COMMAND=ssh -o BatchMode=yes`
 - **Graph rendering (v0.5)**: Single SVG overlay spanning full graph height inside virtual list scroll container. Rust lane algorithm (O(n), ~5ms for 10k commits) outputs GraphCommit[]; TypeScript Active Lanes transformation computes global grid coordinates with edge coalescing. Cubic bezier curves for cross-lane connections, continuous vertical rails for same-lane. Three-layer z-ordered `<g>` groups (rails → edges → dots). Virtualized element filtering with O(1) range-intersection. SVG ref pills with Canvas text measurement and hover expansion.
@@ -194,4 +195,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-25 after Phase 48 (polish & differentiators) complete*
+*Last updated: 2026-03-25 after Phase 49 (tab drag reorder & tree context menu) complete*
