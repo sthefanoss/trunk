@@ -56,7 +56,73 @@
     persistTabs();
   }
 
+  function closeOtherTabs(keepTabId: string) {
+    const toClose = tabs.filter(t => t.id !== keepTabId);
+    for (const t of toClose) {
+      if (t.repoPath) {
+        safeInvoke('close_repo', { path: t.repoPath }).catch(() => {});
+      }
+      tabStates.delete(t.id);
+    }
+    tabs = tabs.filter(t => t.id === keepTabId);
+    activeTabId = keepTabId;
+    persistTabs();
+  }
+
+  function closeAllTabs() {
+    for (const t of tabs) {
+      if (t.repoPath) {
+        safeInvoke('close_repo', { path: t.repoPath }).catch(() => {});
+      }
+      tabStates.delete(t.id);
+    }
+    tabs = [];
+    addNewTab();
+  }
+
+  async function showTabContextMenu(tabId: string, _event: MouseEvent) {
+    const { Menu, MenuItem, PredefinedMenuItem } = await import('@tauri-apps/api/menu');
+    const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+    const tab = tabs.find(t => t.id === tabId);
+
+    const menu = await Menu.new({
+      items: [
+        await MenuItem.new({
+          text: 'Close Others',
+          enabled: tabs.length > 1,
+          action: () => { closeOtherTabs(tabId); },
+        }),
+        await MenuItem.new({
+          text: 'Close All',
+          action: () => { closeAllTabs(); },
+        }),
+        await PredefinedMenuItem.new({ item: 'Separator' }),
+        await MenuItem.new({
+          text: 'Copy Path',
+          enabled: !!tab?.repoPath,
+          action: () => { if (tab?.repoPath) writeText(tab.repoPath); },
+        }),
+      ],
+    });
+    await menu.popup();
+  }
+
   function openRepoInTab(tabId: string, path: string, name: string) {
+    // TAB-10: Duplicate detection — switch to existing tab instead of creating duplicate
+    const normalizedPath = path.replace(/\/+$/, '');
+    const existing = tabs.find(t => t.repoPath && t.repoPath.replace(/\/+$/, '') === normalizedPath);
+    if (existing) {
+      activeTabId = existing.id;
+      // Close the transient empty tab that triggered the open
+      const triggerTab = tabs.find(t => t.id === tabId);
+      if (triggerTab && !triggerTab.repoPath) {
+        tabs = tabs.filter(t => t.id !== tabId);
+        tabStates.delete(tabId);
+      }
+      persistTabs();
+      return;
+    }
+
     const tab = tabs.find(t => t.id === tabId);
     if (tab) {
       tab.repoPath = path;
@@ -329,6 +395,8 @@
       onactivate={(id) => { activeTabId = id; persistTabs(); }}
       onclose={(id, force) => { if (force) forceCloseTab(id); else closeTab(id); }}
       onnew={addNewTab}
+      oncontextmenu={showTabContextMenu}
+      onauxclose={(id) => closeTab(id)}
     />
     <div data-tauri-drag-region class="flex-1 h-full"></div>
     {#if activeTab?.repoPath}
