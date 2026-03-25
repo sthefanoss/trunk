@@ -147,7 +147,11 @@ async fn refresh_graph(
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e| serde_json::to_string(&e).unwrap())?;
 
-    cache.0.lock().unwrap().insert(path_owned.clone(), graph_result);
+    cache
+        .0
+        .lock()
+        .unwrap()
+        .insert(path_owned.clone(), graph_result);
     let _ = app.emit("repo-changed", path_owned);
     Ok(())
 }
@@ -248,10 +252,7 @@ pub async fn git_push(
 }
 
 #[tauri::command]
-pub async fn cancel_remote_op(
-    path: String,
-    running: State<'_, RunningOp>,
-) -> Result<(), String> {
+pub async fn cancel_remote_op(path: String, running: State<'_, RunningOp>) -> Result<(), String> {
     let mut guard = running.0.lock().unwrap();
     if let Some(pid) = guard.remove(&path) {
         unsafe {
@@ -269,7 +270,9 @@ mod tests {
 
     #[test]
     fn classify_auth_failure_password() {
-        let err = classify_git_error("fatal: Authentication failed for 'https://github.com/user/repo.git'");
+        let err = classify_git_error(
+            "fatal: Authentication failed for 'https://github.com/user/repo.git'",
+        );
         assert_eq!(err.code, "auth_failure");
     }
 

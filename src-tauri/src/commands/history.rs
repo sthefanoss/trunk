@@ -1,9 +1,12 @@
-use std::collections::HashMap;
-use serde::Serialize;
-use tauri::State;
-use crate::state::{CommitCache, RepoState};
 use crate::error::TrunkError;
-use crate::git::{graph, types::{GraphCommit, GraphResult, MatchType, SearchResult}};
+use crate::git::{
+    graph,
+    types::{GraphCommit, GraphResult, MatchType, SearchResult},
+};
+use crate::state::{CommitCache, RepoState};
+use serde::Serialize;
+use std::collections::HashMap;
+use tauri::State;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct GraphResponse {
@@ -41,9 +44,9 @@ pub async fn refresh_commit_graph(
     let path_clone = path.clone();
 
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        let path_buf = state_map
-            .get(&path_clone)
-            .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path_clone)))?;
+        let path_buf = state_map.get(&path_clone).ok_or_else(|| {
+            TrunkError::new("not_open", format!("Repository not open: {}", path_clone))
+        })?;
         let mut repo = git2::Repository::open(path_buf).map_err(TrunkError::from)?;
         graph::walk_commits(&mut repo, 0, usize::MAX)
     })
@@ -128,8 +131,7 @@ pub async fn search_commits(
     cache: State<'_, CommitCache>,
 ) -> Result<Vec<SearchResult>, String> {
     let cache_map = cache.0.lock().unwrap().clone();
-    search_commits_inner(&path, &query, &cache_map)
-        .map_err(|e| serde_json::to_string(&e).unwrap())
+    search_commits_inner(&path, &query, &cache_map).map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[cfg(test)]
@@ -197,7 +199,9 @@ mod tests {
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "Initial", &map).unwrap();
         assert!(!results.is_empty(), "expected message match for 'Initial'");
-        assert!(results.iter().any(|r| r.match_types.contains(&MatchType::Message)));
+        assert!(results
+            .iter()
+            .any(|r| r.match_types.contains(&MatchType::Message)));
     }
 
     #[test]
@@ -216,8 +220,13 @@ mod tests {
         let dir = make_test_repo();
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "FEATURE", &map).unwrap();
-        assert!(!results.is_empty(), "expected case-insensitive message match for 'FEATURE'");
-        assert!(results.iter().any(|r| r.match_types.contains(&MatchType::Message)));
+        assert!(
+            !results.is_empty(),
+            "expected case-insensitive message match for 'FEATURE'"
+        );
+        assert!(results
+            .iter()
+            .any(|r| r.match_types.contains(&MatchType::Message)));
     }
 
     #[test]
@@ -226,7 +235,9 @@ mod tests {
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "feature", &map).unwrap();
         assert!(
-            results.iter().any(|r| r.match_types.contains(&MatchType::Ref)),
+            results
+                .iter()
+                .any(|r| r.match_types.contains(&MatchType::Ref)),
             "expected ref match for 'feature'"
         );
     }
@@ -237,7 +248,9 @@ mod tests {
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "MAIN", &map).unwrap();
         assert!(
-            results.iter().any(|r| r.match_types.contains(&MatchType::Ref)),
+            results
+                .iter()
+                .any(|r| r.match_types.contains(&MatchType::Ref)),
             "expected case-insensitive ref match for 'MAIN'"
         );
     }
@@ -248,7 +261,9 @@ mod tests {
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "Test", &map).unwrap();
         assert!(
-            results.iter().any(|r| r.match_types.contains(&MatchType::Author)),
+            results
+                .iter()
+                .any(|r| r.match_types.contains(&MatchType::Author)),
             "expected author match for 'Test'"
         );
     }
@@ -259,7 +274,9 @@ mod tests {
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "test", &map).unwrap();
         assert!(
-            results.iter().any(|r| r.match_types.contains(&MatchType::Author)),
+            results
+                .iter()
+                .any(|r| r.match_types.contains(&MatchType::Author)),
             "expected case-insensitive author match for 'test'"
         );
     }
@@ -284,7 +301,10 @@ mod tests {
         let dir = make_test_repo();
         let (path, map) = build_cache(dir.path());
         let results = search_commits_inner(&path, "zzzznonexistent", &map).unwrap();
-        assert!(results.is_empty(), "expected no matches for 'zzzznonexistent'");
+        assert!(
+            results.is_empty(),
+            "expected no matches for 'zzzznonexistent'"
+        );
     }
 
     #[test]
@@ -303,7 +323,10 @@ mod tests {
         // Each result oid should appear in graph order
         let mut last_idx = 0;
         for oid in &result_oids {
-            let idx = graph_oids.iter().position(|g| g == oid).expect("result oid not in graph");
+            let idx = graph_oids
+                .iter()
+                .position(|g| g == oid)
+                .expect("result oid not in graph");
             assert!(idx >= last_idx, "results not in graph order");
             last_idx = idx;
         }

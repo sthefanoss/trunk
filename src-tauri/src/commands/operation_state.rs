@@ -1,11 +1,17 @@
+use crate::error::TrunkError;
+use crate::git::{
+    graph,
+    types::{GraphResult, OperationInfo, OperationType},
+};
+use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
-use crate::error::TrunkError;
-use crate::git::{graph, types::{GraphResult, OperationInfo, OperationType}};
-use crate::state::{CommitCache, RepoState};
 
-fn open_repo(path: &str, state_map: &HashMap<String, PathBuf>) -> Result<git2::Repository, TrunkError> {
+fn open_repo(
+    path: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<git2::Repository, TrunkError> {
     let path_buf = state_map
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
@@ -51,7 +57,9 @@ pub fn get_operation_state_inner(
             let git_dir = repo.path();
             let merge_msg = std::fs::read_to_string(git_dir.join("MERGE_MSG")).ok();
             let source = extract_merge_source(merge_msg.as_deref());
-            let target = repo.head().ok()
+            let target = repo
+                .head()
+                .ok()
                 .and_then(|h| h.shorthand().map(String::from));
             Ok(OperationInfo {
                 op_type: OperationType::Merge,
@@ -73,20 +81,25 @@ pub fn get_operation_state_inner(
                 git_dir.join("rebase-apply")
             };
             let head_name = std::fs::read_to_string(rebase_dir.join("head-name"))
-                .ok().map(|s| s.trim().replace("refs/heads/", ""));
+                .ok()
+                .map(|s| s.trim().replace("refs/heads/", ""));
             let onto_oid = std::fs::read_to_string(rebase_dir.join("onto"))
-                .ok().map(|s| s.trim().to_owned());
+                .ok()
+                .map(|s| s.trim().to_owned());
             let onto_branch = onto_oid.and_then(|oid| resolve_oid_to_branch(&repo, &oid));
             let msgnum = std::fs::read_to_string(rebase_dir.join("msgnum"))
-                .ok().map(|s| s.trim().to_owned());
+                .ok()
+                .map(|s| s.trim().to_owned());
             let end = std::fs::read_to_string(rebase_dir.join("end"))
-                .ok().map(|s| s.trim().to_owned());
+                .ok()
+                .map(|s| s.trim().to_owned());
             let progress = match (msgnum, end) {
                 (Some(m), Some(e)) => Some(format!("{}/{}", m, e)),
                 _ => None,
             };
             let rebase_message = std::fs::read_to_string(rebase_dir.join("message"))
-                .ok().map(|s| s.trim().to_owned());
+                .ok()
+                .map(|s| s.trim().to_owned());
             Ok(OperationInfo {
                 op_type: OperationType::Rebase,
                 source_branch: head_name,
@@ -100,24 +113,34 @@ pub fn get_operation_state_inner(
         git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
             Ok(OperationInfo {
                 op_type: OperationType::CherryPick,
-                source_branch: None, target_branch: None, progress: None,
-                source_color_index: None, target_color_index: None, rebase_message: None,
+                source_branch: None,
+                target_branch: None,
+                progress: None,
+                source_color_index: None,
+                target_color_index: None,
+                rebase_message: None,
             })
         }
         git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => {
             Ok(OperationInfo {
                 op_type: OperationType::Revert,
-                source_branch: None, target_branch: None, progress: None,
-                source_color_index: None, target_color_index: None, rebase_message: None,
+                source_branch: None,
+                target_branch: None,
+                progress: None,
+                source_color_index: None,
+                target_color_index: None,
+                rebase_message: None,
             })
         }
-        _ => {
-            Ok(OperationInfo {
-                op_type: OperationType::None,
-                source_branch: None, target_branch: None, progress: None,
-                source_color_index: None, target_color_index: None, rebase_message: None,
-            })
-        }
+        _ => Ok(OperationInfo {
+            op_type: OperationType::None,
+            source_branch: None,
+            target_branch: None,
+            progress: None,
+            source_color_index: None,
+            target_color_index: None,
+            rebase_message: None,
+        }),
     }
 }
 
@@ -128,7 +151,8 @@ pub fn merge_continue_inner(
     message: Option<&str>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = if let Some(msg) = message {
         // Custom message: use git commit directly (works during merge state)
@@ -159,7 +183,8 @@ pub fn merge_abort_inner(
     path: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = std::process::Command::new("git")
         .args(["merge", "--abort"])
@@ -181,7 +206,8 @@ pub fn rebase_continue_inner(
     message: Option<&str>,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
 
     // Write edited message to .git/rebase-merge/message before continuing
@@ -210,7 +236,9 @@ pub fn rebase_continue_inner(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
         // Next commit hit a conflict — rebase paused at next step, not an error
-        if !stderr.to_lowercase().contains("conflict") && !stderr.to_lowercase().contains("could not apply") {
+        if !stderr.to_lowercase().contains("conflict")
+            && !stderr.to_lowercase().contains("could not apply")
+        {
             return Err(TrunkError::new("rebase_error", stderr));
         }
     }
@@ -222,7 +250,8 @@ pub fn rebase_skip_inner(
     path: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = std::process::Command::new("git")
         .args(["rebase", "--skip"])
@@ -243,7 +272,8 @@ pub fn rebase_abort_inner(
     path: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = std::process::Command::new("git")
         .args(["rebase", "--abort"])
@@ -267,7 +297,8 @@ pub fn merge_branch_inner(
     branch: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = std::process::Command::new("git")
         .args(["merge", branch, "--no-edit"])
@@ -294,7 +325,8 @@ pub fn rebase_branch_inner(
     onto_branch: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let output = std::process::Command::new("git")
         .args(["rebase", onto_branch])
@@ -344,7 +376,10 @@ pub async fn get_operation_state(
 }
 
 /// Find a branch's color_index by searching ref labels in the cached graph.
-fn find_branch_color(commits: &[crate::git::types::GraphCommit], branch_name: &str) -> Option<usize> {
+fn find_branch_color(
+    commits: &[crate::git::types::GraphCommit],
+    branch_name: &str,
+) -> Option<usize> {
     for commit in commits {
         for r in &commit.refs {
             if r.short_name == branch_name {
@@ -385,12 +420,13 @@ pub async fn merge_abort(
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     let path_clone = path.clone();
-    let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        merge_abort_inner(&path_clone, &state_map)
-    })
-    .await
-    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let graph_result =
+        tauri::async_runtime::spawn_blocking(move || merge_abort_inner(&path_clone, &state_map))
+            .await
+            .map_err(|e| {
+                serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+            })?
+            .map_err(|e| serde_json::to_string(&e).unwrap())?;
     cache.0.lock().unwrap().insert(path.clone(), graph_result);
     let _ = app.emit("repo-changed", path);
     Ok(())
@@ -426,12 +462,13 @@ pub async fn rebase_skip(
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     let path_clone = path.clone();
-    let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        rebase_skip_inner(&path_clone, &state_map)
-    })
-    .await
-    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let graph_result =
+        tauri::async_runtime::spawn_blocking(move || rebase_skip_inner(&path_clone, &state_map))
+            .await
+            .map_err(|e| {
+                serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+            })?
+            .map_err(|e| serde_json::to_string(&e).unwrap())?;
     cache.0.lock().unwrap().insert(path.clone(), graph_result);
     let _ = app.emit("repo-changed", path);
     Ok(())
@@ -446,12 +483,13 @@ pub async fn rebase_abort(
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     let path_clone = path.clone();
-    let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        rebase_abort_inner(&path_clone, &state_map)
-    })
-    .await
-    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let graph_result =
+        tauri::async_runtime::spawn_blocking(move || rebase_abort_inner(&path_clone, &state_map))
+            .await
+            .map_err(|e| {
+                serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+            })?
+            .map_err(|e| serde_json::to_string(&e).unwrap())?;
     cache.0.lock().unwrap().insert(path.clone(), graph_result);
     let _ = app.emit("repo-changed", path);
     Ok(())
@@ -522,8 +560,15 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            repo.commit(Some("refs/heads/main"), &sig, &sig, "Initial commit", &tree, &[])
-                .unwrap();
+            repo.commit(
+                Some("refs/heads/main"),
+                &sig,
+                &sig,
+                "Initial commit",
+                &tree,
+                &[],
+            )
+            .unwrap();
             drop(tree);
 
             repo.set_head("refs/heads/main").unwrap();
@@ -569,7 +614,10 @@ mod tests {
         let path = dir.path().to_str().unwrap();
 
         let result = get_operation_state_inner(path, &state_map);
-        assert!(result.is_ok(), "get_operation_state_inner should succeed on clean repo");
+        assert!(
+            result.is_ok(),
+            "get_operation_state_inner should succeed on clean repo"
+        );
 
         let info = result.unwrap();
         assert!(matches!(info.op_type, OperationType::None));
@@ -603,11 +651,13 @@ mod tests {
             let tree = repo.find_tree(tree_oid).unwrap();
             repo.commit(
                 Some("refs/heads/feature"),
-                &sig, &sig,
+                &sig,
+                &sig,
                 "Feature commit",
                 &tree,
                 &[&head],
-            ).unwrap();
+            )
+            .unwrap();
 
             // Switch back to main and make a conflicting change
             repo.set_head("refs/heads/main").unwrap();
@@ -623,11 +673,13 @@ mod tests {
             let main_head = repo.head().unwrap().peel_to_commit().unwrap();
             repo.commit(
                 Some("refs/heads/main"),
-                &sig, &sig,
+                &sig,
+                &sig,
                 "Main commit",
                 &tree,
                 &[&main_head],
-            ).unwrap();
+            )
+            .unwrap();
 
             repo.set_head("refs/heads/main").unwrap();
             repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
@@ -645,7 +697,10 @@ mod tests {
         assert!(!output.status.success(), "merge should fail with conflict");
 
         let result = get_operation_state_inner(path, &state_map);
-        assert!(result.is_ok(), "get_operation_state_inner should succeed during merge");
+        assert!(
+            result.is_ok(),
+            "get_operation_state_inner should succeed during merge"
+        );
 
         let info = result.unwrap();
         assert!(matches!(info.op_type, OperationType::Merge));

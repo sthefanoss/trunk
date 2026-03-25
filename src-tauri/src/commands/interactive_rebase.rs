@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use serde::Deserialize;
-use tauri::{AppHandle, Emitter, State};
 use crate::error::TrunkError;
 use crate::git::{graph, types::RebaseTodoItem};
 use crate::state::{CommitCache, RepoState};
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use tauri::{AppHandle, Emitter, State};
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -15,7 +15,10 @@ pub struct RebaseTodoAction {
     pub new_message: Option<String>,
 }
 
-fn open_repo(path: &str, state_map: &HashMap<String, PathBuf>) -> Result<git2::Repository, TrunkError> {
+fn open_repo(
+    path: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<git2::Repository, TrunkError> {
     let path_buf = state_map
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
@@ -30,17 +33,21 @@ pub fn get_rebase_todo_inner(
 ) -> Result<Vec<RebaseTodoItem>, TrunkError> {
     let repo = open_repo(path, state_map)?;
 
-    let base = git2::Oid::from_str(base_oid)
-        .map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
+    let base =
+        git2::Oid::from_str(base_oid).map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
 
     let mut revwalk = repo.revwalk().map_err(TrunkError::from)?;
-    revwalk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME).map_err(TrunkError::from)?;
+    revwalk
+        .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
+        .map_err(TrunkError::from)?;
     revwalk.push_head().map_err(TrunkError::from)?;
 
     if inclusive {
         let commit = repo.find_commit(base).map_err(TrunkError::from)?;
         if commit.parent_count() > 0 {
-            revwalk.hide(commit.parent_id(0).map_err(TrunkError::from)?).map_err(TrunkError::from)?;
+            revwalk
+                .hide(commit.parent_id(0).map_err(TrunkError::from)?)
+                .map_err(TrunkError::from)?;
         }
         // Root commit: don't hide anything — all commits included
     } else {
@@ -122,10 +129,7 @@ pub fn start_interactive_rebase_blocking(
 
     // 2. Write GIT_SEQUENCE_EDITOR script (script file for reliable $1 handling)
     let seq_editor_path = session_dir.join("trunk-seq-editor.sh");
-    let seq_editor_script = format!(
-        "#!/bin/sh\ncp \"{}\" \"$1\"\n",
-        todo_path.display(),
-    );
+    let seq_editor_script = format!("#!/bin/sh\ncp \"{}\" \"$1\"\n", todo_path.display(),);
     std::fs::write(&seq_editor_path, &seq_editor_script)
         .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
     #[cfg(unix)]
@@ -187,7 +191,9 @@ exit 0
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
         // Conflicts leave the repo in rebase-in-progress state — that's expected
-        if !stderr.to_lowercase().contains("conflict") && !stderr.to_lowercase().contains("could not apply") {
+        if !stderr.to_lowercase().contains("conflict")
+            && !stderr.to_lowercase().contains("could not apply")
+        {
             return Err(TrunkError::new("rebase_error", stderr));
         }
     }
@@ -220,12 +226,12 @@ pub async fn get_fork_point(
     state: State<'_, RepoState>,
 ) -> Result<String, String> {
     let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        get_fork_point_inner(&path, &branch, &state_map)
-    })
-    .await
-    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())
+    tauri::async_runtime::spawn_blocking(move || get_fork_point_inner(&path, &branch, &state_map))
+        .await
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
+        .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
@@ -246,7 +252,11 @@ pub async fn start_interactive_rebase(
 
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
         start_interactive_rebase_blocking(
-            &path_clone, &base_oid, &todo_items, &session_dir, &state_map,
+            &path_clone,
+            &base_oid,
+            &todo_items,
+            &session_dir,
+            &state_map,
         )
     })
     .await
@@ -287,7 +297,16 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let c1 = repo.commit(Some("refs/heads/main"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+            let c1 = repo
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Initial commit",
+                    &tree,
+                    &[],
+                )
+                .unwrap();
             oids.push(c1);
 
             // Commit 2: Second commit
@@ -298,7 +317,16 @@ mod tests {
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
             let parent = repo.find_commit(c1).unwrap();
-            let c2 = repo.commit(Some("refs/heads/main"), &sig, &sig, "Second commit", &tree, &[&parent]).unwrap();
+            let c2 = repo
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Second commit",
+                    &tree,
+                    &[&parent],
+                )
+                .unwrap();
             oids.push(c2);
 
             // Commit 3: Third commit
@@ -309,11 +337,21 @@ mod tests {
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
             let parent = repo.find_commit(c2).unwrap();
-            let c3 = repo.commit(Some("refs/heads/main"), &sig, &sig, "Third commit", &tree, &[&parent]).unwrap();
+            let c3 = repo
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Third commit",
+                    &tree,
+                    &[&parent],
+                )
+                .unwrap();
             oids.push(c3);
 
             repo.set_head("refs/heads/main").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
         }
 
         let mut state_map = HashMap::new();
@@ -330,8 +368,14 @@ mod tests {
         let items = get_rebase_todo_inner(path, &base_oid, false, &state_map).unwrap();
 
         assert_eq!(items.len(), 2, "Should return 2 commits (excluding base)");
-        assert_eq!(items[0].summary, "Second commit", "First item should be oldest (Second commit)");
-        assert_eq!(items[1].summary, "Third commit", "Second item should be newest (Third commit)");
+        assert_eq!(
+            items[0].summary, "Second commit",
+            "First item should be oldest (Second commit)"
+        );
+        assert_eq!(
+            items[1].summary, "Third commit",
+            "Second item should be newest (Third commit)"
+        );
     }
 
     #[test]
@@ -343,7 +387,10 @@ mod tests {
         let items = get_rebase_todo_inner(path, &base_oid, true, &state_map).unwrap();
 
         assert_eq!(items.len(), 2, "Should return 2 commits (including base)");
-        assert_eq!(items[0].summary, "Second commit", "Base commit should be included");
+        assert_eq!(
+            items[0].summary, "Second commit",
+            "Base commit should be included"
+        );
         assert_eq!(items[1].summary, "Third commit");
     }
 
@@ -355,7 +402,11 @@ mod tests {
 
         let items = get_rebase_todo_inner(path, &base_oid, false, &state_map).unwrap();
 
-        assert_eq!(items.len(), 0, "Should return empty vec when base equals HEAD");
+        assert_eq!(
+            items.len(),
+            0,
+            "Should return empty vec when base equals HEAD"
+        );
     }
 
     #[test]
@@ -367,11 +418,22 @@ mod tests {
         let items = get_rebase_todo_inner(path, &base_oid, false, &state_map).unwrap();
 
         let item = &items[0];
-        assert_eq!(item.oid, oids[1].to_string(), "OID should match second commit");
-        assert_eq!(item.short_oid, &oids[1].to_string()[..7], "short_oid should be first 7 chars");
+        assert_eq!(
+            item.oid,
+            oids[1].to_string(),
+            "OID should match second commit"
+        );
+        assert_eq!(
+            item.short_oid,
+            &oids[1].to_string()[..7],
+            "short_oid should be first 7 chars"
+        );
         assert_eq!(item.summary, "Second commit");
         assert_eq!(item.author_name, "Test");
-        assert!(item.author_timestamp > 0, "author_timestamp should be positive");
+        assert!(
+            item.author_timestamp > 0,
+            "author_timestamp should be positive"
+        );
     }
 
     #[test]
@@ -388,6 +450,10 @@ mod tests {
 
         let result = get_fork_point_inner(path, "feature", &state_map).unwrap();
 
-        assert_eq!(result, oids[0].to_string(), "Fork point should be the initial commit (merge-base of feature and HEAD)");
+        assert_eq!(
+            result,
+            oids[0].to_string(),
+            "Fork point should be the initial commit (merge-base of feature and HEAD)"
+        );
     }
 }

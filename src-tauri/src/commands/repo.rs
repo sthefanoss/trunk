@@ -1,8 +1,8 @@
-use tauri::{AppHandle, State};
-use crate::state::{CommitCache, RepoState, RunningOp};
-use crate::git::{graph, repository};
 use crate::error::TrunkError;
+use crate::git::{graph, repository};
+use crate::state::{CommitCache, RepoState, RunningOp};
 use crate::watcher::{self, WatcherState};
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub async fn open_repo(
@@ -14,18 +14,24 @@ pub async fn open_repo(
 ) -> Result<(), String> {
     let path_clone = path.clone();
 
-    let result = tauri::async_runtime::spawn_blocking(move || -> Result<crate::git::types::GraphResult, TrunkError> {
-        let path_buf = std::path::PathBuf::from(&path_clone);
-        repository::validate_and_open(&path_buf)?;
-        let mut repo = git2::Repository::open(&path_buf)?;
-        graph::walk_commits(&mut repo, 0, usize::MAX)
-    })
+    let result = tauri::async_runtime::spawn_blocking(
+        move || -> Result<crate::git::types::GraphResult, TrunkError> {
+            let path_buf = std::path::PathBuf::from(&path_clone);
+            repository::validate_and_open(&path_buf)?;
+            let mut repo = git2::Repository::open(&path_buf)?;
+            graph::walk_commits(&mut repo, 0, usize::MAX)
+        },
+    )
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e| serde_json::to_string(&e).unwrap())?;
 
     let path_buf = std::path::PathBuf::from(&path);
-    state.0.lock().unwrap().insert(path.clone(), path_buf.clone());
+    state
+        .0
+        .lock()
+        .unwrap()
+        .insert(path.clone(), path_buf.clone());
     cache.0.lock().unwrap().insert(path.clone(), result);
     watcher::start_watcher(path_buf, app, &watcher_state);
 
@@ -100,7 +106,10 @@ mod tests {
         let state = Mutex::new(HashMap::<String, PathBuf>::new());
 
         // Simulate open
-        state.lock().unwrap().insert(path.clone(), dir.path().to_path_buf());
+        state
+            .lock()
+            .unwrap()
+            .insert(path.clone(), dir.path().to_path_buf());
         assert!(state.lock().unwrap().contains_key(&path));
 
         // Simulate close
@@ -139,15 +148,18 @@ mod tests {
     #[test]
     fn close_does_not_touch_running_op() {
         use std::collections::HashMap;
-        use std::sync::Mutex;
         use std::path::PathBuf;
+        use std::sync::Mutex;
 
         let path = "/test/repo".to_string();
 
         let state = Mutex::new(HashMap::<String, PathBuf>::new());
         let running = Mutex::new(HashMap::<String, u32>::new());
 
-        state.lock().unwrap().insert(path.clone(), PathBuf::from(&path));
+        state
+            .lock()
+            .unwrap()
+            .insert(path.clone(), PathBuf::from(&path));
         running.lock().unwrap().insert(path.clone(), 12345);
 
         // Simulate close_repo: only removes state, NOT running

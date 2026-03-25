@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use tauri::{AppHandle, Emitter, State};
 use crate::error::TrunkError;
 use crate::git::{graph, types::HeadCommitMessage};
 use crate::state::{CommitCache, RepoState};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use tauri::{AppHandle, Emitter, State};
 
 fn refresh_commit_cache(
     path: &str,
@@ -150,14 +150,16 @@ pub async fn get_head_commit_message(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || get_head_commit_message_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use crate::git::repository::tests::make_test_repo;
+    use std::path::Path;
 
     fn make_state_map(path: &Path) -> std::collections::HashMap<String, std::path::PathBuf> {
         let mut map = std::collections::HashMap::new();
@@ -212,7 +214,11 @@ mod tests {
         drop(repo);
 
         let result = super::create_commit_inner(&path, "Initial commit", None, &state_map);
-        assert!(result.is_ok(), "expected Ok for unborn HEAD, got: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "expected Ok for unborn HEAD, got: {:?}",
+            result
+        );
 
         let repo = git2::Repository::open(dir.path()).unwrap();
         let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
@@ -313,15 +319,8 @@ mod tests {
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "Subject\n\nBody text",
-            &tree,
-            &[],
-        )
-        .unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Subject\n\nBody text", &tree, &[])
+            .unwrap();
 
         let msg = super::get_head_commit_message_inner(&path, &state_map)
             .expect("get_head_commit_message_inner failed");

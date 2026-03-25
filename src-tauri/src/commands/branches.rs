@@ -1,11 +1,14 @@
+use crate::error::TrunkError;
+use crate::git::types::GraphResult;
+use crate::git::{
+    graph,
+    types::{BranchInfo, RefLabel, RefType, RefsResponse, StashEntry},
+};
+use crate::state::{CommitCache, RepoState};
+use git2::{BranchType, Status, StatusOptions};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
-use git2::{BranchType, Status, StatusOptions};
-use crate::error::TrunkError;
-use crate::git::{graph, types::{BranchInfo, RefLabel, RefType, RefsResponse, StashEntry}};
-use crate::state::{CommitCache, RepoState};
-use crate::git::types::GraphResult;
 
 /// Opens a repository by looking up its path in the state map.
 fn open_repo_from_state(
@@ -67,13 +70,15 @@ pub fn list_refs_inner(
                 .map(|c| c.author().when().seconds())
                 .unwrap_or(0);
             let (ahead, behind) = match (&upstream, branch.get().target()) {
-                (Some(_), Some(local_oid)) => {
-                    branch.upstream()
-                        .ok()
-                        .and_then(|ub| ub.get().target())
-                        .map(|remote_oid| repo.graph_ahead_behind(local_oid, remote_oid).unwrap_or((0, 0)))
-                        .unwrap_or((0, 0))
-                }
+                (Some(_), Some(local_oid)) => branch
+                    .upstream()
+                    .ok()
+                    .and_then(|ub| ub.get().target())
+                    .map(|remote_oid| {
+                        repo.graph_ahead_behind(local_oid, remote_oid)
+                            .unwrap_or((0, 0))
+                    })
+                    .unwrap_or((0, 0)),
                 _ => (0, 0),
             };
             BranchInfo {
@@ -111,10 +116,7 @@ pub fn list_refs_inner(
     let mut tags: Vec<RefLabel> = Vec::new();
     repo.tag_foreach(|_oid, name_bytes| {
         let name = std::str::from_utf8(name_bytes).unwrap_or("").to_owned();
-        let short_name = name
-            .strip_prefix("refs/tags/")
-            .unwrap_or(&name)
-            .to_owned();
+        let short_name = name.strip_prefix("refs/tags/").unwrap_or(&name).to_owned();
         tags.push(RefLabel {
             name,
             short_name,
@@ -168,7 +170,10 @@ pub fn delete_branch_inner(
     let repo = open_repo_from_state(path, state_map)?;
 
     // Check if this is the HEAD branch
-    let head_name = repo.head().ok().and_then(|h| h.shorthand().map(str::to_owned));
+    let head_name = repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().map(str::to_owned));
     if head_name.as_deref() == Some(branch_name) {
         return Err(TrunkError::new(
             "cannot_delete_head",
@@ -218,14 +223,13 @@ pub fn rename_branch_inner(
 }
 
 #[tauri::command]
-pub async fn list_refs(
-    path: String,
-    state: State<'_, RepoState>,
-) -> Result<RefsResponse, String> {
+pub async fn list_refs(path: String, state: State<'_, RepoState>) -> Result<RefsResponse, String> {
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || list_refs_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -250,7 +254,9 @@ pub async fn resolve_ref(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || resolve_ref_inner(&path, &ref_name, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -266,7 +272,10 @@ pub fn checkout_branch_inner(
     let branch_ref = format!("refs/heads/{}", branch_name);
     {
         let (object, _reference) = repo.revparse_ext(&branch_ref)?;
-        repo.checkout_tree(&object, Some(&mut git2::build::CheckoutBuilder::new().safe()))?;
+        repo.checkout_tree(
+            &object,
+            Some(&mut git2::build::CheckoutBuilder::new().safe()),
+        )?;
     }
     repo.set_head(&branch_ref)?;
     drop(repo);
@@ -381,9 +390,10 @@ pub fn create_branch_inner(
 
     let target_oid = match from_oid {
         Some(oid_str) => repo.revparse_single(oid_str)?.id(),
-        None => repo.head()?.target().ok_or_else(|| {
-            TrunkError::new("git_error", "HEAD has no target (unborn branch?)")
-        })?,
+        None => repo
+            .head()?
+            .target()
+            .ok_or_else(|| TrunkError::new("git_error", "HEAD has no target (unborn branch?)"))?,
     };
     let target_commit = repo.find_commit(target_oid)?;
     // false = no force; fails if name already exists
@@ -437,8 +447,14 @@ pub async fn create_branch(
 
     let path_clone = path.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        create_branch_inner(&path_clone, &name, from_oid.as_deref(), &state_map, &mut cache_map)
-            .map(|_| cache_map)
+        create_branch_inner(
+            &path_clone,
+            &name,
+            from_oid.as_deref(),
+            &state_map,
+            &mut cache_map,
+        )
+        .map(|_| cache_map)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
@@ -489,8 +505,14 @@ pub async fn rename_branch(
     let mut cache_map = cache.0.lock().unwrap().clone();
     let path_clone = path.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        rename_branch_inner(&path_clone, &old_name, &new_name, &state_map, &mut cache_map)
-            .map(|_| cache_map)
+        rename_branch_inner(
+            &path_clone,
+            &old_name,
+            &new_name,
+            &state_map,
+            &mut cache_map,
+        )
+        .map(|_| cache_map)
     })
     .await
     .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
@@ -632,7 +654,10 @@ mod tests {
 
         let result = checkout_branch_inner(&path, "other", &state_map, &mut cache_map);
 
-        assert!(result.is_ok(), "checkout should succeed when changes don't conflict");
+        assert!(
+            result.is_ok(),
+            "checkout should succeed when changes don't conflict"
+        );
     }
 
     #[test]
@@ -697,7 +722,10 @@ mod tests {
         // "main" already exists
         let result = create_branch_inner(&path, "main", None, &state_map, &mut cache_map);
 
-        assert!(result.is_err(), "expected Err when creating duplicate branch");
+        assert!(
+            result.is_err(),
+            "expected Err when creating duplicate branch"
+        );
         assert_eq!(
             result.unwrap_err().code,
             "git_error",
@@ -723,21 +751,46 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let parent = repo.find_commit(repo.head().unwrap().target().unwrap()).unwrap();
-            repo.commit(Some("refs/heads/main"), &sig, &sig, "Second", &tree, &[&parent]).unwrap();
+            let parent = repo
+                .find_commit(repo.head().unwrap().target().unwrap())
+                .unwrap();
+            repo.commit(
+                Some("refs/heads/main"),
+                &sig,
+                &sig,
+                "Second",
+                &tree,
+                &[&parent],
+            )
+            .unwrap();
         }
 
         let state_map = make_state_map(dir.path());
         let mut cache_map = std::collections::HashMap::new();
 
-        let result = create_branch_inner(&path, "from-first", Some(&first_oid), &state_map, &mut cache_map);
-        assert!(result.is_ok(), "create_branch from OID should succeed: {:?}", result.err());
+        let result = create_branch_inner(
+            &path,
+            "from-first",
+            Some(&first_oid),
+            &state_map,
+            &mut cache_map,
+        );
+        assert!(
+            result.is_ok(),
+            "create_branch from OID should succeed: {:?}",
+            result.err()
+        );
 
         // Verify the branch points at the first commit, not HEAD
         let repo = git2::Repository::open(dir.path()).unwrap();
-        let branch = repo.find_branch("from-first", git2::BranchType::Local).unwrap();
+        let branch = repo
+            .find_branch("from-first", git2::BranchType::Local)
+            .unwrap();
         let branch_oid = branch.get().target().unwrap().to_string();
-        assert_eq!(branch_oid, first_oid, "branch should point at from_oid, not HEAD");
+        assert_eq!(
+            branch_oid, first_oid,
+            "branch should point at from_oid, not HEAD"
+        );
     }
 
     #[test]
@@ -754,7 +807,11 @@ mod tests {
 
         // Delete the branch
         let result = super::delete_branch_inner(&path, "to-delete", &state_map, &mut cache_map);
-        assert!(result.is_ok(), "delete_branch should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "delete_branch should succeed: {:?}",
+            result.err()
+        );
 
         // Verify branch no longer exists
         let repo = git2::Repository::open(dir.path()).unwrap();
@@ -788,13 +845,26 @@ mod tests {
         checkout_branch_inner(&path, "main", &state_map, &mut cache_map).unwrap();
 
         // Rename the branch
-        let result = super::rename_branch_inner(&path, "old-name", "new-name", &state_map, &mut cache_map);
-        assert!(result.is_ok(), "rename_branch should succeed: {:?}", result.err());
+        let result =
+            super::rename_branch_inner(&path, "old-name", "new-name", &state_map, &mut cache_map);
+        assert!(
+            result.is_ok(),
+            "rename_branch should succeed: {:?}",
+            result.err()
+        );
 
         // Verify old name gone, new name exists
         let repo = git2::Repository::open(dir.path()).unwrap();
-        assert!(repo.find_branch("old-name", git2::BranchType::Local).is_err(), "old-name should be gone");
-        assert!(repo.find_branch("new-name", git2::BranchType::Local).is_ok(), "new-name should exist");
+        assert!(
+            repo.find_branch("old-name", git2::BranchType::Local)
+                .is_err(),
+            "old-name should be gone"
+        );
+        assert!(
+            repo.find_branch("new-name", git2::BranchType::Local)
+                .is_ok(),
+            "new-name should exist"
+        );
     }
 
     #[test]
@@ -819,14 +889,23 @@ mod tests {
             index.write().unwrap();
         }
 
-        let result = create_branch_inner(&path, "dirty-branch", Some(&head_oid), &state_map, &mut cache_map);
+        let result = create_branch_inner(
+            &path,
+            "dirty-branch",
+            Some(&head_oid),
+            &state_map,
+            &mut cache_map,
+        );
         assert!(result.is_err(), "should return error on dirty workdir");
         assert_eq!(result.unwrap_err().code, "dirty_workdir");
 
         // Branch should still have been created even though checkout failed
         let repo = git2::Repository::open(dir.path()).unwrap();
         let branch = repo.find_branch("dirty-branch", git2::BranchType::Local);
-        assert!(branch.is_ok(), "branch should exist even though checkout was skipped");
+        assert!(
+            branch.is_ok(),
+            "branch should exist even though checkout was skipped"
+        );
     }
 
     #[test]
@@ -844,7 +923,8 @@ mod tests {
             let sig = git2::Signature::now("Test", "test@example.com").unwrap();
             let tree_oid = bare.treebuilder(None).unwrap().write().unwrap();
             let tree = bare.find_tree(tree_oid).unwrap();
-            bare.commit(Some("refs/heads/main"), &sig, &sig, "init", &tree, &[]).unwrap();
+            bare.commit(Some("refs/heads/main"), &sig, &sig, "init", &tree, &[])
+                .unwrap();
         }
 
         // Clone into working repo
@@ -862,8 +942,18 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let parent = repo.find_commit(repo.head().unwrap().target().unwrap()).unwrap();
-            repo.commit(Some("refs/heads/main"), &sig, &sig, "local", &tree, &[&parent]).unwrap();
+            let parent = repo
+                .find_commit(repo.head().unwrap().target().unwrap())
+                .unwrap();
+            repo.commit(
+                Some("refs/heads/main"),
+                &sig,
+                &sig,
+                "local",
+                &tree,
+                &[&parent],
+            )
+            .unwrap();
         }
 
         let path = work_dir.path().to_string_lossy().to_string();
@@ -871,9 +961,16 @@ mod tests {
         state_map.insert(path.clone(), work_dir.path().to_path_buf());
 
         let refs = list_refs_inner(&path, &state_map).expect("list_refs_inner failed");
-        let main = refs.local.iter().find(|b| b.name == "main").expect("expected main branch");
+        let main = refs
+            .local
+            .iter()
+            .find(|b| b.name == "main")
+            .expect("expected main branch");
 
-        assert!(main.upstream.is_some(), "main should have upstream tracking");
+        assert!(
+            main.upstream.is_some(),
+            "main should have upstream tracking"
+        );
         assert_eq!(main.ahead, 1, "main should be 1 ahead of remote");
         assert_eq!(main.behind, 0, "main should be 0 behind remote");
     }
@@ -890,10 +987,9 @@ mod tests {
             index.write_tree().unwrap()
         };
         let tree = repo.find_tree(tree_oid).unwrap();
-        let commit_oid = repo
-            .commit(None, &sig, &sig, "init", &tree, &[])
+        let commit_oid = repo.commit(None, &sig, &sig, "init", &tree, &[]).unwrap();
+        repo.branch("main", &repo.find_commit(commit_oid).unwrap(), false)
             .unwrap();
-        repo.branch("main", &repo.find_commit(commit_oid).unwrap(), false).unwrap();
 
         let path = work_dir.path().to_string_lossy().to_string();
         let mut state_map = std::collections::HashMap::new();
@@ -901,7 +997,10 @@ mod tests {
 
         // Test resolving a valid branch ref
         let result = super::resolve_ref_inner(&path, "main", &state_map);
-        assert!(result.is_ok(), "resolve_ref_inner should succeed for valid branch");
+        assert!(
+            result.is_ok(),
+            "resolve_ref_inner should succeed for valid branch"
+        );
         assert_eq!(
             result.unwrap(),
             commit_oid.to_string(),
@@ -910,6 +1009,9 @@ mod tests {
 
         // Test resolving a nonexistent ref
         let bad_result = super::resolve_ref_inner(&path, "refs/heads/nonexistent", &state_map);
-        assert!(bad_result.is_err(), "resolve_ref_inner should fail for nonexistent ref");
+        assert!(
+            bad_result.is_err(),
+            "resolve_ref_inner should fail for nonexistent ref"
+        );
     }
 }

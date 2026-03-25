@@ -1,11 +1,17 @@
+use crate::error::TrunkError;
+use crate::git::{
+    graph,
+    types::{GraphResult, StashEntry},
+};
+use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
-use crate::error::TrunkError;
-use crate::git::{graph, types::{GraphResult, StashEntry}};
-use crate::state::{CommitCache, RepoState};
 
-fn open_repo(path: &str, state_map: &HashMap<String, PathBuf>) -> Result<git2::Repository, TrunkError> {
+fn open_repo(
+    path: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<git2::Repository, TrunkError> {
     let path_buf = state_map
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
@@ -22,20 +28,23 @@ pub fn list_stashes_inner(
         raw.push((idx, name.to_owned(), *oid));
         true
     })?;
-    Ok(raw.into_iter().map(|(idx, name, stash_oid)| {
-        let parent_oid = repo
-            .find_commit(stash_oid)
-            .ok()
-            .and_then(|c| c.parent_id(0).ok())
-            .map(|o| o.to_string());
-        StashEntry {
-            index: idx,
-            short_name: format!("stash@{{{}}}", idx),
-            name,
-            oid: stash_oid.to_string(),
-            parent_oid,
-        }
-    }).collect())
+    Ok(raw
+        .into_iter()
+        .map(|(idx, name, stash_oid)| {
+            let parent_oid = repo
+                .find_commit(stash_oid)
+                .ok()
+                .and_then(|c| c.parent_id(0).ok())
+                .map(|o| o.to_string());
+            StashEntry {
+                index: idx,
+                short_name: format!("stash@{{{}}}", idx),
+                name,
+                oid: stash_oid.to_string(),
+                parent_oid,
+            }
+        })
+        .collect())
 }
 
 pub fn stash_save_inner(
@@ -46,7 +55,9 @@ pub fn stash_save_inner(
     let mut repo = open_repo(path, state_map)?;
     let sig = repo.signature().map_err(TrunkError::from)?;
     let msg = if message.trim().is_empty() {
-        let branch = repo.head().ok()
+        let branch = repo
+            .head()
+            .ok()
             .and_then(|h| h.shorthand().map(str::to_owned))
             .unwrap_or_else(|| "HEAD".to_owned());
         format!("WIP on {}", branch)
@@ -55,7 +66,10 @@ pub fn stash_save_inner(
     };
     repo.stash_save(&sig, &msg, None).map_err(|e| {
         if e.message().contains("nothing to stash") {
-            TrunkError::new("nothing_to_stash", "Nothing to stash — working tree is clean")
+            TrunkError::new(
+                "nothing_to_stash",
+                "Nothing to stash — working tree is clean",
+            )
         } else {
             TrunkError::from(e)
         }
@@ -79,7 +93,9 @@ pub fn stash_pop_inner(
     // Check for post-apply conflicts (git2 may return Ok even with conflicts)
     {
         let statuses = repo.statuses(None).map_err(TrunkError::from)?;
-        let has_conflicts = statuses.iter().any(|s| s.status().contains(git2::Status::CONFLICTED));
+        let has_conflicts = statuses
+            .iter()
+            .any(|s| s.status().contains(git2::Status::CONFLICTED));
         if has_conflicts {
             return Err(TrunkError::new("conflict_state", "Stash applied with conflicts — resolve conflicts before continuing. Note: stash was NOT removed."));
         }
@@ -95,16 +111,24 @@ pub fn stash_apply_inner(
     let mut repo = open_repo(path, state_map)?;
     repo.stash_apply(index, None).map_err(|e| {
         if e.message().contains("conflict") || e.message().contains("merge") {
-            TrunkError::new("conflict_state", "Stash applied with conflicts — resolve conflicts before continuing")
+            TrunkError::new(
+                "conflict_state",
+                "Stash applied with conflicts — resolve conflicts before continuing",
+            )
         } else {
             TrunkError::from(e)
         }
     })?;
     {
         let statuses = repo.statuses(None).map_err(TrunkError::from)?;
-        let has_conflicts = statuses.iter().any(|s| s.status().contains(git2::Status::CONFLICTED));
+        let has_conflicts = statuses
+            .iter()
+            .any(|s| s.status().contains(git2::Status::CONFLICTED));
         if has_conflicts {
-            return Err(TrunkError::new("conflict_state", "Stash applied with conflicts — resolve conflicts before continuing"));
+            return Err(TrunkError::new(
+                "conflict_state",
+                "Stash applied with conflicts — resolve conflicts before continuing",
+            ));
         }
     }
     graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
@@ -128,7 +152,9 @@ pub async fn list_stashes(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || list_stashes_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -240,7 +266,8 @@ mod tests {
             let sig = repo.signature().unwrap();
             let tree_oid = repo.index().unwrap().write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+                .unwrap();
             drop(tree);
             // make repo dirty (write + stage a file)
             fs::write(dir.path().join("file.txt"), "hello").unwrap();
@@ -287,7 +314,8 @@ mod tests {
             let sig = repo.signature().unwrap();
             let tree_oid = repo.index().unwrap().write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+                .unwrap();
             drop(tree);
         }
         let mut state_map = HashMap::new();

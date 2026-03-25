@@ -1,11 +1,11 @@
 // Diff commands — Phase 6 implementation
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use tauri::State;
 use crate::error::TrunkError;
 use crate::git::types::{CommitDetail, DiffHunk, DiffLine, DiffOrigin, DiffStatus, FileDiff};
 use crate::state::RepoState;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use tauri::State;
 
 fn open_repo_from_state(
     path: &str,
@@ -47,7 +47,12 @@ fn walk_diff_into_file_diffs(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Trun
                 git2::Delta::Untracked => DiffStatus::Untracked,
                 _ => DiffStatus::Unknown,
             };
-            file_diffs.borrow_mut().push(FileDiff { path, status, is_binary, hunks: Vec::new() });
+            file_diffs.borrow_mut().push(FileDiff {
+                path,
+                status,
+                is_binary,
+                hunks: Vec::new(),
+            });
             true
         },
         None, // skip binary callbacks
@@ -128,8 +133,8 @@ pub fn diff_commit_inner(
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<Vec<FileDiff>, TrunkError> {
     let repo = open_repo_from_state(path, state_map)?;
-    let oid = git2::Oid::from_str(oid)
-        .map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
+    let oid =
+        git2::Oid::from_str(oid).map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
     let commit = repo.find_commit(oid)?;
     let commit_tree = commit.tree()?;
     let diff = if commit.parent_count() == 0 {
@@ -147,8 +152,8 @@ pub fn get_commit_detail_inner(
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<CommitDetail, TrunkError> {
     let repo = open_repo_from_state(path, state_map)?;
-    let oid = git2::Oid::from_str(oid)
-        .map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
+    let oid =
+        git2::Oid::from_str(oid).map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
     let commit = repo.find_commit(oid)?;
     let author = commit.author();
     let committer = commit.committer();
@@ -176,7 +181,9 @@ pub async fn diff_unstaged(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || diff_unstaged_inner(&path, &file_path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -189,7 +196,9 @@ pub async fn diff_staged(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || diff_staged_inner(&path, &file_path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -202,7 +211,9 @@ pub async fn diff_commit(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || diff_commit_inner(&path, &oid, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -215,14 +226,16 @@ pub async fn get_commit_detail(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || get_commit_detail_inner(&path, &oid, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use crate::git::repository::tests::make_test_repo;
+    use std::path::Path;
 
     fn make_state_map(path: &Path) -> std::collections::HashMap<String, std::path::PathBuf> {
         let mut map = std::collections::HashMap::new();
@@ -263,7 +276,10 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let file_diffs = result.unwrap();
-        assert!(file_diffs.is_empty(), "expected empty file_diffs for clean file");
+        assert!(
+            file_diffs.is_empty(),
+            "expected empty file_diffs for clean file"
+        );
     }
 
     // Test 3: diff_staged_returns_hunks
@@ -312,7 +328,10 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let file_diffs = result.unwrap();
-        assert!(!file_diffs.is_empty(), "expected non-empty file_diffs for unborn HEAD staged file");
+        assert!(
+            !file_diffs.is_empty(),
+            "expected non-empty file_diffs for unborn HEAD staged file"
+        );
     }
 
     // Test 5: diff_commit_returns_hunks
@@ -358,7 +377,10 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let file_diffs = result.unwrap();
-        assert!(!file_diffs.is_empty(), "expected non-empty file_diffs for root commit");
+        assert!(
+            !file_diffs.is_empty(),
+            "expected non-empty file_diffs for root commit"
+        );
     }
 
     // Test 7: get_commit_detail_returns_metadata
@@ -379,7 +401,10 @@ mod tests {
         assert_eq!(detail.oid.len(), 40, "expected 40-char oid");
         assert_eq!(detail.short_oid.len(), 7, "expected 7-char short_oid");
         assert!(!detail.summary.is_empty(), "expected non-empty summary");
-        assert!(!detail.author_name.is_empty(), "expected non-empty author_name");
+        assert!(
+            !detail.author_name.is_empty(),
+            "expected non-empty author_name"
+        );
     }
 
     // Test 8: diff_unstaged_untracked_file_shows_content
@@ -396,12 +421,21 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let file_diffs = result.unwrap();
-        assert!(!file_diffs.is_empty(), "expected non-empty file_diffs for untracked file");
+        assert!(
+            !file_diffs.is_empty(),
+            "expected non-empty file_diffs for untracked file"
+        );
 
         let fd = &file_diffs[0];
         assert_eq!(fd.path, "new_file.txt");
-        assert!(!fd.hunks.is_empty(), "expected hunks with content for untracked file");
-        assert!(!fd.hunks[0].lines.is_empty(), "expected lines in hunk for untracked file");
+        assert!(
+            !fd.hunks.is_empty(),
+            "expected hunks with content for untracked file"
+        );
+        assert!(
+            !fd.hunks[0].lines.is_empty(),
+            "expected lines in hunk for untracked file"
+        );
     }
 
     #[test]
@@ -418,7 +452,10 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let file_diffs = result.unwrap();
-        assert!(!file_diffs.is_empty(), "expected non-empty file_diffs for untracked file in subdir");
+        assert!(
+            !file_diffs.is_empty(),
+            "expected non-empty file_diffs for untracked file in subdir"
+        );
 
         let fd = &file_diffs[0];
         assert_eq!(fd.path, "docs/notes.md");
@@ -441,9 +478,17 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let detail = result.unwrap();
-        assert!(!detail.committer_name.is_empty(), "expected non-empty committer_name");
-        assert!(!detail.committer_email.is_empty(), "expected non-empty committer_email");
-        assert!(detail.committer_timestamp > 0, "expected committer_timestamp > 0");
+        assert!(
+            !detail.committer_name.is_empty(),
+            "expected non-empty committer_name"
+        );
+        assert!(
+            !detail.committer_email.is_empty(),
+            "expected non-empty committer_email"
+        );
+        assert!(
+            detail.committer_timestamp > 0,
+            "expected committer_timestamp > 0"
+        );
     }
-
 }

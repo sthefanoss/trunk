@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use git2::{Status, StatusOptions};
-use tauri::State;
 use crate::error::TrunkError;
 use crate::git::types::{FileStatus, FileStatusType, WorkingTreeStatus};
 use crate::state::RepoState;
+use git2::{Status, StatusOptions};
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use tauri::State;
 
 fn open_repo_from_state(
     path: &str,
@@ -17,21 +17,43 @@ fn open_repo_from_state(
 }
 
 fn classify_index(s: Status) -> Option<FileStatusType> {
-    if s.contains(Status::INDEX_NEW)        { return Some(FileStatusType::New); }
-    if s.contains(Status::INDEX_MODIFIED)   { return Some(FileStatusType::Modified); }
-    if s.contains(Status::INDEX_DELETED)    { return Some(FileStatusType::Deleted); }
-    if s.contains(Status::INDEX_RENAMED)    { return Some(FileStatusType::Renamed); }
-    if s.contains(Status::INDEX_TYPECHANGE) { return Some(FileStatusType::Typechange); }
-    if s.contains(Status::CONFLICTED)       { return Some(FileStatusType::Conflicted); }
+    if s.contains(Status::INDEX_NEW) {
+        return Some(FileStatusType::New);
+    }
+    if s.contains(Status::INDEX_MODIFIED) {
+        return Some(FileStatusType::Modified);
+    }
+    if s.contains(Status::INDEX_DELETED) {
+        return Some(FileStatusType::Deleted);
+    }
+    if s.contains(Status::INDEX_RENAMED) {
+        return Some(FileStatusType::Renamed);
+    }
+    if s.contains(Status::INDEX_TYPECHANGE) {
+        return Some(FileStatusType::Typechange);
+    }
+    if s.contains(Status::CONFLICTED) {
+        return Some(FileStatusType::Conflicted);
+    }
     None
 }
 
 fn classify_workdir(s: Status) -> Option<FileStatusType> {
-    if s.contains(Status::WT_NEW)        { return Some(FileStatusType::New); }
-    if s.contains(Status::WT_MODIFIED)   { return Some(FileStatusType::Modified); }
-    if s.contains(Status::WT_DELETED)    { return Some(FileStatusType::Deleted); }
-    if s.contains(Status::WT_RENAMED)    { return Some(FileStatusType::Renamed); }
-    if s.contains(Status::WT_TYPECHANGE) { return Some(FileStatusType::Typechange); }
+    if s.contains(Status::WT_NEW) {
+        return Some(FileStatusType::New);
+    }
+    if s.contains(Status::WT_MODIFIED) {
+        return Some(FileStatusType::Modified);
+    }
+    if s.contains(Status::WT_DELETED) {
+        return Some(FileStatusType::Deleted);
+    }
+    if s.contains(Status::WT_RENAMED) {
+        return Some(FileStatusType::Renamed);
+    }
+    if s.contains(Status::WT_TYPECHANGE) {
+        return Some(FileStatusType::Typechange);
+    }
     None
 }
 
@@ -85,7 +107,11 @@ pub fn get_status_inner(
         }
     }
 
-    Ok(WorkingTreeStatus { unstaged, staged, conflicted })
+    Ok(WorkingTreeStatus {
+        unstaged,
+        staged,
+        conflicted,
+    })
 }
 
 pub fn stage_file_inner(
@@ -122,10 +148,7 @@ pub fn unstage_file_inner(
     } else {
         // Reset the file to HEAD state using reset_default
         let head_commit = repo.head()?.peel_to_commit()?;
-        repo.reset_default(
-            Some(head_commit.as_object()),
-            std::iter::once(file_path),
-        )?;
+        repo.reset_default(Some(head_commit.as_object()), std::iter::once(file_path))?;
     }
 
     Ok(())
@@ -214,10 +237,7 @@ pub fn discard_all_inner(
     Ok(())
 }
 
-pub fn stage_all_inner(
-    path: &str,
-    state_map: &HashMap<String, PathBuf>,
-) -> Result<(), TrunkError> {
+pub fn stage_all_inner(path: &str, state_map: &HashMap<String, PathBuf>) -> Result<(), TrunkError> {
     let repo = open_repo_from_state(path, state_map)?;
     let mut index = repo.index()?;
     index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
@@ -253,7 +273,10 @@ pub fn stage_hunk_inner(
     if (hunk_index as usize) >= num_hunks {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, num_hunks),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index, num_hunks
+            ),
         ));
     }
     drop(patch); // Release borrow on diff
@@ -308,7 +331,10 @@ pub fn unstage_hunk_inner(
     if (hunk_index as usize) >= num_hunks {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, num_hunks),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index, num_hunks
+            ),
         ));
     }
     drop(patch);
@@ -356,7 +382,10 @@ pub fn discard_hunk_inner(
     if (hunk_index as usize) >= num_hunks {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, num_hunks),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index, num_hunks
+            ),
         ));
     }
     drop(patch);
@@ -450,7 +479,11 @@ fn get_dirty_counts_inner(
             conflicted += 1;
         }
     }
-    Ok(DirtyCounts { staged, unstaged, conflicted })
+    Ok(DirtyCounts {
+        staged,
+        unstaged,
+        conflicted,
+    })
 }
 
 #[tauri::command]
@@ -462,19 +495,20 @@ pub async fn discard_file(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || discard_file_inner(&path, &file_path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
-pub async fn discard_all(
-    path: String,
-    state: State<'_, RepoState>,
-) -> Result<(), String> {
+pub async fn discard_all(path: String, state: State<'_, RepoState>) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || discard_all_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -486,7 +520,9 @@ pub async fn get_dirty_counts(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || get_dirty_counts_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e: TrunkError| serde_json::to_string(&e).unwrap())
 }
 
@@ -498,7 +534,9 @@ pub async fn get_status(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || get_status_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -511,7 +549,9 @@ pub async fn stage_file(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || stage_file_inner(&path, &file_path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -524,31 +564,31 @@ pub async fn unstage_file(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || unstage_file_inner(&path, &file_path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
-pub async fn stage_all(
-    path: String,
-    state: State<'_, RepoState>,
-) -> Result<(), String> {
+pub async fn stage_all(path: String, state: State<'_, RepoState>) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || stage_all_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
-pub async fn unstage_all(
-    path: String,
-    state: State<'_, RepoState>,
-) -> Result<(), String> {
+pub async fn unstage_all(path: String, state: State<'_, RepoState>) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || unstage_all_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -560,10 +600,12 @@ pub async fn stage_hunk(
     state: State<'_, RepoState>,
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || stage_hunk_inner(&path, &file_path, hunk_index, &state_map))
-        .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-        .map_err(|e| serde_json::to_string(&e).unwrap())
+    tauri::async_runtime::spawn_blocking(move || {
+        stage_hunk_inner(&path, &file_path, hunk_index, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
@@ -574,10 +616,12 @@ pub async fn unstage_hunk(
     state: State<'_, RepoState>,
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || unstage_hunk_inner(&path, &file_path, hunk_index, &state_map))
-        .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-        .map_err(|e| serde_json::to_string(&e).unwrap())
+    tauri::async_runtime::spawn_blocking(move || {
+        unstage_hunk_inner(&path, &file_path, hunk_index, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
@@ -588,10 +632,12 @@ pub async fn discard_hunk(
     state: State<'_, RepoState>,
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || discard_hunk_inner(&path, &file_path, hunk_index, &state_map))
-        .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-        .map_err(|e| serde_json::to_string(&e).unwrap())
+    tauri::async_runtime::spawn_blocking(move || {
+        discard_hunk_inner(&path, &file_path, hunk_index, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
@@ -813,13 +859,16 @@ pub fn stage_lines_inner(
     if (hunk_index as usize) >= patch.num_hunks() {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index,
+                patch.num_hunks()
+            ),
         ));
     }
 
-    let patch_text = build_partial_patch_text(
-        file_path, &patch, hunk_index as usize, &line_indices, false
-    )?;
+    let patch_text =
+        build_partial_patch_text(file_path, &patch, hunk_index as usize, &line_indices, false)?;
     drop(patch);
     drop(diff);
 
@@ -867,14 +916,17 @@ pub fn unstage_lines_inner(
     if (hunk_index as usize) >= patch.num_hunks() {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index,
+                patch.num_hunks()
+            ),
         ));
     }
 
     // Build a reversed partial patch: undoes selected lines in the index
-    let patch_text = build_partial_patch_text(
-        file_path, &patch, hunk_index as usize, &line_indices, true
-    )?;
+    let patch_text =
+        build_partial_patch_text(file_path, &patch, hunk_index as usize, &line_indices, true)?;
     drop(patch);
     drop(diff);
 
@@ -916,14 +968,17 @@ pub fn discard_lines_inner(
     if (hunk_index as usize) >= patch.num_hunks() {
         return Err(TrunkError::new(
             "stale_hunk_index",
-            format!("Hunk index {} out of range (file has {} hunks)", hunk_index, patch.num_hunks()),
+            format!(
+                "Hunk index {} out of range (file has {} hunks)",
+                hunk_index,
+                patch.num_hunks()
+            ),
         ));
     }
 
     // Build a reversed partial patch: undoes selected lines in the working directory
-    let patch_text = build_partial_patch_text(
-        file_path, &patch, hunk_index as usize, &line_indices, true
-    )?;
+    let patch_text =
+        build_partial_patch_text(file_path, &patch, hunk_index as usize, &line_indices, true)?;
     drop(patch);
     drop(diff);
 
@@ -938,10 +993,10 @@ pub fn discard_lines_inner(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-    use crate::commands::diff::{diff_unstaged_inner, diff_staged_inner};
+    use crate::commands::diff::{diff_staged_inner, diff_unstaged_inner};
     use crate::git::repository::tests::make_test_repo;
     use crate::git::types::FileStatusType;
+    use std::path::Path;
 
     fn make_state_map(path: &Path) -> std::collections::HashMap<String, std::path::PathBuf> {
         let mut map = std::collections::HashMap::new();
@@ -961,7 +1016,10 @@ mod tests {
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
-        assert!(!status.unstaged.is_empty(), "expected unstaged to be non-empty");
+        assert!(
+            !status.unstaged.is_empty(),
+            "expected unstaged to be non-empty"
+        );
         assert!(status.staged.is_empty(), "expected staged to be empty");
     }
 
@@ -977,8 +1035,14 @@ mod tests {
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
-        let has_new = status.unstaged.iter().any(|f| matches!(f.status, FileStatusType::New));
-        assert!(has_new, "expected at least one entry with status New in unstaged");
+        let has_new = status
+            .unstaged
+            .iter()
+            .any(|f| matches!(f.status, FileStatusType::New));
+        assert!(
+            has_new,
+            "expected at least one entry with status New in unstaged"
+        );
     }
 
     // Test 3 — status_modified_file
@@ -993,8 +1057,14 @@ mod tests {
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
-        let has_modified = status.unstaged.iter().any(|f| matches!(f.status, FileStatusType::Modified));
-        assert!(has_modified, "expected at least one entry with status Modified in unstaged");
+        let has_modified = status
+            .unstaged
+            .iter()
+            .any(|f| matches!(f.status, FileStatusType::Modified));
+        assert!(
+            has_modified,
+            "expected at least one entry with status Modified in unstaged"
+        );
     }
 
     // Test 4 — stage_file_moves_to_staged
@@ -1011,7 +1081,10 @@ mod tests {
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
-        assert!(!status.staged.is_empty(), "expected staged to be non-empty after staging");
+        assert!(
+            !status.staged.is_empty(),
+            "expected staged to be non-empty after staging"
+        );
         let has_readme = status.staged.iter().any(|f| f.path == "README.md");
         assert!(has_readme, "expected README.md in staged list");
     }
@@ -1032,12 +1105,16 @@ mod tests {
         drop(index);
         drop(repo);
 
-        super::unstage_file_inner(&path, "README.md", &state_map).expect("unstage_file_inner failed");
+        super::unstage_file_inner(&path, "README.md", &state_map)
+            .expect("unstage_file_inner failed");
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
         let readme_in_staged = status.staged.iter().any(|f| f.path == "README.md");
-        assert!(!readme_in_staged, "expected README.md NOT in staged list after unstaging");
+        assert!(
+            !readme_in_staged,
+            "expected README.md NOT in staged list after unstaging"
+        );
     }
 
     // Test 6 — unstage_on_unborn_head
@@ -1057,7 +1134,11 @@ mod tests {
         drop(repo);
 
         let result = super::unstage_file_inner(&path, "new_file.txt", &state_map);
-        assert!(result.is_ok(), "expected Ok(()) for unstage on unborn HEAD, got: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "expected Ok(()) for unstage on unborn HEAD, got: {:?}",
+            result
+        );
     }
 
     // Test 7 — stage_all_stages_everything
@@ -1080,7 +1161,10 @@ mod tests {
             "expected at least 2 entries in staged after stage_all, got {}",
             status.staged.len()
         );
-        assert!(status.unstaged.is_empty(), "expected unstaged to be empty after stage_all");
+        assert!(
+            status.unstaged.is_empty(),
+            "expected unstaged to be empty after stage_all"
+        );
     }
 
     // Test 8 — unstage_all_clears_index
@@ -1103,7 +1187,10 @@ mod tests {
 
         let status = super::get_status_inner(&path, &state_map).expect("get_status_inner failed");
 
-        assert!(status.staged.is_empty(), "expected staged to be empty after unstage_all");
+        assert!(
+            status.staged.is_empty(),
+            "expected staged to be empty after unstage_all"
+        );
     }
 
     // Test 9 — discard_file_reverts_tracked
@@ -1117,14 +1204,22 @@ mod tests {
         let original = std::fs::read_to_string(dir.path().join("README.md")).unwrap();
 
         // Modify README.md (tracked file)
-        std::fs::write(dir.path().join("README.md"), "modified content for discard test").unwrap();
+        std::fs::write(
+            dir.path().join("README.md"),
+            "modified content for discard test",
+        )
+        .unwrap();
 
         // Discard the file
-        super::discard_file_inner(&path, "README.md", &state_map).expect("discard_file_inner failed");
+        super::discard_file_inner(&path, "README.md", &state_map)
+            .expect("discard_file_inner failed");
 
         // Verify content reverted to original
         let after = std::fs::read_to_string(dir.path().join("README.md")).unwrap();
-        assert_eq!(after, original, "expected README.md to revert to original content after discard");
+        assert_eq!(
+            after, original,
+            "expected README.md to revert to original content after discard"
+        );
     }
 
     // Test 10 — discard_file_deletes_untracked
@@ -1138,10 +1233,14 @@ mod tests {
         std::fs::write(dir.path().join("brand_new.txt"), "untracked content").unwrap();
 
         // Discard the file
-        super::discard_file_inner(&path, "brand_new.txt", &state_map).expect("discard_file_inner failed");
+        super::discard_file_inner(&path, "brand_new.txt", &state_map)
+            .expect("discard_file_inner failed");
 
         // Verify file no longer exists
-        assert!(!dir.path().join("brand_new.txt").exists(), "expected brand_new.txt to be deleted after discard");
+        assert!(
+            !dir.path().join("brand_new.txt").exists(),
+            "expected brand_new.txt to be deleted after discard"
+        );
     }
 
     // Test 11 — discard_all_reverts_everything
@@ -1156,17 +1255,27 @@ mod tests {
 
         // Modify tracked file + create untracked file
         std::fs::write(dir.path().join("README.md"), "modified for discard_all").unwrap();
-        std::fs::write(dir.path().join("brand_new.txt"), "untracked for discard_all").unwrap();
+        std::fs::write(
+            dir.path().join("brand_new.txt"),
+            "untracked for discard_all",
+        )
+        .unwrap();
 
         // Discard all
         super::discard_all_inner(&path, &state_map).expect("discard_all_inner failed");
 
         // Verify tracked file reverted
         let after = std::fs::read_to_string(dir.path().join("README.md")).unwrap();
-        assert_eq!(after, original, "expected README.md to revert after discard_all");
+        assert_eq!(
+            after, original,
+            "expected README.md to revert after discard_all"
+        );
 
         // Verify untracked file deleted
-        assert!(!dir.path().join("brand_new.txt").exists(), "expected brand_new.txt deleted after discard_all");
+        assert!(
+            !dir.path().join("brand_new.txt").exists(),
+            "expected brand_new.txt deleted after discard_all"
+        );
     }
 
     // Test 12 — get_dirty_counts_includes_untracked
@@ -1179,7 +1288,8 @@ mod tests {
         // Create a brand new file (never tracked)
         std::fs::write(dir.path().join("untracked_new.txt"), "brand new").unwrap();
 
-        let counts = super::get_dirty_counts_inner(&path, &state_map).expect("get_dirty_counts_inner failed");
+        let counts = super::get_dirty_counts_inner(&path, &state_map)
+            .expect("get_dirty_counts_inner failed");
 
         assert!(
             counts.unstaged >= 1,
@@ -1208,7 +1318,8 @@ mod tests {
         let tree = repo.find_tree(tree_oid).unwrap();
         let sig = repo.signature().unwrap();
         let head = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head]).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head])
+            .unwrap();
         drop(index);
         drop(tree);
         drop(head);
@@ -1216,8 +1327,8 @@ mod tests {
 
         // Modify lines near the top AND near the bottom (creates 2 hunks)
         let mut lines: Vec<String> = original.split('\n').map(|s| s.to_string()).collect();
-        lines[1] = "MODIFIED line 2".to_string();   // Near top -> hunk 0
-        lines[28] = "MODIFIED line 29".to_string();  // Near bottom -> hunk 1
+        lines[1] = "MODIFIED line 2".to_string(); // Near top -> hunk 0
+        lines[28] = "MODIFIED line 29".to_string(); // Near bottom -> hunk 1
         std::fs::write(dir.join("multi.txt"), lines.join("\n")).unwrap();
     }
 
@@ -1235,8 +1346,8 @@ mod tests {
             .expect("stage_hunk_inner failed");
 
         // Verify: staged diff should have 1 hunk (hunk 0 was staged)
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
         assert_eq!(staged.len(), 1, "expected 1 file in staged diff");
         assert_eq!(staged[0].hunks.len(), 1, "expected 1 hunk in staged diff");
 
@@ -1244,7 +1355,11 @@ mod tests {
         let unstaged = diff_unstaged_inner(&path, "multi.txt", &state_map)
             .expect("diff_unstaged_inner failed");
         assert_eq!(unstaged.len(), 1, "expected 1 file in unstaged diff");
-        assert_eq!(unstaged[0].hunks.len(), 1, "expected 1 hunk remaining in unstaged diff");
+        assert_eq!(
+            unstaged[0].hunks.len(),
+            1,
+            "expected 1 hunk remaining in unstaged diff"
+        );
     }
 
     // Test 14 — stage_hunk_stale_index
@@ -1260,7 +1375,10 @@ mod tests {
         let result = super::stage_hunk_inner(&path, "multi.txt", 5, &state_map);
         assert!(result.is_err(), "expected Err for out-of-range hunk index");
         let err = result.unwrap_err();
-        assert_eq!(err.code, "stale_hunk_index", "expected stale_hunk_index error code");
+        assert_eq!(
+            err.code, "stale_hunk_index",
+            "expected stale_hunk_index error code"
+        );
     }
 
     // Test 15 — stage_hunk_file_not_found
@@ -1272,9 +1390,15 @@ mod tests {
 
         // Do NOT create any changes — clean working tree
         let result = super::stage_hunk_inner(&path, "README.md", 0, &state_map);
-        assert!(result.is_err(), "expected Err for file with no unstaged changes");
+        assert!(
+            result.is_err(),
+            "expected Err for file with no unstaged changes"
+        );
         let err = result.unwrap_err();
-        assert_eq!(err.code, "file_not_found", "expected file_not_found error code");
+        assert_eq!(
+            err.code, "file_not_found",
+            "expected file_not_found error code"
+        );
     }
 
     // Test 16 — unstage_hunk_unstages_single_hunk
@@ -1287,24 +1411,31 @@ mod tests {
         create_multi_hunk_file(dir.path());
 
         // Stage the entire file first
-        super::stage_file_inner(&path, "multi.txt", &state_map)
-            .expect("stage_file_inner failed");
+        super::stage_file_inner(&path, "multi.txt", &state_map).expect("stage_file_inner failed");
 
         // Unstage hunk 0 only
         super::unstage_hunk_inner(&path, "multi.txt", 0, &state_map)
             .expect("unstage_hunk_inner failed");
 
         // Verify: staged diff should have 1 hunk remaining (hunk 1 stays staged)
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
         assert_eq!(staged.len(), 1, "expected 1 file in staged diff");
-        assert_eq!(staged[0].hunks.len(), 1, "expected 1 hunk remaining in staged diff");
+        assert_eq!(
+            staged[0].hunks.len(),
+            1,
+            "expected 1 hunk remaining in staged diff"
+        );
 
         // Verify: unstaged diff should have 1 hunk (hunk 0 is back in unstaged)
         let unstaged = diff_unstaged_inner(&path, "multi.txt", &state_map)
             .expect("diff_unstaged_inner failed");
         assert_eq!(unstaged.len(), 1, "expected 1 file in unstaged diff");
-        assert_eq!(unstaged[0].hunks.len(), 1, "expected 1 hunk in unstaged diff");
+        assert_eq!(
+            unstaged[0].hunks.len(),
+            1,
+            "expected 1 hunk in unstaged diff"
+        );
     }
 
     // Test 17 — discard_hunk_discards_single_hunk
@@ -1324,7 +1455,11 @@ mod tests {
         let unstaged = diff_unstaged_inner(&path, "multi.txt", &state_map)
             .expect("diff_unstaged_inner failed");
         assert_eq!(unstaged.len(), 1, "expected 1 file in unstaged diff");
-        assert_eq!(unstaged[0].hunks.len(), 1, "expected 1 hunk remaining after discard");
+        assert_eq!(
+            unstaged[0].hunks.len(),
+            1,
+            "expected 1 hunk remaining after discard"
+        );
     }
 
     // Test 18 — discard_hunk_file_not_found
@@ -1336,9 +1471,15 @@ mod tests {
 
         // Do NOT create any changes — clean working tree
         let result = super::discard_hunk_inner(&path, "README.md", 0, &state_map);
-        assert!(result.is_err(), "expected Err for file with no unstaged changes");
+        assert!(
+            result.is_err(),
+            "expected Err for file with no unstaged changes"
+        );
         let err = result.unwrap_err();
-        assert_eq!(err.code, "file_not_found", "expected file_not_found error code");
+        assert_eq!(
+            err.code, "file_not_found",
+            "expected file_not_found error code"
+        );
     }
 
     // --- Line-level staging test fixture helper ---
@@ -1367,7 +1508,8 @@ mod tests {
         let tree = repo.find_tree(tree_oid).unwrap();
         let sig = repo.signature().unwrap();
         let head = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head]).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head])
+            .unwrap();
         drop(index);
         drop(tree);
         drop(head);
@@ -1401,31 +1543,47 @@ mod tests {
         let hunk0 = &unstaged[0].hunks[0];
 
         // Find indices of add lines ('+') in hunk 0
-        let add_indices: Vec<u32> = hunk0.lines.iter().enumerate()
+        let add_indices: Vec<u32> = hunk0
+            .lines
+            .iter()
+            .enumerate()
             .filter(|(_, l)| matches!(l.origin, crate::git::types::DiffOrigin::Add))
             .map(|(i, _)| i as u32)
             .collect();
-        assert!(!add_indices.is_empty(), "expected at least one add line in hunk 0");
+        assert!(
+            !add_indices.is_empty(),
+            "expected at least one add line in hunk 0"
+        );
 
         // Stage only the add lines from hunk 0
         super::stage_lines_inner(&path, "multi.txt", 0, add_indices.clone(), &state_map)
             .expect("stage_lines_inner failed");
 
         // Verify: staged diff should have the add lines
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
-        assert!(!staged.is_empty(), "expected staged diff after staging add lines");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
+        assert!(
+            !staged.is_empty(),
+            "expected staged diff after staging add lines"
+        );
         let staged_hunk0 = &staged[0].hunks[0];
-        let staged_adds: Vec<&crate::git::types::DiffLine> = staged_hunk0.lines.iter()
+        let staged_adds: Vec<&crate::git::types::DiffLine> = staged_hunk0
+            .lines
+            .iter()
             .filter(|l| matches!(l.origin, crate::git::types::DiffOrigin::Add))
             .collect();
         assert!(!staged_adds.is_empty(), "expected add lines in staged diff");
 
         // The delete line should NOT be in the staged diff (it was not selected)
-        let staged_deletes: Vec<&crate::git::types::DiffLine> = staged_hunk0.lines.iter()
+        let staged_deletes: Vec<&crate::git::types::DiffLine> = staged_hunk0
+            .lines
+            .iter()
             .filter(|l| matches!(l.origin, crate::git::types::DiffOrigin::Delete))
             .collect();
-        assert!(staged_deletes.is_empty(), "expected no delete lines in staged diff when only adds were staged");
+        assert!(
+            staged_deletes.is_empty(),
+            "expected no delete lines in staged diff when only adds were staged"
+        );
     }
 
     // Test 20 — stage_lines_stages_selected_deletes
@@ -1443,31 +1601,50 @@ mod tests {
         let hunk0 = &unstaged[0].hunks[0];
 
         // Find indices of delete lines ('-') in hunk 0
-        let del_indices: Vec<u32> = hunk0.lines.iter().enumerate()
+        let del_indices: Vec<u32> = hunk0
+            .lines
+            .iter()
+            .enumerate()
             .filter(|(_, l)| matches!(l.origin, crate::git::types::DiffOrigin::Delete))
             .map(|(i, _)| i as u32)
             .collect();
-        assert!(!del_indices.is_empty(), "expected at least one delete line in hunk 0");
+        assert!(
+            !del_indices.is_empty(),
+            "expected at least one delete line in hunk 0"
+        );
 
         // Stage only the delete lines from hunk 0
         super::stage_lines_inner(&path, "multi.txt", 0, del_indices, &state_map)
             .expect("stage_lines_inner failed");
 
         // Verify: staged diff should have the delete lines
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
-        assert!(!staged.is_empty(), "expected staged diff after staging delete lines");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
+        assert!(
+            !staged.is_empty(),
+            "expected staged diff after staging delete lines"
+        );
         let staged_hunk0 = &staged[0].hunks[0];
-        let staged_deletes: Vec<&crate::git::types::DiffLine> = staged_hunk0.lines.iter()
+        let staged_deletes: Vec<&crate::git::types::DiffLine> = staged_hunk0
+            .lines
+            .iter()
             .filter(|l| matches!(l.origin, crate::git::types::DiffOrigin::Delete))
             .collect();
-        assert!(!staged_deletes.is_empty(), "expected delete lines in staged diff");
+        assert!(
+            !staged_deletes.is_empty(),
+            "expected delete lines in staged diff"
+        );
 
         // Unselected add lines should NOT be in the staged diff
-        let staged_adds: Vec<&crate::git::types::DiffLine> = staged_hunk0.lines.iter()
+        let staged_adds: Vec<&crate::git::types::DiffLine> = staged_hunk0
+            .lines
+            .iter()
             .filter(|l| matches!(l.origin, crate::git::types::DiffOrigin::Add))
             .collect();
-        assert!(staged_adds.is_empty(), "expected no add lines in staged diff when only deletes were staged");
+        assert!(
+            staged_adds.is_empty(),
+            "expected no add lines in staged diff when only deletes were staged"
+        );
     }
 
     // Test 21 — stage_lines_mixed_selection
@@ -1484,24 +1661,47 @@ mod tests {
         let hunk0 = &unstaged[0].hunks[0];
 
         // Select ALL add and delete lines from hunk 0 (mixed)
-        let mixed_indices: Vec<u32> = hunk0.lines.iter().enumerate()
-            .filter(|(_, l)| matches!(l.origin, crate::git::types::DiffOrigin::Add | crate::git::types::DiffOrigin::Delete))
+        let mixed_indices: Vec<u32> = hunk0
+            .lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| {
+                matches!(
+                    l.origin,
+                    crate::git::types::DiffOrigin::Add | crate::git::types::DiffOrigin::Delete
+                )
+            })
             .map(|(i, _)| i as u32)
             .collect();
-        assert!(mixed_indices.len() >= 2, "expected at least 2 add/delete lines for mixed selection");
+        assert!(
+            mixed_indices.len() >= 2,
+            "expected at least 2 add/delete lines for mixed selection"
+        );
 
         super::stage_lines_inner(&path, "multi.txt", 0, mixed_indices, &state_map)
             .expect("stage_lines_inner failed");
 
         // Verify: staged diff should have both add and delete lines
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
         assert!(!staged.is_empty(), "expected staged diff");
         let staged_hunk0 = &staged[0].hunks[0];
-        let has_adds = staged_hunk0.lines.iter().any(|l| matches!(l.origin, crate::git::types::DiffOrigin::Add));
-        let has_dels = staged_hunk0.lines.iter().any(|l| matches!(l.origin, crate::git::types::DiffOrigin::Delete));
-        assert!(has_adds, "expected add lines in staged diff for mixed selection");
-        assert!(has_dels, "expected delete lines in staged diff for mixed selection");
+        let has_adds = staged_hunk0
+            .lines
+            .iter()
+            .any(|l| matches!(l.origin, crate::git::types::DiffOrigin::Add));
+        let has_dels = staged_hunk0
+            .lines
+            .iter()
+            .any(|l| matches!(l.origin, crate::git::types::DiffOrigin::Delete));
+        assert!(
+            has_adds,
+            "expected add lines in staged diff for mixed selection"
+        );
+        assert!(
+            has_dels,
+            "expected delete lines in staged diff for mixed selection"
+        );
     }
 
     // Test 22 — stage_lines_stale_index
@@ -1517,7 +1717,10 @@ mod tests {
         let result = super::stage_lines_inner(&path, "multi.txt", 99, vec![0], &state_map);
         assert!(result.is_err(), "expected Err for out-of-range hunk index");
         let err = result.unwrap_err();
-        assert_eq!(err.code, "stale_hunk_index", "expected stale_hunk_index error code");
+        assert_eq!(
+            err.code, "stale_hunk_index",
+            "expected stale_hunk_index error code"
+        );
     }
 
     // Test 23 — unstage_lines_unstages_selected
@@ -1530,21 +1733,26 @@ mod tests {
         create_add_delete_hunk_file(dir.path());
 
         // Stage entire file first
-        super::stage_file_inner(&path, "multi.txt", &state_map)
-            .expect("stage_file_inner failed");
+        super::stage_file_inner(&path, "multi.txt", &state_map).expect("stage_file_inner failed");
 
         // Get the staged diff to find line indices
-        let staged = diff_staged_inner(&path, "multi.txt", &state_map)
-            .expect("diff_staged_inner failed");
+        let staged =
+            diff_staged_inner(&path, "multi.txt", &state_map).expect("diff_staged_inner failed");
         assert!(!staged.is_empty(), "expected staged diff");
         let hunk0 = &staged[0].hunks[0];
 
         // Find indices of add lines in hunk 0 of staged diff
-        let add_indices: Vec<u32> = hunk0.lines.iter().enumerate()
+        let add_indices: Vec<u32> = hunk0
+            .lines
+            .iter()
+            .enumerate()
             .filter(|(_, l)| matches!(l.origin, crate::git::types::DiffOrigin::Add))
             .map(|(i, _)| i as u32)
             .collect();
-        assert!(!add_indices.is_empty(), "expected add lines in staged hunk 0");
+        assert!(
+            !add_indices.is_empty(),
+            "expected add lines in staged hunk 0"
+        );
 
         // Unstage only the add lines from hunk 0
         super::unstage_lines_inner(&path, "multi.txt", 0, add_indices, &state_map)
@@ -1553,11 +1761,19 @@ mod tests {
         // Verify: unstaged diff should now contain add lines that were unstaged
         let unstaged_after = diff_unstaged_inner(&path, "multi.txt", &state_map)
             .expect("diff_unstaged_inner failed");
-        assert!(!unstaged_after.is_empty(), "expected unstaged diff after unstaging lines");
-        let has_adds_unstaged = unstaged_after[0].hunks.iter()
+        assert!(
+            !unstaged_after.is_empty(),
+            "expected unstaged diff after unstaging lines"
+        );
+        let has_adds_unstaged = unstaged_after[0]
+            .hunks
+            .iter()
             .flat_map(|h| &h.lines)
             .any(|l| matches!(l.origin, crate::git::types::DiffOrigin::Add));
-        assert!(has_adds_unstaged, "expected add lines in unstaged diff after unstaging");
+        assert!(
+            has_adds_unstaged,
+            "expected add lines in unstaged diff after unstaging"
+        );
     }
 
     // Test 24 — discard_lines_discards_selected
@@ -1575,7 +1791,10 @@ mod tests {
         let hunk0 = &unstaged[0].hunks[0];
 
         // Find indices and content of add lines
-        let add_info: Vec<(u32, String)> = hunk0.lines.iter().enumerate()
+        let add_info: Vec<(u32, String)> = hunk0
+            .lines
+            .iter()
+            .enumerate()
             .filter(|(_, l)| matches!(l.origin, crate::git::types::DiffOrigin::Add))
             .map(|(i, l)| (i as u32, l.content.clone()))
             .collect();
@@ -1592,8 +1811,11 @@ mod tests {
         let file_lines: Vec<&str> = file_content.lines().collect();
         for content in &add_contents {
             let trimmed = content.trim();
-            assert!(!file_lines.contains(&trimmed),
-                "expected discarded add line '{}' to be gone from file", trimmed);
+            assert!(
+                !file_lines.contains(&trimmed),
+                "expected discarded add line '{}' to be gone from file",
+                trimmed
+            );
         }
     }
 }

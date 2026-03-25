@@ -1,11 +1,17 @@
+use crate::error::TrunkError;
+use crate::git::{
+    graph,
+    types::{GraphResult, UndoResult},
+};
+use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
-use crate::error::TrunkError;
-use crate::git::{graph, types::{GraphResult, UndoResult}};
-use crate::state::{CommitCache, RepoState};
 
-fn open_repo(path: &str, state_map: &HashMap<String, PathBuf>) -> Result<git2::Repository, TrunkError> {
+fn open_repo(
+    path: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<git2::Repository, TrunkError> {
     let path_buf = state_map
         .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
@@ -51,7 +57,8 @@ pub fn checkout_commit_inner(
     drop(obj);
     drop(repo);
 
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let mut repo2 = git2::Repository::open(path_buf)?;
     graph::walk_commits(&mut repo2, 0, usize::MAX).map_err(TrunkError::from)
@@ -76,7 +83,8 @@ pub fn create_tag_inner(
     drop(obj);
     drop(repo);
 
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
     let mut repo2 = git2::Repository::open(path_buf)?;
     graph::walk_commits(&mut repo2, 0, usize::MAX).map_err(TrunkError::from)
@@ -106,7 +114,8 @@ pub fn cherry_pick_inner(
     oid: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
 
     let output = std::process::Command::new("git")
@@ -135,7 +144,8 @@ pub fn revert_commit_inner(
     oid: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
 
     let output = std::process::Command::new("git")
@@ -165,12 +175,16 @@ pub fn reset_to_commit_inner(
     mode: &str,
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<GraphResult, TrunkError> {
-    let path_buf = state_map.get(path)
+    let path_buf = state_map
+        .get(path)
         .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path)))?;
 
     let valid_modes = ["soft", "mixed", "hard"];
     if !valid_modes.contains(&mode) {
-        return Err(TrunkError::new("invalid_mode", format!("Invalid reset mode: {}", mode)));
+        return Err(TrunkError::new(
+            "invalid_mode",
+            format!("Invalid reset mode: {}", mode),
+        ));
     }
 
     let output = std::process::Command::new("git")
@@ -405,9 +419,9 @@ pub async fn undo_commit(
     let (undo_result, graph_result) = tauri::async_runtime::spawn_blocking(move || {
         let undo = undo_commit_inner(&path_clone, &state_map)?;
         let graph = {
-            let path_buf = state_map
-                .get(path_clone.as_str())
-                .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path_clone)))?;
+            let path_buf = state_map.get(path_clone.as_str()).ok_or_else(|| {
+                TrunkError::new("not_open", format!("Repository not open: {}", path_clone))
+            })?;
             let mut repo = git2::Repository::open(path_buf).map_err(TrunkError::from)?;
             graph::walk_commits(&mut repo, 0, usize::MAX)?
         };
@@ -435,9 +449,9 @@ pub async fn redo_commit(
     let path_clone = path.clone();
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
         redo_commit_inner(&path_clone, &subject, body.as_deref(), &state_map)?;
-        let path_buf = state_map
-            .get(path_clone.as_str())
-            .ok_or_else(|| TrunkError::new("not_open", format!("Repository not open: {}", path_clone)))?;
+        let path_buf = state_map.get(path_clone.as_str()).ok_or_else(|| {
+            TrunkError::new("not_open", format!("Repository not open: {}", path_clone))
+        })?;
         let mut repo = git2::Repository::open(path_buf).map_err(TrunkError::from)?;
         graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
     })
@@ -458,7 +472,9 @@ pub async fn check_undo_available(
     let state_map = state.0.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || check_undo_available_inner(&path, &state_map))
         .await
-        .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -485,12 +501,21 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            repo.commit(Some("refs/heads/main"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+            repo.commit(
+                Some("refs/heads/main"),
+                &sig,
+                &sig,
+                "Initial commit",
+                &tree,
+                &[],
+            )
+            .unwrap();
             drop(tree);
 
             // Point HEAD at main
             repo.set_head("refs/heads/main").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
         }
         let mut state_map = HashMap::new();
         state_map.insert(path_str.clone(), dir.path().to_owned());
@@ -513,14 +538,26 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let parent = repo.find_commit(repo.head().unwrap().target().unwrap()).unwrap();
-            let oid = repo.commit(Some("refs/heads/main"), &sig, &sig, "Second commit", &tree, &[&parent]).unwrap();
+            let parent = repo
+                .find_commit(repo.head().unwrap().target().unwrap())
+                .unwrap();
+            let oid = repo
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Second commit",
+                    &tree,
+                    &[&parent],
+                )
+                .unwrap();
             second_oid = oid.to_string();
             drop(tree);
             drop(parent);
 
             repo.set_head("refs/heads/main").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
         }
         (dir, state_map, first_oid, second_oid)
     }
@@ -533,7 +570,10 @@ mod tests {
         let path = dir.path().to_str().unwrap();
 
         let result = checkout_commit_inner(path, &first_oid, &state_map);
-        assert!(result.is_ok(), "checkout_commit should succeed on clean workdir");
+        assert!(
+            result.is_ok(),
+            "checkout_commit should succeed on clean workdir"
+        );
 
         let repo = git2::Repository::open(dir.path()).unwrap();
         assert!(repo.head_detached().unwrap(), "HEAD should be detached");
@@ -559,7 +599,10 @@ mod tests {
         }
 
         let result = checkout_commit_inner(path, &first_oid, &state_map);
-        assert!(result.is_err(), "checkout_commit should fail on dirty workdir");
+        assert!(
+            result.is_err(),
+            "checkout_commit should fail on dirty workdir"
+        );
         assert_eq!(result.unwrap_err().code, "dirty_workdir");
     }
 
@@ -584,7 +627,10 @@ mod tests {
         let path = dir.path().to_str().unwrap();
 
         let result = create_tag_inner(path, &second_oid, "v2.0.0", "", &state_map);
-        assert!(result.is_ok(), "create_tag with empty message should succeed");
+        assert!(
+            result.is_ok(),
+            "create_tag with empty message should succeed"
+        );
 
         let repo = git2::Repository::open(dir.path()).unwrap();
         let tag_ref = repo.find_reference("refs/tags/v2.0.0").unwrap();
@@ -620,11 +666,16 @@ mod tests {
             let parent = first_commit.parent(0).unwrap();
             repo.branch("pick-branch", &parent, false).unwrap();
             repo.set_head("refs/heads/pick-branch").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
         }
 
         let result = cherry_pick_inner(path, &_second_oid, &state_map);
-        assert!(result.is_ok(), "cherry_pick should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "cherry_pick should succeed: {:?}",
+            result.err()
+        );
     }
 
     // --- undo_commit tests ---
@@ -657,7 +708,11 @@ mod tests {
         }
 
         let result = undo_commit_inner(path, &state_map);
-        assert!(result.is_ok(), "undo_commit should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "undo_commit should succeed: {:?}",
+            result.err()
+        );
         let undo = result.unwrap();
         assert_eq!(undo.subject, "Undo test subject");
         assert_eq!(undo.body, Some("Undo test body".to_owned()));
@@ -699,38 +754,42 @@ mod tests {
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let main_commit_oid = repo.commit(
-                Some("refs/heads/main"),
-                &sig,
-                &sig,
-                "Main commit",
-                &tree,
-                &[&initial],
-            )
-            .unwrap();
+            let main_commit_oid = repo
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Main commit",
+                    &tree,
+                    &[&initial],
+                )
+                .unwrap();
 
             // Switch to feature and commit
             repo.set_head("refs/heads/feature").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
             fs::write(dir.path().join("feature.txt"), "feature change").unwrap();
             let mut index = repo.index().unwrap();
             index.add_path(std::path::Path::new("feature.txt")).unwrap();
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
-            let feature_commit_oid = repo.commit(
-                Some("refs/heads/feature"),
-                &sig,
-                &sig,
-                "Feature commit",
-                &tree,
-                &[&initial],
-            )
-            .unwrap();
+            let feature_commit_oid = repo
+                .commit(
+                    Some("refs/heads/feature"),
+                    &sig,
+                    &sig,
+                    "Feature commit",
+                    &tree,
+                    &[&initial],
+                )
+                .unwrap();
 
             // Switch back to main and merge
             repo.set_head("refs/heads/main").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
 
             let main_commit = repo.find_commit(main_commit_oid).unwrap();
             let feature_commit = repo.find_commit(feature_commit_oid).unwrap();
@@ -752,7 +811,8 @@ mod tests {
 
             // Update HEAD to point to the merge
             repo.set_head("refs/heads/main").unwrap();
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).unwrap();
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .unwrap();
         }
 
         let result = undo_commit_inner(path, &state_map);
@@ -772,16 +832,26 @@ mod tests {
 
         // Verify it exists
         let repo = git2::Repository::open(dir.path()).unwrap();
-        assert!(repo.find_reference("refs/tags/v-del").is_ok(), "tag v-del should exist before delete");
+        assert!(
+            repo.find_reference("refs/tags/v-del").is_ok(),
+            "tag v-del should exist before delete"
+        );
         drop(repo);
 
         // Delete the tag
         let result = super::delete_tag_inner(path, "v-del", &state_map);
-        assert!(result.is_ok(), "delete_tag should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "delete_tag should succeed: {:?}",
+            result.err()
+        );
 
         // Verify tag no longer exists
         let repo = git2::Repository::open(dir.path()).unwrap();
-        assert!(repo.find_reference("refs/tags/v-del").is_err(), "tag v-del should no longer exist");
+        assert!(
+            repo.find_reference("refs/tags/v-del").is_err(),
+            "tag v-del should no longer exist"
+        );
     }
 
     // --- revert_commit tests ---
@@ -795,6 +865,9 @@ mod tests {
         assert!(result.is_ok(), "revert should succeed: {:?}", result.err());
 
         // The reverted file should not exist
-        assert!(!dir.path().join("second.txt").exists(), "second.txt should be removed by revert");
+        assert!(
+            !dir.path().join("second.txt").exists(),
+            "second.txt should be removed by revert"
+        );
     }
 }

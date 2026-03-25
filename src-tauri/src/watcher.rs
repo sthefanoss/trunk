@@ -1,9 +1,9 @@
+use notify_debouncer_mini::notify::RecommendedWatcher;
+use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode, DebounceEventResult, Debouncer};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
-use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode, DebounceEventResult, Debouncer};
-use notify_debouncer_mini::notify::RecommendedWatcher;
 use tauri::{AppHandle, Emitter};
 
 pub type WatcherMap = HashMap<String, Debouncer<RecommendedWatcher>>;

@@ -1,10 +1,10 @@
+use crate::error::TrunkError;
+use crate::git::graph;
+use crate::git::types::MergeSides;
+use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
-use crate::error::TrunkError;
-use crate::git::types::MergeSides;
-use crate::state::{CommitCache, RepoState};
-use crate::git::graph;
 
 fn open_repo_from_state(
     path: &str,
@@ -25,13 +25,16 @@ pub fn get_merge_sides_inner(
     let index = repo.index()?;
 
     // Find the conflict entry for this file by iterating all conflicts
-    let mut conflicts = index.conflicts()
+    let mut conflicts = index
+        .conflicts()
         .map_err(|e| TrunkError::new("conflict_error", e.to_string()))?;
 
     let conflict = conflicts
         .find(|entry| {
             if let Ok(ref c) = entry {
-                let entry_path = c.our.as_ref()
+                let entry_path = c
+                    .our
+                    .as_ref()
                     .or(c.their.as_ref())
                     .or(c.ancestor.as_ref())
                     .map(|e| String::from_utf8_lossy(&e.path).into_owned());
@@ -40,7 +43,12 @@ pub fn get_merge_sides_inner(
                 false
             }
         })
-        .ok_or_else(|| TrunkError::new("not_conflicted", format!("File not in conflict: {}", file_path)))?
+        .ok_or_else(|| {
+            TrunkError::new(
+                "not_conflicted",
+                format!("File not in conflict: {}", file_path),
+            )
+        })?
         .map_err(|e| TrunkError::new("conflict_error", e.to_string()))?;
 
     let read_blob = |entry: &Option<git2::IndexEntry>| -> Result<String, TrunkError> {
@@ -67,7 +75,8 @@ pub fn save_merge_result_inner(
     state_map: &HashMap<String, PathBuf>,
 ) -> Result<(), TrunkError> {
     let repo = open_repo_from_state(path, state_map)?;
-    let repo_path = repo.workdir()
+    let repo_path = repo
+        .workdir()
         .ok_or_else(|| TrunkError::new("no_workdir", "Bare repository"))?;
 
     // Write merged content to disk
@@ -122,7 +131,8 @@ pub async fn save_merge_result(
     // Repopulate cache and emit repo-changed (same pattern as merge_continue)
     let path_for_cache = path.clone();
     let graph_result = tauri::async_runtime::spawn_blocking(move || {
-        let path_buf = state_map.get(&path_for_cache)
+        let path_buf = state_map
+            .get(&path_for_cache)
             .ok_or_else(|| TrunkError::new("not_open", "Repository not open"))?;
         let mut repo = git2::Repository::open(path_buf)?;
         graph::walk_commits(&mut repo, 0, usize::MAX).map_err(TrunkError::from)
@@ -165,7 +175,14 @@ mod tests {
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
             let initial = repo
-                .commit(Some("refs/heads/main"), &sig, &sig, "Initial commit", &tree, &[])
+                .commit(
+                    Some("refs/heads/main"),
+                    &sig,
+                    &sig,
+                    "Initial commit",
+                    &tree,
+                    &[],
+                )
                 .unwrap();
             let initial_commit = repo.find_commit(initial).unwrap();
 
@@ -243,7 +260,10 @@ mod tests {
 
         let sides = result.unwrap();
         assert_eq!(sides.ours, "main content", "ours should be main content");
-        assert_eq!(sides.theirs, "feature content", "theirs should be feature content");
+        assert_eq!(
+            sides.theirs, "feature content",
+            "theirs should be feature content"
+        );
         assert_eq!(sides.base, "hello", "base should be original content");
     }
 
@@ -265,7 +285,9 @@ mod tests {
             // Initial commit with only a placeholder file
             fs::write(dir.path().join("placeholder.txt"), "init").unwrap();
             let mut index = repo.index().unwrap();
-            index.add_path(std::path::Path::new("placeholder.txt")).unwrap();
+            index
+                .add_path(std::path::Path::new("placeholder.txt"))
+                .unwrap();
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
@@ -284,7 +306,9 @@ mod tests {
             // On main: add new_file.txt with "main version"
             fs::write(dir.path().join("new_file.txt"), "main version").unwrap();
             let mut index = repo.index().unwrap();
-            index.add_path(std::path::Path::new("new_file.txt")).unwrap();
+            index
+                .add_path(std::path::Path::new("new_file.txt"))
+                .unwrap();
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
@@ -305,7 +329,9 @@ mod tests {
 
             fs::write(dir.path().join("new_file.txt"), "feature version").unwrap();
             let mut index = repo.index().unwrap();
-            index.add_path(std::path::Path::new("new_file.txt")).unwrap();
+            index
+                .add_path(std::path::Path::new("new_file.txt"))
+                .unwrap();
             index.write().unwrap();
             let tree_oid = index.write_tree().unwrap();
             let tree = repo.find_tree(tree_oid).unwrap();
@@ -341,9 +367,15 @@ mod tests {
         assert!(result.is_ok(), "expected Ok, got: {:?}", result);
 
         let sides = result.unwrap();
-        assert_eq!(sides.base, "", "base should be empty for file added on both sides");
+        assert_eq!(
+            sides.base, "",
+            "base should be empty for file added on both sides"
+        );
         assert_eq!(sides.ours, "main version", "ours should be main version");
-        assert_eq!(sides.theirs, "feature version", "theirs should be feature version");
+        assert_eq!(
+            sides.theirs, "feature version",
+            "theirs should be feature version"
+        );
     }
 
     #[test]
@@ -355,11 +387,17 @@ mod tests {
 
         // Assert the file on disk contains "resolved content"
         let content = fs::read_to_string(dir.path().join("file.txt")).unwrap();
-        assert_eq!(content, "resolved content", "file on disk should contain resolved content");
+        assert_eq!(
+            content, "resolved content",
+            "file on disk should contain resolved content"
+        );
 
         // Assert the file is staged in the index (no longer in conflict entries)
         let repo = git2::Repository::open(dir.path()).unwrap();
         let index = repo.index().unwrap();
-        assert!(!index.has_conflicts(), "index should have no conflicts after staging");
+        assert!(
+            !index.has_conflicts(),
+            "index should have no conflicts after staging"
+        );
     }
 }
