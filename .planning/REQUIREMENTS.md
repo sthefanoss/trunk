@@ -32,6 +32,8 @@ Requirements for milestone v0.9 Multi-tab & Tree View. Each maps to roadmap phas
 - [x] **TREE-08**: User can stage/unstage an entire directory via action on the directory node
 - [x] **TREE-09**: Directory nodes show file count badges
 - [x] **TREE-10**: User can Expand All / Collapse All via buttons in the file list header
+- [ ] **TAB-11**: User can drag tabs to reorder them, and the new order persists across app relaunch
+- [ ] **TREE-11**: User can right-click a directory in the tree view to access bulk actions (Stage All, Unstage All, Discard All, and resolve/unresolve for conflicted files)
 
 ### Backend
 
@@ -89,10 +91,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TREE-08 | Phase 48 | Complete |
 | TREE-09 | Phase 48 | Complete |
 | TREE-10 | Phase 48 | Complete |
+| TAB-11 | Phase 49 | Pending |
+| TREE-11 | Phase 49 | Pending |
 
 **Coverage:**
-- v0.9 requirements: 21 total
-- Mapped to phases: 21
+- v0.9 requirements: 23 total
+- Mapped to phases: 23
 - Unmapped: 0
 
 ---

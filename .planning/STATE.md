@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.9
 milestone_name: Multi-tab & Tree View
-status: Milestone complete
-stopped_at: Completed 48-02-PLAN.md
+status: Active
+stopped_at: Phase 49 added to v0.9 — tab drag reorder and tree context menu
 last_updated: "2026-03-25T02:32:10.988Z"
 last_activity: 2026-03-25
 progress:
-  total_phases: 5
-  completed_phases: 4
+  total_phases: 6
+  completed_phases: 5
   total_plans: 11
   completed_plans: 10
 ---
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-23 after v0.9 milestone started)
 
 ## Current Position
 
-Phase: 48
+Phase: 49
 Plan: Not started
 
 ## Performance Metrics

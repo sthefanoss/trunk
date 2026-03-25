@@ -10,7 +10,7 @@
 - ✅ **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
 - ✅ **v0.7 Hunk Staging & Search** — Phases 32-36 (shipped 2026-03-19)
 - ✅ **v0.8 Conflict & Rebase** — Phases 37-43 (shipped 2026-03-23)
-- 🚧 **v0.9 Multi-tab & Tree View** — Phases 44-48 (in progress)
+- 🚧 **v0.9 Multi-tab & Tree View** — Phases 44-49 (in progress)
 
 ## Phases
 
@@ -131,6 +131,7 @@ Full details: [milestones/v0.8-ROADMAP.md](milestones/v0.8-ROADMAP.md)
 - [x] **Phase 46: Tree View Data Layer** — Build and test the pure buildTree utility with path compression and sorting (completed 2026-03-24)
 - [x] **Phase 47: Tree View UI Integration** — Wire tree view into staging panel, commit diffs, and merge editor with expand/collapse, keyboard navigation, and state preservation (completed 2026-03-25)
 - [x] **Phase 48: Polish & Differentiators** — Tab context menu, middle-click close, duplicate detection, directory staging, count badges, Expand All/Collapse All (completed 2026-03-25)
+- [ ] **Phase 49: Tab Drag Reorder & Tree Context Menu** — Drag-and-drop tab reordering and tree view directory context menu for bulk operations
 
 ## Phase Details
 
@@ -212,7 +213,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 44 → 45 → 46 → 47 → 48
+Phases execute in numeric order: 44 → 45 → 46 → 47 → 48 → 49
 (Note: Phase 46 has no dependency on Phase 45 — they could overlap, but sequential execution is the default.)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -230,6 +231,17 @@ Phases execute in numeric order: 44 → 45 → 46 → 47 → 48
 | 46. Tree View Data Layer | v0.9 | 0/1 | Complete    | 2026-03-24 |
 | 47. Tree View UI Integration | v0.9 | 3/3 | Complete    | 2026-03-25 |
 | 48. Polish & Differentiators | v0.9 | 2/3 | Complete    | 2026-03-25 |
+| 49. Tab Drag Reorder & Tree Context Menu | v0.9 | 0/? | Not started | - |
+
+### Phase 49: Tab Drag Reorder & Tree Context Menu
+**Goal**: Drag-and-drop tab reordering and right-click context menu on tree view directories for bulk stage/unstage/resolve/discard operations
+**Depends on**: Phase 48
+**Requirements**: TAB-11, TREE-11
+**Success Criteria** (what must be TRUE):
+  1. User can drag tabs to reorder them, and the new order persists across app relaunch
+  2. User can right-click a directory in the tree view to access bulk actions (Stage All, Unstage All, Discard All, and resolve/unresolve for conflicted files)
+**Plans**: TBD
+**UI hint**: yes
 
 ---
 *Roadmap created: 2026-03-13*
