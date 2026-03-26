@@ -93,7 +93,7 @@ vi.mock("@tauri-apps/plugin-window-state", () => ({}));
 vi.mock("sortablejs", () => {
 	const mockInstance = { destroy: vi.fn(), option: vi.fn() };
 	const MockSortable = vi.fn().mockImplementation(() => mockInstance);
-	(MockSortable as Record<string, unknown>).create = vi
+	(MockSortable as unknown as Record<string, unknown>).create = vi
 		.fn()
 		.mockReturnValue(mockInstance);
 	return { default: MockSortable };

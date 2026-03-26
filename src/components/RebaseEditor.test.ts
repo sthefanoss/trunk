@@ -87,7 +87,7 @@ vi.mock("sortablejs", () => {
 	const mockInstance = { destroy: vi.fn(), option: vi.fn() };
 	const MockSortable = vi.fn().mockImplementation(() => mockInstance);
 	// Sortable.create() is a static factory used by RebaseEditor
-	(MockSortable as Record<string, unknown>).create = vi
+	(MockSortable as unknown as Record<string, unknown>).create = vi
 		.fn()
 		.mockReturnValue(mockInstance);
 	return { default: MockSortable };
