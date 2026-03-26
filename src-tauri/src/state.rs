@@ -13,6 +13,20 @@ pub struct RepoState(pub Mutex<HashMap<String, PathBuf>>);
 /// concurrent ops on the SAME repo.
 pub struct RunningOp(pub Mutex<HashMap<String, u32>>);
 
+/// Terminate a process by PID. Uses SIGTERM on Unix and taskkill on Windows.
+pub fn kill_process(pid: u32) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(pid as i32, libc::SIGTERM);
+    }
+    #[cfg(windows)]
+    {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .output();
+    }
+}
+
 // Caches the full commit graph per open repo path.
 // Populated on open_repo, cleared on close_repo, sliced by get_commit_graph.
 pub struct CommitCache(pub Mutex<HashMap<String, crate::git::types::GraphResult>>);

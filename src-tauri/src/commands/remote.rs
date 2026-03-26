@@ -8,7 +8,7 @@ use tokio::process::Command;
 
 use crate::error::TrunkError;
 use crate::git::{graph, types::GraphResult};
-use crate::state::{CommitCache, RepoState, RunningOp};
+use crate::state::{kill_process, CommitCache, RepoState, RunningOp};
 
 /// Classifies git stderr output into structured error codes.
 pub fn classify_git_error(stderr: &str) -> TrunkError {
@@ -254,9 +254,7 @@ pub async fn git_push(
 pub async fn cancel_remote_op(path: String, running: State<'_, RunningOp>) -> Result<(), String> {
     let mut guard = running.0.lock().unwrap();
     if let Some(pid) = guard.remove(&path) {
-        unsafe {
-            libc::kill(pid as i32, libc::SIGTERM);
-        }
+        kill_process(pid);
     }
     Ok(())
 }

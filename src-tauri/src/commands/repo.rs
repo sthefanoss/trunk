@@ -1,6 +1,6 @@
 use crate::error::TrunkError;
 use crate::git::{graph, repository};
-use crate::state::{CommitCache, RepoState, RunningOp};
+use crate::state::{kill_process, CommitCache, RepoState, RunningOp};
 use crate::watcher::{self, WatcherState};
 use tauri::{AppHandle, State};
 
@@ -63,9 +63,7 @@ pub async fn force_close_repo(
     {
         let mut guard = running.0.lock().unwrap();
         if let Some(pid) = guard.remove(&path) {
-            unsafe {
-                libc::kill(pid as i32, libc::SIGTERM);
-            }
+            kill_process(pid);
         }
     }
     // Then clean up all other state (same as close_repo)
