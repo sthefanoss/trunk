@@ -1,320 +1,239 @@
-# Pitfalls Research: Trunk v0.10 CI/CD & Cross-Platform Releases
+# Pitfalls Research
 
-**Domain:** Adding CI/CD pipeline and cross-platform release publishing to an existing Tauri 2 + Svelte 5 + Rust desktop Git GUI
-**Researched:** 2026-03-25
-**Confidence:** HIGH -- based on official Tauri 2 distribution docs, tauri-action issue tracker, community post-mortems, and direct analysis of the project's Cargo.toml, package.json, and tauri.conf.json
+**Domain:** Adding E2E testing, performance benchmarks, code signing, and auto-updates to an existing Tauri 2 desktop Git GUI
+**Researched:** 2026-03-26
+**Confidence:** HIGH (verified against official Tauri v2 docs, GitHub issues, practitioner post-mortems, and analysis of existing CI/release pipeline)
 
 ---
 
-## Context: What Is Changing in v0.10
+## Context: What Is Changing in v1.0
 
-v0.9 shipped multi-tab and tree view. The codebase is ~13,400 LOC TypeScript/Svelte, ~9,400 LOC Rust with 49 completed phases. All local development and testing has happened on macOS (darwin). No CI pipeline exists. No release binaries have been published.
+v0.10 shipped CI quality gates and a cross-platform release pipeline (tag-triggered macOS ARM/Intel, Linux, Windows builds with .dmg/.AppImage/.msi installers, Homebrew tap auto-update). The builds are currently unsigned.
 
-v0.10 adds:
-1. **CI checks** on every push/PR: cargo check, clippy, cargo test, cargo fmt, bun run check, bun run test, prettier
-2. **Cross-platform release pipeline**: macOS (.dmg), Linux (.AppImage), Windows (.msi)
-3. **Tag-triggered releases**: push `v*` tag -> build all platforms -> publish GitHub Release
-4. **Changelog generation** from commit messages
-5. **Dependabot** for Rust + npm dependency updates
+v1.0 adds four infrastructure features:
+1. **E2E test harness** -- automated UI testing of the Tauri desktop app
+2. **Performance benchmarks** -- Rust-side operation benchmarking with CI regression detection
+3. **Code signing** -- macOS notarization + Windows signing for Gatekeeper/SmartScreen compliance
+4. **Auto-updates** -- in-app update checking and installation via tauri-plugin-updater
+
+Each feature has distinct pitfalls, and the interactions between them create additional failure modes.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Version Mismatch Across Three Manifests Breaks Releases
+### Pitfall 1: Building auto-updates before code signing is complete
 
 **What goes wrong:**
-Trunk has version numbers in three places: `package.json` (currently `0.1.0`), `src-tauri/Cargo.toml` (currently `0.1.0`), and `src-tauri/tauri.conf.json` (currently `0.1.0`). The tauri-action uses `tauri.conf.json`'s version to generate the `tagName` (via `v__VERSION__` template). If you tag `v0.10.0` but `tauri.conf.json` still says `0.1.0`, the action creates a release named `v0.1.0` -- which does not match the tag. Artifacts upload to the wrong release (or fail to upload entirely). This is the single most common CI/CD failure reported by Tauri developers.
-
-Additionally, after bumping versions, `Cargo.lock` must be regenerated (`cargo generate-lockfile`), or the CI build uses stale dependency resolution.
+The Tauri updater requires two independent signing systems to function: (1) Tauri's own Ed25519 updater keypair that signs update artifacts, and (2) platform code signing (Apple Developer ID + notarization for macOS, EV/OV certificate for Windows). Developers often try to implement auto-updates first because the code is "more interesting," only to discover that unsigned builds cannot meaningfully test the update flow. macOS Gatekeeper blocks unsigned updates from installing, and the updater's signature verification is a separate layer on top of that.
 
 **Why it happens:**
-There is no built-in version sync mechanism in Tauri. Developers bump one file and forget the others. The mismatch is invisible locally because `bun run dev` does not validate version alignment.
+There are three distinct signing systems that look like one thing but are not:
+- **Tauri updater signature** (Ed25519 keypair via `tauri signer generate`) -- verifies update integrity
+- **macOS code signing** (Apple Developer ID certificate) -- satisfies Gatekeeper
+- **macOS notarization** (Apple's server-side security scan) -- required for Developer ID apps
+
+Developers conflate these. The updater pubkey in `tauri.conf.json` is NOT an Apple certificate. The Apple signing identity is NOT the updater key.
 
 **How to avoid:**
-1. Remove the `version` field from `tauri.conf.json` entirely. Tauri 2 falls back to `Cargo.toml`'s version when `tauri.conf.json` omits it. This reduces the sync points to two files (package.json + Cargo.toml).
-2. Create a `scripts/bump-version.sh` that updates both `package.json` and `Cargo.toml`, runs `cargo generate-lockfile`, and creates the git tag. This is the single entry point for all version changes.
-3. Add a CI check that verifies `package.json` version matches `Cargo.toml` version on every PR. Fail the build if they diverge.
+Phase ordering must be: code signing first, then auto-updates. Code signing is a prerequisite for meaningful auto-update testing because:
+1. Unsigned macOS apps get blocked by Gatekeeper, making update installation fail
+2. The updater keypair is a separate task that belongs in the auto-update phase
+3. Testing the full update cycle (check -> download -> install -> restart) requires a signed base build
 
 **Warning signs:**
-- Release workflow creates a release with unexpected version number
-- Artifacts appear under a different release than the tag
-- "No releaseId or tagName provided, skipping all uploads" error in CI logs
+- Trying to test auto-updates with ad-hoc signed (`-`) builds
+- Confusion about which key goes in `tauri.conf.json` pubkey field
+- Building with `TAURI_SIGNING_PRIVATE_KEY` set but no Apple signing identity -- builds produce `.sig` files but the app itself is unsigned
 
 **Phase to address:**
-Phase 1 (CI foundation) -- version sync validation must exist before the first release is attempted
+Code signing phase must complete before auto-update phase begins.
 
 ---
 
-### Pitfall 2: tauri-action Draft Release Race Condition Creates Duplicate Releases
+### Pitfall 2: E2E tests that cannot run on macOS
 
 **What goes wrong:**
-The tauri-action runs as parallel matrix jobs (macOS-arm, macOS-intel, Linux, Windows). Each job calls the GitHub API to find or create the release. When the first job creates a draft release and subsequent jobs call `updateRelease()`, the API call inadvertently strips the tag association from the draft release. Later jobs cannot find the tagged release and create duplicates. The result: some artifacts on Release A, other artifacts on Release B, and manual cleanup required.
-
-This is a known bug (tauri-apps/tauri-action#914) that has become more frequent. The root cause is in `create-release.ts` lines 142-150.
+Tauri's official WebDriver testing uses `tauri-driver`, which wraps platform-native WebDriver servers. On Linux it uses WebKitWebDriver, on Windows it uses Edge WebDriver. But Apple does not ship a WKWebView WebDriver, and `safaridriver` only works with Safari itself, not with WKWebView inside a desktop app. Developers follow the official Tauri docs, get tests working in Linux CI, and then discover they cannot run or debug E2E tests locally on their Mac -- which is the primary development platform for Trunk.
 
 **Why it happens:**
-GitHub's Release API has subtle behavior differences between draft and published releases. `updateRelease()` on a draft release can remove the `tag_name` association in certain race windows. Multiple parallel jobs hitting the API simultaneously create this race.
+Apple simply does not provide a WebDriver implementation for WKWebView. The official Tauri docs acknowledge this: "On desktop, only Windows and Linux are supported due to macOS not having a WKWebView driver tool available." This is a hard platform limitation, not a configuration issue.
 
 **How to avoid:**
-Create the GitHub Release in a separate job BEFORE the build matrix starts. Use a two-phase workflow:
-1. **Job 1 (create-release):** Create the draft release, output the `release_id`
-2. **Job 2 (build, needs: create-release):** Matrix build across platforms, upload artifacts to the existing release using the `release_id` from Job 1
+Choose one of these approaches before writing any test infrastructure:
 
-This eliminates the concurrent release creation race entirely. The build jobs only upload artifacts -- they never create or update the release metadata.
+1. **Tauri WebDriver plugin** (recommended): Use `tauri-webdriver-automation` or `tauri-plugin-webdriver` which embed a WebDriver server directly inside the app (debug builds only). These expose a local HTTP endpoint compatible with WebdriverIO, working on all platforms including macOS. This is a newer approach (2025-2026) that solves the macOS gap.
+
+2. **Two-layer testing**: (a) Rust integration tests using Tauri's mock runtime for command/IPC testing (extends the existing inner-fn pattern), and (b) WebDriver-based UI tests that run on Linux CI only, accepting that macOS UI automation is a CI-only activity.
+
+3. **Skip WebDriver entirely**: Focus on Rust integration tests (which already exist) and TypeScript unit tests (vitest, already exists). Add a small set of manual smoke tests documented as a pre-release checklist.
 
 **Warning signs:**
-- Two releases appear for the same tag version
-- Some platform artifacts missing from the release
-- CI logs show "Release already exists" warnings
+- E2E test setup docs that only mention Linux/Windows
+- Tests requiring `WebKitWebDriver` or `msedgedriver` binary paths
+- No story for running E2E tests locally on macOS
 
 **Phase to address:**
-Phase 2 (release pipeline) -- the workflow structure must prevent this from the start
+E2E testing phase. The FIRST plan must evaluate and decide the WebDriver approach before writing any tests.
 
 ---
 
-### Pitfall 3: Bun Not Found on GitHub Actions Runners
+### Pitfall 3: Losing the updater private key permanently bricks update channel
 
 **What goes wrong:**
-The project uses bun (evidenced by `bun.lockb` or `bun.lock`). Standard GitHub Actions runners do not have bun pre-installed. The tauri-action auto-detects the package manager by looking for lock files. When it finds `bun.lockb`, it assumes bun is available and runs `bun install` -- which fails with `sh: 1: bun: not found` (exit code 127). The entire build fails before Rust compilation even starts.
-
-On Windows specifically, bun has additional compatibility issues: `bun run --bun` may fall back to Node instead of using the Bun runtime, and `bun install` can trigger assertion failures on Windows Server 2022/2025 runners.
+The Tauri updater uses an Ed25519 keypair. The private key signs every update artifact (`.sig` files). Every installed copy of the app has the public key embedded and will reject any artifact signed with a different key. If the private key is lost, all existing installations become permanently unable to update. The only recovery is asking every user to manually download and reinstall -- which for a Git GUI used by developers is embarrassing at best.
 
 **Why it happens:**
-GitHub runners come with Node.js and npm pre-installed, but not bun. The tauri-action does not install package managers -- it only detects and uses them. Developers who use bun locally forget it needs explicit setup in CI.
+The key is generated once with `tauri signer generate`, stored as a GitHub Actions secret, and the original file is deleted or forgotten. If the repository is transferred, the organization changes, or the secret is accidentally deleted, the key is gone. Unlike Apple certificates which can be regenerated from Apple's portal, the updater key has no external authority -- it exists only where you put it.
 
 **How to avoid:**
-Add `oven-sh/setup-bun@v2` as an early step in every workflow, before any step that might trigger `beforeBuildCommand`. Pin a specific bun version to match local development. Example:
-```yaml
-- uses: oven-sh/setup-bun@v2
-  with:
-    bun-version: "1.1.39"  # match local version
-```
-
-Also ensure `tauri.conf.json`'s `beforeBuildCommand` uses `bun run build` (already correct in the project).
+1. Generate locally: `tauri signer generate -w ~/.tauri/trunk.key`
+2. Store the key in at least two durable locations outside GitHub (password manager + encrypted backup)
+3. Add to GitHub Actions secrets as `TAURI_SIGNING_PRIVATE_KEY`
+4. Document the key storage locations in a secure internal note
+5. The public key goes in `tauri.conf.json` -- safe to commit
+6. Add `*.key` to `.gitignore` as a safety net
 
 **Warning signs:**
-- `bun: not found` or exit code 127 in CI logs
-- Windows builds fail with "Bun is not defined" errors
-- Lock file format mismatch warnings
+- Only one copy of the private key exists (in GitHub secrets)
+- No documentation of where the key is stored
+- `tauri signer generate` was run in CI and output was only captured as a secret
+- Team member who generated the key has left (not applicable for solo project, but relevant for eventual open source)
 
 **Phase to address:**
-Phase 1 (CI foundation) -- bun setup must be in the workflow from the first CI run
+Auto-update phase, first task. Key generation and secure storage must happen before any updater code is written.
 
 ---
 
-### Pitfall 4: Linux Builds Missing System Dependencies
+### Pitfall 4: Criterion benchmarks are meaningless in CI
 
 **What goes wrong:**
-Tauri 2 on Linux requires system libraries that are not pre-installed on GitHub's Ubuntu runners: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, and `patchelf`. Without them, the Rust build fails during the Tauri framework compilation. Additionally, this project uses `git2` with `vendored-libgit2` which needs `cmake` and a C compiler to build libgit2 from source -- these are typically present on runners but worth verifying.
-
-A subtler issue: Tauri v1 required `libwebkit2gtk-4.0-dev` while Tauri v2 requires `libwebkit2gtk-4.1-dev`. Copy-pasting a v1 workflow causes a confusing compilation failure.
+Criterion measures wall-clock time. GitHub Actions runners are shared VMs with noisy neighbors, CPU throttling, and variable performance. Benchmark results fluctuate 10-30% between runs with identical code. Developers add benchmark CI gates, see phantom regressions on every PR, and eventually ignore or delete them. The Criterion FAQ explicitly warns about this: "The virtualization used by Cloud-CI providers introduces a great deal of noise into the benchmarking process."
 
 **Why it happens:**
-GitHub's Ubuntu runners have a base set of packages but not GTK/WebKit development headers. These are specific to building desktop GUI applications, which is not a common CI use case. Developers on macOS or Windows never encounter this because those platforms bundle their webview runtimes.
+Criterion was designed for local developer machines with stable, dedicated hardware. Cloud CI runners share physical hosts, have unpredictable scheduling, and can be throttled at any time. The measurement noise exceeds the signal from typical code optimizations (which are often 1-10% improvements).
 
 **How to avoid:**
-Add a Linux-only step that installs all required system packages:
-```yaml
-- name: Install Linux dependencies
-  if: matrix.platform == 'ubuntu-22.04'
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-```
+Use `iai-callgrind` for CI benchmarks, Criterion for local development:
 
-Use `ubuntu-22.04` (not `ubuntu-latest` which may point to 24.04) to ensure maximum AppImage compatibility with older glibc versions.
+- **iai-callgrind** counts CPU instructions via Valgrind's Cachegrind. Instruction counts are deterministic -- they do not vary between CI runs regardless of VM noise. A 0.1% change in instruction count is reliably detectable. Requires `valgrind` installed on the runner (`sudo apt-get install valgrind` on Ubuntu).
+- **Criterion** remains useful for local development where wall-clock time is meaningful and developers want human-readable output with statistical analysis.
+- Platform limitation: iai-callgrind works on Linux (primary CI platform). Valgrind has limited macOS support and no Windows support. This aligns with running benchmarks only on Linux CI.
 
 **Warning signs:**
-- `Package libwebkit2gtk-4.1-dev is not available` (wrong Ubuntu version)
-- `Package libwebkit2gtk-4.0-dev` in your config (Tauri v1 dependency, wrong for v2)
-- Linker errors about missing GTK/WebKit symbols
+- Benchmark CI jobs that fail intermittently without code changes
+- Results varying more than 5% between identical commits
+- Team ignoring benchmark failures as "CI noise"
+- Using `criterion::Criterion::default().sample_size(10)` to speed up CI (reduces statistical power)
 
 **Phase to address:**
-Phase 1 (CI foundation) for check/test workflows; Phase 2 (release pipeline) for build matrix
+Performance benchmarks phase. The tooling decision (Criterion vs iai-callgrind vs both) must be the first task.
 
 ---
 
-### Pitfall 5: Uncached Rust Builds Take 30-60 Minutes
+### Pitfall 5: Apple notarization hanging or timing out in CI releases
 
 **What goes wrong:**
-A fresh Tauri build from scratch (no cache) compiles the entire Rust dependency tree: tauri framework, git2 (which vendored-compiles libgit2 from C source), serde, tokio, notify, and all transitive dependencies. On GitHub Actions runners, this takes 30-60 minutes per platform. With 4 platform targets (macOS arm, macOS Intel, Linux, Windows), a single release burns 2-4 hours of runner time. Without caching, every CI run pays this full cost.
-
-Even with caching, the CI profile matters. Debug builds generate enormous artifacts (500MB+) that bloat the cache. Incremental compilation (the default) creates larger artifacts that are slower to cache and restore than non-incremental builds.
+Apple's notarization service (`notarytool`) can take 30 seconds to 2+ hours, and occasionally hangs indefinitely. Recent reports (March 2026) show submissions stuck "In Progress" for 72+ hours. GitHub Actions has a default 6-hour job timeout, so a hung notarization wastes CI minutes and blocks releases. Separately, the macOS keychain in CI requires careful setup -- if the temporary keychain is not properly configured, the signing step itself can hang waiting for a password prompt that never appears in a headless environment.
 
 **Why it happens:**
-Rust is a compiled language with no pre-built binary caches (unlike npm). The `vendored-libgit2` feature adds C compilation on top of Rust compilation. GitHub's 10GB cache limit per repository can be exhausted quickly with multiple platform caches.
+Notarization is an external Apple service outside your control. Apple's servers have queue delays, especially during WWDC season or after major macOS releases. The `notarytool` CLI sometimes exits without reason on CI servers. Keychain-related hangs occur when the CI runner prompts for credentials in a headless environment where no user can respond.
 
 **How to avoid:**
-1. Use `swatinem/rust-cache@v2` with `workspaces: "src-tauri -> target"` to cache the Rust target directory. This brings subsequent builds down to 5-15 minutes.
-2. Create a CI-specific Cargo profile that disables debug info and incremental compilation to reduce cache size:
-   ```toml
-   # src-tauri/Cargo.toml
-   [profile.ci]
-   inherits = "dev"
-   debug = false
-   incremental = false
-   ```
-3. Split CI checks from release builds. CI checks (clippy, fmt, test) need debug builds and should cache separately from release builds (which use `--release`).
-4. Run `cargo fmt --check` and `cargo clippy` AFTER `cargo build` (not before). Clippy reuses build artifacts from cargo build, but not vice versa -- this saves ~5 minutes per run.
-5. Set `fail-fast: false` on the build matrix so one platform failure does not cancel the others.
+1. Add an explicit timeout (15-20 minutes) on the signing/notarization step with retry logic
+2. Use App Store Connect API keys (not Apple ID + app-specific password) for CI -- they are more reliable and do not require 2FA handling
+3. For keychain setup in CI: create a temporary keychain, set it as default, unlock it, configure `security set-keychain-settings -t 3600` to prevent premature locking
+4. `tauri-action` handles notarization automatically when env vars are set, but add a job-level timeout as a safety net
+5. Have a local release fallback: the ability to sign, notarize, and upload artifacts from a local Mac if CI notarization is broken
 
 **Warning signs:**
-- CI runs taking >30 minutes
-- Cache size warnings from GitHub Actions
-- Cache misses on every run (check the `swatinem/rust-cache` output logs)
+- Release workflow macOS build step taking more than 30 minutes
+- Intermittent "The request timed out" errors from Apple's notarization service
+- Build appearing frozen at the signing step (keychain hang)
+- No timeout configured on the notarization/signing steps
 
 **Phase to address:**
-Phase 1 (CI foundation) -- caching must be configured from the first workflow; retrofitting after habits form wastes weeks of accumulated runner time
+Code signing phase. The CI integration plan must include timeout configuration and local fallback procedures.
 
 ---
 
-### Pitfall 6: AppImage glibc Compatibility -- Build System Determines Minimum Target
+### Pitfall 6: E2E test fixtures coupled to mutable git state
 
 **What goes wrong:**
-The AppImage format bundles dependencies but does NOT bundle glibc. The AppImage's minimum glibc requirement equals the glibc version on the build system. Building on Ubuntu 24.04 (glibc 2.39) produces an AppImage that fails on Ubuntu 22.04 (glibc 2.35) with `GLIBC_2.39 not found`. This is not fixable after the fact -- the binary must be rebuilt on an older system.
-
-This is the most common Linux distribution complaint for Tauri apps. Users download the AppImage, run it, and get a cryptic glibc error with no actionable fix.
+E2E tests for a Git GUI need test repositories with specific histories (merges, conflicts, stashes, branches, etc.). Tests become flaky because: (a) git operations are sensitive to timestamps, user.name/email config, and git version -- commits produce different SHAs on each run; (b) tests that modify shared fixtures corrupt state for subsequent tests; (c) test repos checked into the project tree accumulate cruft and `.git` directories cause nested-repo issues.
 
 **Why it happens:**
-`ubuntu-latest` on GitHub Actions currently points to Ubuntu 24.04 (or may shift over time). Developers use it without realizing it determines their minimum supported Linux version. The AppImage format gives a false sense of portability -- "it bundles everything" except the one thing that matters most (glibc).
+Git repositories are inherently stateful and mutable. Unlike a JSON fixture, a git repo's behavior depends on system clock, user config, git version, and filesystem case sensitivity. The temptation is to create a test repo once and reuse it across tests, but any test that performs a write operation (commit, checkout, merge) mutates the shared state.
 
 **How to avoid:**
-Pin the Linux runner to `ubuntu-22.04` explicitly (not `ubuntu-latest`). This ensures compatibility with Ubuntu 22.04+ and most current Linux distributions. Do NOT use `ubuntu-20.04` -- it is deprecated and missing `libwebkit2gtk-4.1-dev` needed for Tauri 2.
-
-Document the minimum Linux requirement (Ubuntu 22.04 / glibc 2.35) in the release notes.
+1. Create fresh test repos per test using `tempfile` (Rust) or `os.tmpdir()` (Node)
+2. Build a fixture library: deterministic functions that construct specific repo topologies (linear, branching, merge-conflict, stash, etc.)
+3. Assert on structural properties (commit count, branch names, file contents, graph shape) not on SHAs or timestamps
+4. Set `GIT_AUTHOR_DATE`, `GIT_COMMITTER_DATE`, `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME` in test setup for reproducibility
+5. Use `git2` crate (already in project) for fixture creation -- avoids dependence on system git version and provides consistent behavior across platforms
 
 **Warning signs:**
-- User reports "GLIBC_X.XX not found" when running the AppImage
-- `ubuntu-latest` appears in your workflow file without a pinned version
-- GitHub changes what `ubuntu-latest` points to (check their runner images changelog)
+- Tests that pass locally but fail in CI (or vice versa)
+- Tests that fail when run in a different order
+- Assertions on commit SHA values
+- `.git` directories checked into the project tree
+- Tests sharing a single test repository instance
 
 **Phase to address:**
-Phase 2 (release pipeline) -- runner version must be pinned when configuring the build matrix
+E2E testing phase. The test infrastructure plan must define the fixture strategy before writing individual tests.
 
 ---
 
-### Pitfall 7: Unsigned Builds Trigger OS Security Warnings on All Platforms
+### Pitfall 7: Updater endpoint misconfiguration with multi-platform matrix builds
 
 **What goes wrong:**
-Without code signing:
-- **macOS**: Gatekeeper shows "trunk is damaged and can't be opened" or "Apple cannot check it for malicious software." Users must right-click > Open (or run `xattr -cr trunk.app` from terminal) to bypass. This is a dealbreaker for non-technical users.
-- **Windows**: SmartScreen shows "Windows protected your PC" with a scary blue warning. Users must click "More info" > "Run anyway." Browser downloads may be blocked entirely.
-- **Linux**: No signing issues. AppImage runs after `chmod +x`.
-
-The v0.10 scope explicitly excludes code signing ("No code signing (unsigned builds)"). This is a valid decision for a personal/early-stage project, but the UX impact must be documented for end users.
+The `latest.json` file must contain entries for all supported platforms (darwin-aarch64, darwin-x86_64, linux-x86_64, windows-x86_64). Trunk's release workflow uses a 4-platform matrix build. Each job generates its own artifacts. If `latest.json` does not merge all platform entries correctly, some platforms see "no update available" while others update fine. Additionally, the `{{current_version}}` variable in endpoint URLs is corrupted if the version contains a `+` character (e.g., `1.0.0+1`).
 
 **Why it happens:**
-Apple and Microsoft require paid developer accounts ($99/year and ~$200-400/year respectively) and per-build notarization/signing processes. For a personal learning project, this cost and complexity is premature.
+Matrix builds run in parallel. The `tauri-action` with `includeUpdaterJson: true` handles merging platform entries into a single `latest.json` attached to the GitHub release. But Trunk's existing release workflow has a custom pipeline: build -> publish (remove draft) -> update Homebrew tap. Adding the updater JSON must not break this existing flow. If you customize the release creation/upload steps beyond what tauri-action expects, the JSON merging can fail silently.
 
 **How to avoid:**
-Since code signing is explicitly out of scope for v0.10:
-1. Document the bypass instructions prominently in every GitHub Release's description:
-   - macOS: "Right-click the app > Open, then click Open in the dialog"
-   - Windows: "Click 'More info' then 'Run anyway' on the SmartScreen dialog"
-2. Include these instructions in the README's installation section.
-3. Do NOT set `releaseDraft: false` -- use draft releases so you can review and add installation instructions before publishing.
-4. Plan code signing for a future milestone (v1.0 or later).
+1. Add `includeUpdaterJson: true` to the existing `tauri-action` step in `release.yml`
+2. Do NOT customize how the release is created/uploaded unless you understand how tauri-action merges platform entries across matrix jobs
+3. After each release, validate `latest.json` structure: must contain entries for all four targets with valid URLs and signatures
+4. Avoid `+` in version strings -- stick to plain semver (e.g., `0.2.0`, not `0.2.0+1`)
+5. The updater endpoint URL should be `https://github.com/joaofnds/trunk/releases/latest/download/latest.json` -- this always points to the latest release
+6. Ensure `createUpdaterArtifacts` is set to `true` (not `"v1Compatible"`) in `tauri.conf.json` since Trunk is a new Tauri 2 app with no v1 migration path
 
 **Warning signs:**
-- Users file issues saying the app "doesn't work" or "is broken" on macOS
-- Download counts are high but active user count is low (people download, hit the warning, give up)
+- `latest.json` with fewer than 4 platform entries
+- Update check returning 204 (no update) on some platforms but 200 on others
+- Version string containing `+` characters
+- Missing `.sig` signature files alongside the installer artifacts in the release
 
 **Phase to address:**
-Phase 2 (release pipeline) -- release notes template must include bypass instructions; Phase 3 (changelog/docs) should formalize installation docs
+Auto-update phase. The release workflow integration plan must address `latest.json` generation and include post-release validation.
 
 ---
 
-### Pitfall 8: GitHub Token Permissions Block Release Creation
+### Pitfall 8: Benchmarking git2 operations on unrealistic test repos
 
 **What goes wrong:**
-The default `GITHUB_TOKEN` in GitHub Actions has read-only permissions. The tauri-action needs write access to create releases and upload artifacts. Without it, the workflow fails with "Resource not accessible by integration" -- a vague error that does not mention permissions.
+Benchmarks run against tiny test repositories (5-10 commits) show sub-millisecond times for all operations with no discrimination between fast and slow paths. The numbers are meaningless for detecting regressions because measurement noise exceeds the actual operation time. Developers declare "everything is fast" and miss that `walk_commits` on a 100k-commit repo takes 500ms, or that commit graph rendering degrades quadratically with branch count.
 
 **Why it happens:**
-GitHub tightened default token permissions for security. New repositories default to read-only. The error message does not clearly state "you need write permissions" -- it says "resource not accessible" which developers misinterpret as a repository visibility issue.
+Creating realistic benchmark fixtures is tedious. The temptation is to use a tiny repo that is quick to set up. But Trunk's performance-critical operations (commit walking, graph lane algorithm, SVG coordinate computation) are O(n) or worse in commit count, and their real-world behavior only manifests at scale.
 
 **How to avoid:**
-Add explicit permissions in the workflow file:
-```yaml
-permissions:
-  contents: write
-```
-
-This is more reliable than changing repository settings (which can be reset) and is visible in code review.
+1. Create benchmark fixtures at multiple scales: 100, 1k, 10k, 100k commits
+2. Include topological variety: linear history, highly branched, octopus merges, many refs
+3. For the Rust lane algorithm (the main performance concern): benchmark with repos that exercise max_columns growth, lane recycling, and merge edge routing
+4. Use `git2` to programmatically generate fixtures (already available in the project) rather than cloning external repos (which adds network dependency and non-determinism)
+5. Establish baselines before any optimization work so improvements are measurable
 
 **Warning signs:**
-- "Resource not accessible by integration" in CI logs
-- Release job succeeds (exit 0) but no release appears on GitHub
-- "403 Forbidden" errors in tauri-action output
+- All benchmark results under 1ms
+- No variety in commit counts across benchmark cases
+- Benchmarks that create repos with `git init && git commit` in a loop (too simple topology)
+- No benchmark for the frontend-side Active Lanes transformation or SVG coordinate computation
 
 **Phase to address:**
-Phase 2 (release pipeline) -- must be in the workflow file from the first release attempt
-
----
-
-### Pitfall 9: Changelog Generation Fails With Shallow Clone
-
-**What goes wrong:**
-GitHub Actions checks out repositories with `fetch-depth: 1` by default (shallow clone). Changelog generators like git-cliff need the full commit history to generate meaningful release notes. With a shallow clone, git-cliff sees only the HEAD commit and produces an empty or single-entry changelog. The release goes out with no useful release notes.
-
-**Why it happens:**
-Shallow clones are a CI optimization -- they are faster and use less disk. Most CI tasks (build, test) do not need history. But changelog generation is specifically a history-dependent operation.
-
-**How to avoid:**
-Set `fetch-depth: 0` in the checkout step of any job that generates changelogs:
-```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
-```
-
-Only do this in the release/changelog job, not in the CI checks job (where shallow clone is fine and faster).
-
-**Warning signs:**
-- Changelog contains only the tag commit or is empty
-- git-cliff warns about "no commits found" or "detached HEAD"
-- Release notes say "No changes" despite many commits
-
-**Phase to address:**
-Phase 3 (changelog generation) -- must be configured when adding git-cliff to the workflow
-
----
-
-### Pitfall 10: Dependabot Lockfile Corruption With Bun
-
-**What goes wrong:**
-Dependabot gained bun support in February 2025, but it has known issues: it may remove the `configVersion` line from `bun.lock` files (issue dependabot/dependabot-core#13623), and it does not support the legacy binary `bun.lockb` format. If the project uses `bun.lockb`, Dependabot's npm ecosystem handler may try to generate a `package-lock.json` instead, creating conflicting lock files.
-
-Additionally, Dependabot's Rust support requires a Cargo version that matches the project's Rust edition. Since this project uses Rust 2021 edition, this is not currently an issue, but upgrading to Rust 2024 edition later would require Dependabot to use cargo 1.85.0+.
-
-**Why it happens:**
-Bun support in Dependabot is relatively new (GA February 2025). Edge cases with lockfile format versions are still being resolved. The bun lockfile format changed from binary (`bun.lockb`) to text (`bun.lock`) in bun 1.1.39+.
-
-**How to avoid:**
-1. Ensure the project uses text-based `bun.lock` (not binary `bun.lockb`). Run `bun install` with bun >= 1.1.39 to generate the text format.
-2. In `.github/dependabot.yml`, configure both ecosystems explicitly:
-   ```yaml
-   version: 2
-   updates:
-     - package-ecosystem: "cargo"
-       directory: "/src-tauri"
-       schedule:
-         interval: "weekly"
-     - package-ecosystem: "npm"
-       directory: "/"
-       schedule:
-         interval: "weekly"
-   ```
-3. Pin the Dependabot schedule to weekly (not daily) to avoid PR fatigue.
-4. Add a CI check that runs `bun install --frozen-lockfile` to catch lockfile inconsistencies from Dependabot PRs.
-
-**Warning signs:**
-- Dependabot PRs that change `package-lock.json` instead of `bun.lock`
-- Lockfile format version mismatch warnings after merging Dependabot PRs
-- Dependabot fails to open PRs for bun dependencies (check Dependabot logs in repository settings)
-
-**Phase to address:**
-Phase 3 or 4 (Dependabot configuration) -- configure after CI checks are working so Dependabot PRs are validated automatically
+Performance benchmarks phase. Fixture creation is part of the benchmark infrastructure, not an afterthought.
 
 ---
 
@@ -322,118 +241,126 @@ Phase 3 or 4 (Dependabot configuration) -- configure after CI checks are working
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `ubuntu-latest` instead of pinned version | Less maintenance when GitHub updates runners | AppImage breaks on older distros when GitHub bumps the runner OS | Never for release builds; acceptable for CI checks |
-| Skipping macOS Intel builds (arm-only) | Halves macOS build time | Excludes pre-2020 Mac users | Acceptable if targeting only Apple Silicon users |
-| No version sync check in CI | Less CI configuration | Silent version mismatch causes release failures | Never -- the check is trivial and prevents the most common failure |
-| Single workflow file for CI + releases | Simpler to maintain | CI check changes risk breaking release pipeline; harder to read | Acceptable for v0.10; split later when complexity grows |
-| No Cargo.lock in repository | Avoids lock file merge conflicts | CI builds use different dependency versions than local; non-reproducible builds | Never for applications (Cargo.lock should be committed per Rust convention) |
-| Relying on tauri-action to create releases | Less workflow code | Race condition creates duplicate releases (Pitfall 2) | Never -- create release in a separate job |
+| Skip Windows code signing | Saves $200-400/year for certificate, simpler CI | SmartScreen blocks unsigned apps with scary warnings | During beta/personal use. Must sign before public open-source release. |
+| Ad-hoc macOS signing (`-`) for dev builds | No Apple Developer account needed | Cannot notarize, Gatekeeper blocks on other machines, auto-updates will not work | Local development testing only. Never for distributed builds. |
+| Criterion-only benchmarks (no iai-callgrind) | Familiar API, simpler setup, no Valgrind dependency | Unreliable CI results, phantom regressions, eventually ignored | Acceptable if benchmarks are local-only with no CI gate. |
+| Hardcoded test timeouts in E2E | Quick to write | Tests fail on slow CI runners, pass on fast machines | Never. Use polling/waitFor patterns with reasonable upper bounds. |
+| Single-platform E2E tests (Linux CI only) | 3x faster CI, simpler setup | macOS WebKit rendering differences and Windows path issues slip through | Acceptable for v1.0 if combined with manual pre-release testing on macOS/Windows. |
+| Store updater key only in GitHub secrets | Simple key management | Key loss = bricked update channel for all users | Never. Always maintain a backup in a durable, separate location. |
+| Skipping update UX (silent background update) | Less frontend code to write | App restarts without warning, user loses unsaved commit message | Never. Always show notification and let user control restart timing. |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| tauri-action + bun | Forgetting `oven-sh/setup-bun` before tauri-action | Add setup-bun step before any step that triggers `beforeBuildCommand` |
-| tauri-action + release | Letting parallel matrix jobs create the release | Create release in a dedicated job; matrix jobs only upload artifacts |
-| swatinem/rust-cache + matrix | Using same cache key across platforms | rust-cache auto-scopes by OS; but add `shared-key` for related jobs (e.g., "ci-check" vs "release") |
-| git-cliff + shallow clone | Default `fetch-depth: 1` produces empty changelog | Set `fetch-depth: 0` only in the release job |
-| Dependabot + bun | Dependabot generates `package-lock.json` instead of `bun.lock` | Ensure text-based `bun.lock` exists; verify Dependabot detects bun ecosystem |
-| GitHub token + release creation | Default read-only token cannot create releases | Add `permissions: contents: write` in workflow |
-| macOS targets + rust-toolchain | Missing `aarch64-apple-darwin` or `x86_64-apple-darwin` target | Install both targets via `dtolnay/rust-toolchain` with `targets` input |
-| Ubuntu version + Tauri 2 | Using `libwebkit2gtk-4.0-dev` (Tauri v1) instead of `4.1` (Tauri v2) | Use `libwebkit2gtk-4.1-dev` for Tauri 2 |
+| tauri-action + updater | Not adding `includeUpdaterJson: true` so `latest.json` is never attached to the release | Add the flag to the existing tauri-action step in `release.yml` |
+| tauri-action + code signing | Setting `APPLE_SIGNING_IDENTITY` but forgetting `APPLE_API_KEY`/`APPLE_API_ISSUER` for notarization | Both signing AND notarization env vars must be set. Use App Store Connect API keys. |
+| Updater + existing release workflow | Trunk's `release.yml` creates drafts, publishes, then updates Homebrew tap. Adding updater JSON must not break this pipeline. | The `latest.json` is attached to the release during the build job. The publish and tap-update jobs run after. Verify `latest.json` appears in the published release. |
+| WebDriver + Tauri dev mode | Running E2E tests against `cargo tauri dev` which hot-reloads and recompiles on changes | Build a release/debug binary once, then run E2E tests against the built artifact. Dev mode hot-reload interferes with test stability. |
+| iai-callgrind + GitHub Actions | Assuming Valgrind is pre-installed on runners | Ubuntu runners need `sudo apt-get install valgrind`. macOS/Windows have no Valgrind. Run iai benchmarks on Linux only. |
+| Updater + `createUpdaterArtifacts` | Not adding this field to `tauri.conf.json`, so builds produce installers but no `.sig` files | Set `"createUpdaterArtifacts": true` (not `"v1Compatible"` -- Trunk is Tauri 2 native). |
+| Updater + `TAURI_SIGNING_PRIVATE_KEY` | Not setting this env var before building, so `.sig` files are empty or missing | Set as environment variable in the release workflow. `.env` files do NOT work for this. |
+| Code signing + Homebrew cask | Signed DMG has different SHA256 than unsigned DMG | The `update-tap` job already computes SHA256 from downloaded DMGs. No change needed, but verify the SHA in the cask matches the signed artifact. |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| No Rust compilation cache | Every CI run takes 30-60 min per platform | Use `swatinem/rust-cache@v2` with correct workspace path | First run always (cold cache); subsequent runs if cache key changes |
-| Debug info in CI builds | Cache exceeds 10GB limit, slow cache upload/download | Set `debug = false` in CI profile; or use `[profile.ci]` | ~3rd platform cache added |
-| Running clippy before cargo build | Clippy cannot reuse build artifacts from subsequent build | Run `cargo build` first, then `cargo clippy` -- clippy reuses build cache | Every CI run (wasted ~5 minutes) |
-| Full history checkout in CI checks | Slower checkout for checks that do not need history | Use `fetch-depth: 1` for CI checks, `fetch-depth: 0` only for changelog | Large repos with 10k+ commits |
-| Serial lint/test/build steps | CI takes 3x longer than needed | Parallelize: fmt+clippy in one job, tests in another, build in another | Every CI run |
-| vendored-libgit2 C compilation | ~2-3 min extra compilation for libgit2 from C source | Cache handles this after first build; no way to avoid on cold cache | Cold cache only |
+| Benchmarking git2 on 10-commit repos | All results under 0.1ms, no discrimination | Use fixtures at 100, 1k, 10k, 100k commits | Immediately -- tiny repos produce meaningless numbers |
+| E2E tests launching fresh app per test | Suite takes 10+ minutes, CI times out | Launch app once per suite, navigate states within session | At ~20 tests. App startup is 1-3s each. |
+| Notarization in serial across platforms | Release takes 30+ min because platforms notarize one at a time | Matrix builds already parallelize. Notarization happens inside each matrix job. | Already handled by existing matrix structure. |
+| Criterion benchmarks with debug builds | Results 10-100x slower than release, masking real characteristics | Always use `--release`. Criterion does this by default; custom harnesses may not. | Immediately if using non-Criterion bench framework. |
+| Running all E2E tests on every push | CI time grows linearly with test count | Run E2E only on PRs and main branch, not on every push. Use `paths-ignore` for docs-only changes. | At ~50 E2E tests (~10 min runtime). |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Committing signing certificates or secrets to repo | Private keys exposed in git history forever | Use GitHub Secrets for all credentials; add `.p12`, `.pfx`, `*.keystore` to `.gitignore` |
-| Using `GITHUB_TOKEN` in PR workflows from forks | Token has write access in fork PRs (if misconfigured) | Use `pull_request` trigger (not `pull_request_target`) for CI checks |
-| Dependabot PRs running release workflow | Tag push from Dependabot could trigger unintended release | Release workflow should only trigger on `v*` tags, which Dependabot never creates |
-| Storing API tokens in workflow files | Tokens visible in repository history | Always use `${{ secrets.TOKEN_NAME }}`; never hardcode |
+| Committing updater private key to repository | Anyone with repo access can sign malicious updates that all installed copies accept | Generate key locally, store in password manager, add to CI as secret. Add `*.key` to `.gitignore`. |
+| Using Apple ID password instead of app-specific password for notarization | If CI secret leaks, attacker has full Apple account access including 2FA management | Create app-specific password at appleid.apple.com. Better: use App Store Connect API keys with scoped permissions. |
+| Setting `dangerousInsecureTransportProtocol: true` in production | Man-in-the-middle can serve malicious updates over HTTP | Tauri enforces HTTPS by default. Only set this flag in development builds. Never commit it to production config. |
+| Storing Apple signing certificate without password protection in CI | Certificate extractable from CI logs or artifacts | Export as `.p12` with a strong password. Create temporary keychains in CI and delete after signing. |
+| E2E test fixtures that shell out to git CLI with interpolated strings | Command injection if test parameters contain special characters | Use `git2` crate for fixture creation (sandboxed, no shell). Never construct git commands via string interpolation. |
+| Not rotating Apple API keys | Long-lived keys accumulate risk if CI environment is compromised | App Store Connect API keys cannot be rotated (download once). Guard the key path carefully. Document when it was created. |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No installation instructions in release notes | Users download unsigned binary, hit OS security warning, assume app is broken | Include platform-specific bypass instructions in every release description |
-| AppImage without execute permission note | Linux users download, double-click, nothing happens | Release notes: "Run `chmod +x trunk.AppImage` before launching" |
-| No changelog in release | Users cannot tell what changed between versions | Generate changelog with git-cliff and include in release body |
-| Releasing as non-draft without review | Broken build goes live, users download broken artifact | Always create as draft, review artifacts, then publish manually |
-| No "latest" release designation | Users on the releases page do not know which version to download | Mark the published release as "latest" in GitHub |
+| Auto-update that restarts without warning | User loses in-progress commit message, staged hunks, merge resolution state | Show update-available notification. Let user choose when to restart. Apply on next launch. |
+| Update dialog that blocks the entire UI | User cannot continue working while deciding | Non-modal toast/banner notification. App remains fully functional during download. |
+| Silent update failures with no feedback | User never knows an update was available or that it failed | Log update check results. Show "Update failed, will retry" toast. Provide manual download link as fallback. |
+| Forcing update on Windows (OS limitation) | Windows updater automatically quits the app during install | Warn user before installing: "The app will close and restart to install the update." Save any unsaved state first. |
+| No update frequency control | App checks for updates on every launch, adding latency | Check once on launch, then every 24 hours. Cache the last-check timestamp. |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Version sync:** All three files (package.json, Cargo.toml, tauri.conf.json) have matching versions -- or tauri.conf.json omits version to inherit from Cargo.toml
-- [ ] **CI checks pass on all platforms:** Not just "the build succeeds" but clippy, fmt, and tests pass on Linux, macOS, AND Windows
-- [ ] **Release artifacts downloadable:** After publishing, download each artifact on its target platform and verify it launches (unsigned warning is expected)
-- [ ] **macOS both architectures:** Release has both `.dmg` files -- one for Apple Silicon (aarch64), one for Intel (x86_64)
-- [ ] **Linux AppImage runs on Ubuntu 22.04:** Download the AppImage on a fresh Ubuntu 22.04 and verify it launches without glibc errors
-- [ ] **Windows .msi installs correctly:** Run the .msi installer, verify the app appears in Start Menu and launches
-- [ ] **Changelog is non-empty:** Release notes contain actual commit summaries, not "No changes" or empty body
-- [ ] **Dependabot opens PRs:** Check the Dependabot tab in repo settings -- PRs should appear within a week of configuration
-- [ ] **Cache working:** Second CI run is significantly faster than first (check swatinem/rust-cache logs for "cache hit")
-- [ ] **Concurrency control:** Push two tags rapidly -- second run cancels first (or waits), no duplicate releases created
-- [ ] **Fork PRs safe:** A PR from a fork runs CI checks but cannot trigger release workflow or access secrets
+- [ ] **E2E tests:** Test teardown kills app processes and cleans temp repos -- zombie processes accumulate on CI runners otherwise
+- [ ] **E2E tests:** Tests use `path.join()` not hardcoded `/` separators -- Windows paths use `\`
+- [ ] **E2E tests:** Can run locally on macOS, not just Linux CI -- developer experience matters for debugging failures
+- [ ] **Code signing:** Signed `.dmg` opens without Gatekeeper warning on a CLEAN Mac (not your dev machine which has exceptions stored)
+- [ ] **Code signing:** CI temporary keychain is deleted after signing -- prevents keychain accumulation across builds
+- [ ] **Code signing:** Notarization actually completes -- check the notarization log, not just the build exit code
+- [ ] **Auto-updates:** App works normally when update endpoint is unreachable (no crashes, no blocking spinner, no frozen UI)
+- [ ] **Auto-updates:** Downgrade prevention -- updater does not "update" to an older version if `latest.json` briefly points to a previous release
+- [ ] **Auto-updates:** `latest.json` contains entries for ALL four targets (darwin-aarch64, darwin-x86_64, linux-x86_64, windows-x86_64)
+- [ ] **Auto-updates:** Update notification is non-modal -- user can dismiss and continue working
+- [ ] **Benchmarks:** Baseline numbers recorded before any optimization -- cannot measure improvement without a reference point
+- [ ] **Benchmarks:** Fixtures use realistic repo sizes -- 10k+ commits, not 10-commit toy repos
+- [ ] **Benchmarks:** CI benchmark gate uses iai-callgrind (instruction counts), not Criterion (wall-clock time)
+- [ ] **Release workflow:** `latest.json` present in published release with correct URLs and valid signatures for all platforms
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Version mismatch broke release | LOW | Delete the incorrect release, fix versions in all files, re-tag, re-push |
-| Duplicate releases created | LOW | Delete the duplicate release, re-run the workflow (or manually upload missing artifacts) |
-| AppImage built on wrong Ubuntu | MEDIUM | Cannot fix the artifact; must rebuild on correct Ubuntu version; update workflow and re-release |
-| Unsigned build complaints | LOW | Add installation instructions to release notes; plan code signing for future milestone |
-| Cache bloated past 10GB | LOW | Delete cache entries via GitHub API (`gh cache delete`); add CI profile to reduce artifact size |
-| Dependabot corrupted lockfile | LOW | Revert the PR; regenerate lockfile locally with `bun install`; push fix |
-| Shallow clone empty changelog | LOW | Re-run with `fetch-depth: 0`; or generate changelog locally and paste into release notes |
-| Token permissions block release | LOW | Add `permissions: contents: write` to workflow; re-run |
+| Lost updater private key | HIGH | If truly lost: publish announcement, users must manually reinstall. Cannot recover. If old key exists somewhere: release a migration version signed with old key that updates the embedded pubkey to a new keypair. |
+| Notarization hanging in CI | LOW | Cancel workflow, re-trigger. If persistent: sign/notarize locally, upload artifacts manually. Add timeout + retry to workflow. |
+| E2E tests are flaky | MEDIUM | Quarantine flaky tests (mark skip), audit for timing dependencies, replace hardcoded waits with polling, add retry for known-flaky WebDriver behaviors. |
+| Benchmark regression false positive (Criterion in CI) | LOW | Re-run benchmark job. Switch to iai-callgrind. Establish noise threshold (ignore changes under 2%). |
+| Apple signing certificate expired | MEDIUM | Generate new certificate from Apple Developer portal, update CI secrets, re-sign and re-notarize. Existing installed copies still work; only new releases affected. |
+| `latest.json` missing a platform | LOW | Manually construct correct `latest.json` with all platform entries and upload to GitHub release. Fix workflow for future releases. |
+| Bad update pushed to users | MEDIUM | Immediately publish a hotfix version. Updater picks up new version on next check (default: app launch). Users who already updated get the fix on next check. |
+| E2E test repo fixtures breaking across git versions | LOW | Switch from git CLI fixtures to `git2` crate (already in project). git2 has a stable API regardless of system git version. |
+| Windows auto-update kills app without user consent | LOW | Cannot prevent (Windows installer limitation). Mitigate: warn user, save state before install, restore state on restart. |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| P1: Version mismatch | Phase 1 (CI foundation) | CI check validates version alignment on every PR |
-| P2: Duplicate release race | Phase 2 (release pipeline) | Push a tag, verify exactly one release with all platform artifacts |
-| P3: Bun not found | Phase 1 (CI foundation) | CI workflow includes setup-bun; first run succeeds |
-| P4: Missing Linux deps | Phase 1 (CI foundation) | Linux CI job passes cargo check + clippy |
-| P5: Uncached slow builds | Phase 1 (CI foundation) | Second CI run takes <15 minutes (check cache hit logs) |
-| P6: AppImage glibc compat | Phase 2 (release pipeline) | Download AppImage, run on Ubuntu 22.04 VM/container |
-| P7: Unsigned build warnings | Phase 2 (release pipeline) | Release notes include bypass instructions for macOS and Windows |
-| P8: Token permissions | Phase 2 (release pipeline) | Release workflow creates draft release successfully |
-| P9: Shallow clone changelog | Phase 3 (changelog) | Release notes contain grouped commit summaries |
-| P10: Dependabot lockfile | Phase 3-4 (Dependabot) | Dependabot PR passes CI checks including `bun install --frozen-lockfile` |
+| Auto-updates before code signing | Phase ordering: code signing BEFORE auto-updates | Auto-update tests run against signed builds that pass Gatekeeper |
+| E2E tests cannot run on macOS | E2E testing (first plan: tooling evaluation) | Run first E2E test locally on macOS before writing the full suite |
+| Lost updater private key | Auto-updates (first task: key generation + backup) | Key exists in 2+ locations; backup verified accessible |
+| Criterion flaky in CI | Performance benchmarks (first task: tooling decision) | Same benchmark run 3x in CI -- results vary less than 2% |
+| Notarization hanging | Code signing (CI integration plan) | Trigger test release; notarization completes within 15 min |
+| E2E fixtures coupled to git state | E2E testing (fixture strategy plan) | Tests pass in any order; pass on fresh CI with no git config |
+| Updater endpoint misconfiguration | Auto-updates (release workflow integration) | Publish test pre-release; verify `latest.json` on all 4 platforms |
+| Unrealistic benchmark fixtures | Performance benchmarks (fixture creation) | Benchmarks include 10k+ commit repos; results show meaningful differentiation |
+| Auto-update UX blocking user | Auto-updates (UI integration plan) | User can continue working while update downloads; restart is user-initiated |
 
 ## Sources
 
-- [Tauri 2 GitHub Actions Distribution Docs](https://v2.tauri.app/distribute/pipelines/github/) -- official workflow examples, Linux dependencies, runner matrix
-- [Tauri 2 AppImage Distribution Docs](https://v2.tauri.app/distribute/appimage/) -- glibc compatibility warning, bundle size, GStreamer
-- [tauri-apps/tauri-action](https://github.com/tauri-apps/tauri-action) -- action configuration, release creation, package manager detection
-- [tauri-action#914: Duplicate Releases Race Condition](https://github.com/tauri-apps/tauri-action/issues/914) -- root cause analysis, workaround (separate release job)
-- [tauri-action#986: bun: not found](https://github.com/tauri-apps/tauri-action/issues/986) -- setup-bun requirement for bun projects
-- [tauri-apps/tauri#8265: Version Sync Feature Request](https://github.com/tauri-apps/tauri/issues/8265) -- community discussion on version management
-- [tauri-apps/tauri Discussion#6347: Version Sync](https://github.com/tauri-apps/tauri/discussions/6347) -- workaround patterns, single source of truth
-- [VaultNote CI/CD Post-Mortem](https://dev.to/dev_michael/my-first-tauri-cicd-pipeline-lessons-from-building-vaultnote-with-sveltekit-17mp) -- version sync lessons, 60+ failed runs
-- [Ship Tauri v2 Like a Pro: GitHub Actions (Part 2)](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-github-actions-and-release-automation-part-22-2ef7) -- draft release pattern, concurrency control, fail-fast
-- [How to Make Rust CI 2-3x Faster](https://www.reillywood.com/blog/rust-faster-ci/) -- cache strategy, clippy ordering, nextest
-- [Swatinem/rust-cache](https://github.com/Swatinem/rust-cache) -- cache key strategy, workspace configuration
-- [git-cliff](https://git-cliff.org/) -- changelog generation, GitHub Actions integration
-- [orhun/git-cliff-action](https://github.com/orhun/git-cliff-action) -- fetch-depth requirement, configuration
-- [Dependabot Bun Support (GA Feb 2025)](https://github.blog/changelog/2025-02-13-dependabot-version-updates-now-support-the-bun-package-manager-ga/) -- bun.lock requirements
-- [dependabot-core#13623: Bun Lockfile configVersion Removal](https://github.com/dependabot/dependabot-core/issues/13623) -- known bun lockfile corruption
-- [dependabot-core#11691: Rust 2024 Edition Support](https://github.com/dependabot/dependabot-core/issues/11691) -- cargo version requirements
-- [Ship Tauri v2 Like a Pro: Code Signing (Part 1)](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-code-signing-for-macos-and-windows-part-12-3o9n) -- unsigned build UX impact
+- [Tauri v2 Updater Plugin docs](https://v2.tauri.app/plugin/updater/) -- configuration fields, signing requirements, endpoint format, platform behaviors, `createUpdaterArtifacts` options
+- [Tauri v2 macOS Code Signing docs](https://v2.tauri.app/distribute/sign/macos/) -- certificate types, CI setup steps, notarization methods, env vars
+- [Tauri v2 Testing docs](https://v2.tauri.app/develop/tests/) -- testing approaches, mock runtime, WebDriver overview
+- [Tauri v2 WebDriver docs](https://v2.tauri.app/develop/tests/webdriver/) -- platform support matrix, macOS gap, tauri-driver usage
+- [tauri-webdriver (danielraffel)](https://github.com/danielraffel/tauri-webdriver) -- open-source macOS WebDriver solution for WKWebView
+- [tauri-webdriver-automation crate](https://crates.io/crates/tauri-webdriver-automation) -- embedded WebDriver plugin for cross-platform E2E
+- [Ship Your Tauri v2 App Like a Pro: Code Signing (Part 1)](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-code-signing-for-macos-and-windows-part-12-3o9n) -- practitioner guide, certificate export, CI secrets
+- [Shipping a Production macOS App with Tauri 2.0 (DEV Community)](https://dev.to/0xmassi/shipping-a-production-macos-app-with-tauri-20-code-signing-notarization-and-homebrew-mc3) -- end-to-end production deployment with notarization
+- [Criterion.rs FAQ](https://bheisler.github.io/criterion.rs/book/faq.html) -- CI noise warning, `black_box` usage, optimizer pitfalls
+- [iai-callgrind GitHub](https://github.com/iai-callgrind/iai-callgrind) -- deterministic instruction-count benchmarking, CI suitability
+- [Bencher: Track Criterion benchmarks in CI](https://bencher.dev/learn/track-in-ci/rust/criterion/) -- continuous benchmarking practices
+- [Tauri E2E testing discussion #10123](https://github.com/tauri-apps/tauri/discussions/10123) -- community approaches
+- [Tauri notarization stuck bug #14579](https://github.com/tauri-apps/tauri/issues/14579) -- build stuck at notarizing
+- [Tauri notarization discussion #8630](https://github.com/orgs/tauri-apps/discussions/8630) -- stuck for 1+ hours
+- [tauri-action GitHub](https://github.com/tauri-apps/tauri-action) -- `includeUpdaterJson` config, release creation
+- [Apple: Resolving common notarization issues](https://developer.apple.com/documentation/security/resolving-common-notarization-issues) -- official Apple troubleshooting
+- [GitHub Action hanging on macOS code signing](https://www.codejam.info/2025/06/github-action-hanging-macos-app-code-signing.html) -- CI keychain hang diagnosis
+- [macOS createUpdaterArtifacts v1Compatible bug #10217](https://github.com/tauri-apps/tauri/issues/10217) -- v1Compatible does not work on macOS
+- [Tauri WebDriver docs issue #10670](https://github.com/tauri-apps/tauri/issues/10670) -- WebDriver testing docs not working
+- [notarytool reliability issues](https://developer.apple.com/forums/thread/772619) -- notarytool taking 2+ hours on CI
 
 ---
-*Pitfalls research for: Trunk v0.10 -- CI/CD & Cross-Platform Releases*
-*Researched: 2026-03-25*
+*Pitfalls research for: Trunk v1.0 -- E2E testing, performance benchmarks, code signing, auto-updates*
+*Researched: 2026-03-26*

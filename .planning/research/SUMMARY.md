@@ -1,210 +1,186 @@
 # Project Research Summary
 
-**Project:** Trunk v0.10 — CI/CD & Cross-Platform Release Publishing
-**Domain:** Desktop app CI/CD pipeline (Tauri 2 + Svelte 5 + Rust)
-**Researched:** 2026-03-25
-**Confidence:** HIGH
+**Project:** Trunk — Desktop Git GUI (Tauri 2 + Svelte 5 + Rust)
+**Domain:** Production infrastructure for an existing desktop application
+**Researched:** 2026-03-26
+**Confidence:** HIGH (E2E macOS tooling MEDIUM due to ecosystem immaturity)
 
 ## Executive Summary
 
-Trunk v0.10 is a CI/CD and release infrastructure milestone for an existing, feature-complete Tauri 2 desktop Git GUI. The project already has 49 completed phases of product work (~13,400 LOC TypeScript/Svelte + ~9,400 LOC Rust), a full test suite (14 vitest files + 14 Rust `#[cfg(test)]` modules), and a complete icon set — the missing piece is automated quality gates and distributable release artifacts for all three major platforms. Research consensus is clear: this is well-trodden territory with official Tauri 2 documentation, a dedicated GitHub Action (`tauri-apps/tauri-action`), and a known set of pitfalls from community post-mortems.
+Trunk v1.0 is not a greenfield product build — it is a production-readiness upgrade to an already-shipping desktop Git GUI. v0.10 delivered the full release pipeline (4-platform matrix builds, Homebrew distribution, GitHub Actions CI with quality gates). What v1.0 adds is: code signing so macOS Gatekeeper doesn't block the app, auto-updates so users don't manually download every release, performance benchmarks so the lane algorithm doesn't regress silently, and E2E tests so IPC-layer regressions surface before users do.
 
-The recommended approach is a two-workflow design: a fast CI workflow (lint, type-check, test on a single Ubuntu runner, ~2-5 min) that runs on every push and PR; and a release workflow (cross-platform build matrix, ~15-25 min) that triggers only on `v*` tag pushes. The release workflow produces a draft GitHub Release with auto-generated changelog and platform-specific installers (.dmg for macOS ARM + Intel, .AppImage + .deb for Linux, .msi + .exe for Windows). Changelog generation uses git-cliff (Rust-native, 120ms for large repos) fed by the project's existing conventional commit style. Dependabot covers all three dependency ecosystems (cargo, npm, github-actions) with a trivial config file.
+The recommended implementation sequence is strict and dependency-driven. Benchmarks first because they have zero external dependencies and establish performance baselines. E2E tests second because they create validation infrastructure needed for the subsequent phases. Code signing third because it requires Apple Developer enrollment ($99/year) and must precede auto-updates — macOS Gatekeeper blocks unsigned update artifacts, making the auto-update flow untestable without prior signing. Auto-updates last because they depend on both the code-signing infrastructure and a separately generated Ed25519 updater keypair. Attempting a different order reliably produces dead ends.
 
-The principal risks are operational, not architectural. Three pitfalls account for the majority of real-world CI/CD failures on Tauri projects: version drift across the three version files (`package.json`, `Cargo.toml`, `tauri.conf.json`); a race condition in `tauri-action` when parallel matrix jobs all try to create the release simultaneously; and bun not being pre-installed on GitHub runners. All three have known, documented fixes and must be addressed in the initial workflow setup. Code signing (macOS Gatekeeper, Windows SmartScreen) is explicitly deferred to a future milestone — unsigned builds with documented bypass instructions are the correct v0.10 approach.
+The primary risks are: (1) conflating the three independent signing systems (Tauri Ed25519 updater key, Apple Developer ID certificate, Apple notarization) — treat each as a distinct task; (2) expecting Criterion to work as a CI regression gate — it measures wall-clock time which is too noisy on shared runners, so `iai-callgrind` (instruction counts, deterministic) must be used instead; (3) the macOS E2E gap — Apple provides no WKWebView WebDriver, so E2E runs on Linux CI only and macOS testing remains manual pre-release. These risks are well-understood and avoidable with the right tooling decisions made upfront.
 
 ## Key Findings
 
 ### Recommended Stack
 
-All CI/CD tooling is GitHub Actions-based with zero new runtime dependencies. The stack was selected by cross-referencing official Tauri 2 distribution docs against the project's existing lock files, config files, and commit history.
+The existing stack (Tauri 2, Svelte 5, Vite 6, TypeScript 5.6, Tailwind CSS 4, Rust with git2/notify/tokio, Vitest, GitHub Actions) needs no replacement — v1.0 adds targeted new pieces. The additions are: `tauri-plugin-updater` + `tauri-plugin-process` (Rust + JS) for auto-updates; `criterion 0.5.1` (dev-only) for local benchmarking with HTML reports; `iai-callgrind` for deterministic CI benchmark gates; `@wdio/cli` + `@wdio/local-runner` + `@wdio/mocha-framework` + `@wdio/spec-reporter` (all ^9.19) for E2E; and `tauri-driver` (cargo install) as the WebDriver bridge. Code signing requires no new software dependencies — `tauri-action@v0` (already in use) handles everything when the correct CI secrets are present.
 
 **Core technologies:**
-- `tauri-apps/tauri-action@v0` (v0.6.2): Cross-platform build, bundle, and GitHub Release upload in one step — the official Tauri CI action; v1 exists on a dev branch but is not stable-released
-- `oven-sh/setup-bun@v2` (v2.2.0): Installs Bun on GitHub runners — required because runners do not pre-install Bun; tauri-action detects `bun.lock` and expects Bun on PATH
-- `dtolnay/rust-toolchain@stable`: Rust toolchain setup — replaces the archived `actions-rs/toolchain`; must come before `Swatinem/rust-cache`
-- `Swatinem/rust-cache@v2`: Cargo build caching — understands Cargo.lock and target directory layout; saves 2-5 min per build (critical given `vendored-libgit2` C compilation)
-- `orhun/git-cliff-action@v4` (git-cliff v2.12.0): Changelog from conventional commits — Rust-native, 120ms for large repos; requires `fetch-depth: 0` checkout
-- GitHub Dependabot (v2 config): Automated dependency PRs for cargo, npm, github-actions — built into GitHub, zero maintenance overhead
-- `prettier` + `prettier-plugin-svelte`: Frontend formatting — new devDependency; requires initial format pass before CI enforcement
-- `ubuntu-22.04` runner for Linux builds: Pinned (not `ubuntu-latest`) to control AppImage glibc floor at 2.35 for maximum distribution compatibility
+- `tauri-plugin-updater@2` + `@tauri-apps/plugin-updater@^2`: auto-update runtime — official Tauri 2 plugin, integrates with GitHub Releases static JSON, no custom server needed
+- `criterion 0.5.1`: local Rust benchmarks — de facto standard, statistical analysis, HTML reports; pin to 0.5.x not 0.8.x (breaking API changes in 0.8.x require Rust 1.88+)
+- `iai-callgrind`: CI benchmark gates — counts CPU instructions via Valgrind, deterministic across VM restarts, Linux-only (matches CI platform)
+- `@wdio/cli@^9.19`: E2E test runner — official Tauri-recommended WebDriver framework, JavaScript-native, matches project toolchain
+- `tauri-driver` (cargo install): WebDriver bridge — translates W3C WebDriver protocol to platform-native WebKit/Edge driver; Linux and Windows only
 
 ### Expected Features
 
-**Must have (table stakes — v0.10):**
-- CI lint/check workflow on every push and PR — prevents regressions; contributors expect immediate feedback
-- Cross-platform release builds (macOS ARM + Intel, Linux x64, Windows x64) — a desktop app that ships one platform is not a real release
-- Tag-triggered release workflow (`v*` tags) — standard open-source release mechanism; predictable and auditable
-- GitHub Release with downloadable platform-specific artifacts — users expect a Releases page
-- Dependabot for automated dependency updates — standard GitHub practice for security and currency
-- Rust build caching — without caching CI takes 30-60 min; with `swatinem/rust-cache`, 5-15 min
-- Auto-generated changelog in release notes — users and contributors expect to know what changed
+**Must have (table stakes — v1.0):**
+- macOS code signing + notarization — Gatekeeper blocks unsigned apps on macOS Sequoia entirely; required for any distributed build
+- Update signing keypair — Tauri updater enforces signatures; the plugin refuses to function without a valid Ed25519 keypair
+- Auto-updater (check + download + install + relaunch) — all major desktop Git GUIs (GitKraken, Fork, Tower, Sublime Merge) auto-update; users expect it
+- Criterion benchmarks for critical Rust operations — `walk_commits_inner`, `list_refs_inner`, `diff_inner`; regressions in these are invisible without baselines
+- E2E smoke tests on Linux CI — unit tests cover logic but not the IPC bridge; staging + commit flow must be validated end-to-end
+- Update notification UI with download progress — non-blocking toast leveraging the existing toast system; silent restarts are unacceptable
 
-**Should have (low-cost differentiators, fold into v0.10 work):**
-- Separate fast CI from slow release build — better contributor DX; most Tauri projects combine these into one slow workflow
-- Separate macOS ARM and Intel .dmg files — simpler than universal binary in CI; users download the correct one for their Mac
-- Draft release mode — catch broken builds or wrong versions before users download them
-- Cargo tests running in CI — 14 Rust test modules already exist; free quality gate
-- Prettier formatting enforcement — consistent frontend code style, no style debates in PRs
-- `fail-fast: false` on build matrix — if Windows fails, macOS and Linux still complete
-
-**Defer (v1.0):**
-- macOS code signing + notarization — requires Apple Developer Program ($99/year) and per-build notarization round-trip
-- Windows code signing (EV cert) — requires Azure Key Vault + HSM; $200-400/year
-- Auto-updater (`tauri-plugin-updater`) — requires code signing to be in place first; PROJECT.md explicitly defers to v1.0
-- E2E test harness — already planned for v1.0 as a dedicated infrastructure milestone
+**Should have (v1.x — add after baseline is stable):**
+- Windows code signing — SmartScreen warnings are unprofessional; requires Azure Trusted Signing or OV cert ($200-400/year)
+- CI benchmark regression gates (iai-callgrind) — once baseline data from multiple releases exists, add automated failure thresholds
+- macOS E2E tests — blocked on `tauri-plugin-webdriver-automation` maturing (February 2026, experimental)
 
 **Defer (v2+):**
-- Homebrew tap / AUR / Winget manifest — each has its own submission process and maintenance burden
-- Nightly builds from main — doubles compute costs; no user base yet to benefit
-- Linux arm64 builds — tiny user base for a Git GUI on ARM Linux
+- Windows E2E tests in CI — msedgedriver version matching is historically flaky
+- Startup time tracking in CI — meaningful only with consistent self-hosted runners
+- CrabNebula DevTools — useful debugging tool, not blocking
 
 ### Architecture Approach
 
-The system is two parallel, independent workflows sharing no state except the GitHub Release object. The CI workflow (`ci.yml`) runs on a single `ubuntu-latest` runner — Rust and TypeScript checks are platform-independent for this codebase. The release workflow (`release.yml`) runs a matrix of 4 jobs in parallel across 3 runners (macOS arm64, macOS x86_64, Ubuntu 22.04, Windows). A critical structural decision: the release workflow must have a dedicated "create release" job that completes before the build matrix starts, because tauri-action's parallel matrix jobs can corrupt the release object if they race to create it simultaneously (known bug tauri-apps/tauri-action#914).
+All four features integrate cleanly into the existing architecture without restructuring it. The Svelte/Tauri IPC/Rust layer remains unchanged at the logical level. Benchmarks exploit the established inner-fn pattern (all Tauri commands already have `_inner` functions separated from Tauri state) — criterion calls them directly with no Tauri runtime. The updater registers as a standard Tauri plugin in `lib.rs` using the same builder-chain pattern as existing plugins (dialog, store, clipboard, window-state). Code signing is purely CI configuration: `tauri-action@v0` detects signing environment variables automatically. E2E tests launch a debug build (`--debug --no-bundle`) and drive it through the WebDriver protocol layer.
 
 **Major components:**
-1. `.github/workflows/ci.yml` — lint + test on every push/PR; single ubuntu-latest runner; ~2-5 min; reuses bun + Rust cache patterns that release workflow also uses
-2. `.github/workflows/release.yml` — tag-triggered; two-phase: dedicated "create release" job first, then parallel 4-job build matrix uploading artifacts to the pre-created release
-3. `.github/dependabot.yml` — three ecosystems (cargo at `/src-tauri`, npm at `/`, github-actions at `/`); weekly schedule
-4. `cliff.toml` — git-cliff changelog config; maps project's conventional commit prefixes to changelog groups; skips `docs:` commits (GSD planning artifacts dominate history)
-5. `.prettierrc` + `prettier` devDependency — one-time setup: add config, run initial format pass, then CI enforces `--check`
-6. `scripts/bump-version.sh` (recommended) — atomic version bump across `package.json`, `Cargo.toml`, and `cargo generate-lockfile`
+1. `src-tauri/benches/` — Criterion benchmark suite calling `walk_commits_inner`, `diff_unstaged_inner`, `list_refs_inner` directly; NEW directory
+2. `tests/e2e/` — WebdriverIO specs + fixture helpers; creates ephemeral test repos per suite; NEW directory
+3. `src/lib/UpdateChecker.svelte` — non-modal update notification component reusing existing toast system; NEW component
+4. Modified `release.yml` — adds signing env vars, `uploadUpdaterJson: true`; no structural changes to existing workflow
+5. Modified `ci.yml` — adds Gate 3: E2E (Linux) and benchmarks after existing fast/heavy gates
 
 ### Critical Pitfalls
 
-1. **Version drift across three manifest files** — `package.json`, `Cargo.toml`, and `tauri.conf.json` all carry the version; tauri-action reads from `tauri.conf.json`; mismatch causes releases to upload to the wrong release or fail entirely. Fix: remove `version` from `tauri.conf.json` (Tauri 2 falls back to `Cargo.toml`), add a CI version alignment check, and create a version bump script.
+1. **Building auto-updates before code signing** — unsigned macOS apps get Gatekeeper-blocked on every update install, making the update flow untestable; phase ordering is a hard constraint: code signing must complete first
 
-2. **tauri-action duplicate release race condition** — parallel matrix jobs each call the GitHub Release API to find or create the release; concurrent calls can strip the tag association from a draft release, creating duplicate releases with split artifacts (bug tauri-apps/tauri-action#914). Fix: create the release in a dedicated job before the matrix starts; matrix jobs only upload artifacts using the pre-created `release_id`.
+2. **Using Criterion as a CI regression gate** — GitHub Actions shared runners have 10-30% timing noise; Criterion benchmarks produce phantom regressions on every PR and get ignored; use `iai-callgrind` (instruction counts, deterministic) for CI gates, reserve Criterion for local development
 
-3. **Bun not found on GitHub runners** — GitHub runners do not pre-install Bun; tauri-action detects `bun.lock` and assumes Bun is on PATH; fails with `bun: not found`. Fix: always add `oven-sh/setup-bun@v2` as an early step before tauri-action.
+3. **E2E tests that cannot run on macOS** — Apple provides no WKWebView WebDriver; the macOS E2E strategy (Linux-only CI vs. experimental plugin-based) must be decided before writing any test infrastructure
 
-4. **AppImage glibc compatibility** — AppImage does not bundle glibc; building on Ubuntu 24.04 produces an AppImage that fails on Ubuntu 22.04 with `GLIBC_X.XX not found`. Fix: pin the Linux runner to `ubuntu-22.04` explicitly, never `ubuntu-latest`.
+4. **Losing the updater Ed25519 private key** — recovery is impossible; every installed copy embeds the public key and will permanently reject updates signed with a different key; store in at least two durable locations outside GitHub before writing any updater code
 
-5. **GitHub Token default read-only permissions** — default `GITHUB_TOKEN` cannot create releases; fails with "Resource not accessible by integration." Fix: add `permissions: contents: write` to the release workflow.
-
-6. **Shallow clone breaks changelog** — default `fetch-depth: 1` gives git-cliff only the HEAD commit; generates empty release notes. Fix: use `fetch-depth: 0` on the checkout step in the release job only.
-
-7. **Uncached Rust builds (30-60 min per platform)** — `vendored-libgit2` adds C compilation on top of Rust; without caching a 4-platform release burns 2-4 hours. Fix: `Swatinem/rust-cache@v2` with `workspaces: './src-tauri -> target'` must be configured from the first workflow run.
+5. **Apple notarization hanging in CI** — `notarytool` occasionally queues for 2+ hours; configure explicit step timeouts (15-20 min), use App Store Connect API keys (not Apple ID password), have a local signing fallback documented
 
 ## Implications for Roadmap
 
-Based on the dependency graph from FEATURES.md and the build order from ARCHITECTURE.md, four phases cover v0.10 entirely. All pitfall mitigations are woven into the phase where they first appear, not addressed retroactively.
+Based on research, the dependency graph dictates a strict 4-phase sequence with no reordering.
 
-### Phase 1: CI Foundation
+### Phase 1: Performance Benchmarks
 
-**Rationale:** CI must exist before the release pipeline. It validates that existing code is clean, provides immediate value on every PR, and its patterns (bun setup, Rust cache, step ordering) are reused verbatim in the release workflow. Build this first so Dependabot PRs are auto-validated. Caching must be configured here — retrofitting after habits form wastes accumulated runner time.
+**Rationale:** Zero external dependencies — no accounts, no certificates, no new CI secrets. Can start immediately with the existing codebase. The inner-fn pattern is already in place; this phase adds benchmark harnesses that call those functions directly. Establishes performance baselines before any signing or updater overhead is added to builds.
 
-**Delivers:** `ci.yml` — cargo check, cargo clippy (-D warnings), cargo test, cargo fmt --check, bun install, bun run check (svelte-check), bun run test (vitest), prettier --check. Triggered on push to any branch and PR to main. Single ubuntu-latest runner. Also: `prettier` + `prettier-plugin-svelte` devDependencies, `.prettierrc`, `.prettierignore`, initial `bunx prettier --write .` pass, CI version alignment check (package.json vs Cargo.toml must match).
+**Delivers:** Criterion benchmark suite for `walk_commits_inner` (lane algorithm), `diff_unstaged_inner`, `list_refs_inner` at multiple repo scales (100, 1k, 10k commits); baseline HTML reports locally; optional iai-callgrind setup for future CI gates.
 
-**Addresses:** CI lint/check workflow (table stakes), Prettier enforcement (differentiator), Cargo tests (differentiator)
+**Addresses:** Criterion benchmarks for critical Rust operations (P1 feature); foundation for CI regression gates (P2 feature).
 
-**Avoids:** Pitfall 3 (bun not found — setup-bun step required), Pitfall 5 (uncached builds — rust-cache from day one), Pitfall 7 (uncached builds), Pitfall 1 (version drift — CI check catches it before it can break a release)
+**Avoids:** Benchmarking tiny repos — use 100/1k/10k/100k fixtures; benchmarking through Tauri IPC — use `_inner` functions directly; Criterion in CI — reserve for local use.
 
-**Research flag:** No additional research needed — standard patterns with official documentation.
+**Research flag:** Standard patterns — Criterion is well-documented, inner-fn pattern already in place. Skip `/gsd:research-phase` unless iai-callgrind CI integration needs scoping.
 
-### Phase 2: Release Pipeline
+### Phase 2: E2E Test Harness
 
-**Rationale:** Builds directly on the bun + Rust cache patterns validated in Phase 1. The two-job structure (create release first, then build matrix) is the only correct approach given the known race condition in tauri-action. All pitfalls in this phase have specific, documented fixes.
+**Rationale:** Creates validation infrastructure needed for Phases 3 and 4. When code signing and auto-updates are implemented, E2E tests provide automated verification that those changes didn't break core workflows. Independent of all external account requirements.
 
-**Delivers:** `release.yml` — tag-triggered (`v*`); Job 1 creates draft GitHub Release; Job 2 runs 4-job parallel matrix (macOS ARM, macOS Intel, ubuntu-22.04, Windows) using tauri-action to build and upload artifacts; `fail-fast: false`; `permissions: contents: write`; Linux system dependency installation step.
+**Delivers:** WebdriverIO + tauri-driver setup on Linux CI; E2E specs for open-repo, stage-file, commit, verify-graph workflows; fixture library using `git2` for reproducible ephemeral repos; Gate 3 in `ci.yml`.
 
-**Addresses:** Cross-platform release builds (table stakes), tag-triggered workflow, GitHub Release with artifacts, separate macOS ARM + Intel .dmg files (differentiator), draft release mode (differentiator), `fail-fast: false` (differentiator)
+**Addresses:** E2E smoke tests (P1 feature).
 
-**Avoids:** Pitfall 2 (duplicate release race — two-job structure eliminates the race), Pitfall 4 (Linux deps — ubuntu-22.04 with explicit apt-get), Pitfall 6 (AppImage glibc — ubuntu-22.04 pinned), Pitfall 7 (unsigned build UX — draft mode + release notes template), Pitfall 8 (token permissions — explicit `permissions: contents: write`)
+**Avoids:** Shared mutable test repos (create ephemeral repos per suite); assertions on SHA values (assert on structural properties); hardcoded sleeps (use `waitFor` polling); testing against `tauri dev` hot-reload mode (use built binary).
 
-**Research flag:** No additional research needed — official Tauri docs cover this exactly. Known bugs have documented workarounds with specific issue numbers.
+**Research flag:** Needs `/gsd:research-phase` to decide the macOS E2E strategy. The Linux-only WebDriver approach is well-documented, but whether to add `tauri-plugin-webdriver-automation` for macOS support requires evaluating that plugin's maturity (Feb 2026, experimental). This decision affects test infrastructure design before the first line of test code is written.
 
-### Phase 3: Changelog & Dependabot
+### Phase 3: Code Signing
 
-**Rationale:** Changelog requires a working release pipeline. Dependabot is a standalone YAML file but benefits from being added after CI exists so its PRs are auto-validated. Both are low-complexity, high-value additions that complete the "table stakes" feature list.
+**Rationale:** Required before auto-updates. macOS Gatekeeper blocks unsigned update artifacts from installing; auto-update integration cannot be meaningfully tested without a signed base build. May have an external waiting period while Apple processes Developer Program enrollment ($99/year).
 
-**Delivers:** `cliff.toml` — conventional commit groups mapping to changelog sections; skips `docs:` (GSD planning history), `chore:` (internal); changelog injected into release workflow with `fetch-depth: 0`. `.github/dependabot.yml` — cargo (weekly), npm (weekly), github-actions (weekly). `bun install --frozen-lockfile` CI check to catch Dependabot lockfile corruption.
+**Delivers:** macOS code signing + notarization in `release.yml` (Apple Developer ID certificate, Entitlements.plist, notarization via App Store Connect API keys); `TAURI_SIGNING_PRIVATE_KEY` Ed25519 keypair generated and backed up; `tauri.conf.json` signing config; CI step timeouts and local fallback procedure documented.
 
-**Addresses:** Auto-generated changelog (table stakes), Dependabot coverage (table stakes)
+**Addresses:** macOS code signing + notarization (P1 feature); update signing keypair generation (P1 feature — logically belongs here as prerequisite for Phase 4).
 
-**Avoids:** Pitfall 9 (shallow clone empty changelog — `fetch-depth: 0` on release checkout), Pitfall 10 (Dependabot bun lockfile corruption — frozen-lockfile CI check)
+**Avoids:** Apple ID password in CI — use App Store Connect API keys; signing secrets in config files — use GitHub Secrets only; no timeout on notarization step — Apple servers queue unpredictably; updater private key only in GitHub secrets — back up to password manager before proceeding.
 
-**Research flag:** No additional research needed — git-cliff and Dependabot are well-documented with clear configuration examples.
+**Research flag:** Largely standard patterns from official Tauri docs. However, the interaction between the existing draft-release workflow (build → publish → update Homebrew tap) and `uploadUpdaterJson: true` needs validation. Recommend a test pre-release in CI before the main implementation to verify `latest.json` appears correctly.
 
-### Phase 4: Version Management & First Release
+### Phase 4: Auto-Updates
 
-**Rationale:** Version sync is the most common Tauri CI/CD failure — structurally fixing it (remove version from `tauri.conf.json`, add bump script) prevents an entire class of release failures. This phase also produces the first actual release of Trunk v0.10.0, including release documentation so users succeed with unsigned builds.
+**Rationale:** Last because it depends on Phase 3 (signed builds + updater keypair). All meaningful auto-update testing requires the signing chain to be in place. This phase is primarily frontend and configuration work once signing is done.
 
-**Delivers:** Remove `version` from `tauri.conf.json` (inherits from `Cargo.toml` in Tauri 2). `scripts/bump-version.sh` — atomic bump across `package.json` + `Cargo.toml` + `cargo generate-lockfile` + git tag. GitHub Release description template with macOS ("right-click > Open") and Windows ("More info > Run anyway") bypass instructions. README installation section. First `v0.10.0` release tag pushed and draft reviewed.
+**Delivers:** `tauri-plugin-updater` + `tauri-plugin-process` integrated; `UpdateChecker.svelte` component with non-blocking toast notification; download progress feedback; user-controlled restart; `latest.json` generation in release pipeline with all 4 platform entries; `createUpdaterArtifacts: true` in `tauri.conf.json`.
 
-**Addresses:** Version management (structural fix), unsigned build UX, first actual release
+**Addresses:** Auto-updater check + download + install (P1 feature); update notification UI (P1 feature); silent background update check (P1 feature).
 
-**Avoids:** Pitfall 1 (version drift — structural fix, not just process discipline)
+**Avoids:** Auto-install without user consent — always show notification, let user control restart; blocking UI during download — non-modal toast; missing platforms in `latest.json` — verify all 4 targets (darwin-aarch64, darwin-x86_64, linux-x86_64, windows-x86_64) after first release; `+` characters in version strings — breaks updater endpoint URL interpolation.
 
-**Research flag:** No additional research needed — well-understood problem with documented solutions.
+**Research flag:** Standard patterns — official Tauri docs cover the full flow. No deep research needed unless the existing draft-release workflow requires custom `latest.json` handling.
 
 ### Phase Ordering Rationale
 
-- Phase 1 before Phase 2: CI patterns (bun setup, Rust cache) are copy-pasted into the release workflow; a passing CI run on main before the first release tag ensures the code is clean
-- Phase 2 before Phase 3: Changelog integration requires the release workflow to exist; Dependabot PRs must flow through CI, which must exist first
-- Phase 4 last: Version file cleanup and bump script are technically independent but the actual first release tag should only be pushed after all three prior phases are validated end-to-end
-- All pitfall mitigations land in the phase where they first appear — no "cleanup" phase needed
+- **Benchmarks before everything** — self-contained, zero external dependencies, establishes baselines before infrastructure changes affect build characteristics
+- **E2E before signing** — E2E tests become the automated validation layer for signing and updater changes; investing in the test infrastructure first makes subsequent phases safer to implement and verify
+- **Code signing before auto-updates** — hard dependency; the Tauri updater requires signed artifacts to function on macOS; this ordering is not optional
+- **All four phases in v1.0** — the features form a coherent production-readiness package; shipping code signing without auto-updates, or auto-updates without benchmarks, leaves the project incomplete in ways that degrade over time
 
 ### Research Flags
 
-Phases with standard patterns (skip `/gsd:research-phase`):
-- **All four phases:** The entire v0.10 scope is covered by official Tauri 2 distribution documentation, the tauri-action repository, and documented community post-mortems. All four research files rated HIGH confidence. No niche integrations, no sparse documentation areas, no experimental APIs. The pitfalls researcher identified root causes to specific line numbers in tauri-action source code — this level of specificity means planning can proceed directly to implementation.
+**Needs `/gsd:research-phase` during planning:**
+- **Phase 2 (E2E):** macOS E2E strategy decision — evaluate `tauri-plugin-webdriver-automation` maturity vs. Linux-only approach; architecture differs significantly between the two paths and must be decided before infrastructure design
+
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (Benchmarks):** Criterion + inner-fn pattern is fully documented; iai-callgrind setup is straightforward with official docs
+- **Phase 3 (Code Signing):** Official Tauri docs cover the complete flow; recommend a test release to validate CI interaction with existing workflow before full implementation
+- **Phase 4 (Auto-Updates):** Official Tauri docs cover the complete flow; plugin registration follows established patterns already in the codebase
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All tools sourced from official documentation and verified release tags. No community-only sources for any recommended tool. Explicit "do not use" list backed by specific deprecation/bug records. |
-| Features | HIGH | Table stakes derived from official Tauri 2 docs and analysis of comparable open-source desktop apps. Defer list backed by explicit PROJECT.md decisions and cost/complexity analysis. |
-| Architecture | HIGH | Two-workflow pattern is the canonical Tauri 2 CI/CD design from official docs. Race condition fix verified against tauri-action issue tracker with root cause analysis to specific source lines. |
-| Pitfalls | HIGH | Each pitfall references official docs, specific GitHub issue numbers, or post-mortems with quantified failure counts (e.g., "60+ failed runs" for version sync). Recovery costs documented. |
+| Stack | HIGH | All additions sourced from official Tauri 2 docs; version pins validated against existing Rust toolchain; explicit "do not use" list backed by specific bugs and deprecation records |
+| Features | HIGH | Feature set derived from official Tauri capabilities, competitor analysis, and existing codebase state; no speculation; defer decisions backed by cost/complexity rationale |
+| Architecture | HIGH | All patterns follow established Tauri conventions; inner-fn pattern already in project; all integration points are additive not structural |
+| Pitfalls | HIGH | Top pitfalls sourced from official Tauri docs, numbered GitHub issues with root-cause analysis, practitioner post-mortems, and specific failure modes from the existing CI pipeline |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Prettier initial format pass scope:** Research calls for running `bunx prettier --write .` on the codebase before enabling CI enforcement. The actual diff size and whether any files need manual attention is unknown until the pass runs. Low risk — Prettier is deterministic — but it may touch many files that should be reviewed before committing.
+- **macOS E2E tooling:** `tauri-plugin-webdriver-automation` is from February 2026 with limited production track record; the Phase 2 plan must make a final decision before test infrastructure is designed. Linux-only E2E is the safe fallback if the plugin is too immature.
 
-- **`tauri.conf.json` version field removal:** Tauri 2 documentation says it falls back to `Cargo.toml` version when `tauri.conf.json` omits the version field. This should be verified against the actual Tauri version in use before removing the field.
+- **Apple notarization timing:** Notarization SLA is unpredictable (30 seconds to 2+ hours per recent GitHub issue reports). The local signing fallback procedure must be documented in Phase 3 before relying on CI-only notarization for releases.
 
-- **cliff.toml `docs:` skip filter:** Research recommends skipping `docs:` commits because the project's git history is heavily GSD-planning-laden. The ratio of product `feat:`/`fix:` commits to planning `docs:` commits should be spot-checked before writing the `cliff.toml` to confirm this exclusion produces a useful changelog.
+- **`criterion` 0.5.x current patch version:** The pin to 0.5.1 is from training data. Verify the current 0.5.x latest on crates.io before `cargo add` — this is low risk, just confirm before Phase 1 begins.
 
-- **macOS runner compute cost:** Research recommends two separate matrix entries for macOS ARM and Intel. Both run on `macos-latest` (Apple Silicon), so each build takes ~8 min. If free-tier build minutes become a concern after the first release, the Intel .dmg can be dropped — but this is not a blocking concern for v0.10.
+- **`tauri-action` flag names:** Research notes both `uploadUpdaterJson: true` (workflow YAML input) and `createUpdaterArtifacts: true` (tauri.conf.json field) as distinct configuration. Validate exact field names against `tauri-action@v0` release notes during Phase 3 planning to avoid silent misconfiguration.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- [Tauri 2 GitHub Actions Guide](https://v2.tauri.app/distribute/pipelines/github/) — official workflow examples, Linux dependencies, matrix strategy
-- [tauri-apps/tauri-action repository](https://github.com/tauri-apps/tauri-action) — input/output spec, v0.6.2 stable, bun detection, release creation
-- [tauri-action#914: Duplicate Release Race](https://github.com/tauri-apps/tauri-action/issues/914) — root cause analysis, two-job workaround
-- [tauri-action#986: bun not found](https://github.com/tauri-apps/tauri-action/issues/986) — setup-bun requirement
-- [oven-sh/setup-bun](https://github.com/oven-sh/setup-bun) — v2.2.0, bun CI setup
-- [dtolnay/rust-toolchain](https://github.com/dtolnay/rust-toolchain) — stable, replaces archived actions-rs
-- [Swatinem/rust-cache](https://github.com/Swatinem/rust-cache) — v2.x, workspace config for Tauri
-- [orhun/git-cliff-action](https://github.com/orhun/git-cliff-action) — v4.7.1, fetch-depth requirement
-- [git-cliff repository](https://github.com/orhun/git-cliff) — v2.12.0, cliff.toml config format
-- [GitHub Dependabot configuration docs](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates) — v2 format, ecosystem options
-- [Dependabot Bun Support GA (Feb 2025)](https://github.blog/changelog/2025-02-13-dependabot-version-updates-now-support-the-bun-package-manager-ga/) — bun.lock support
-- [Tauri 2 AppImage Distribution Docs](https://v2.tauri.app/distribute/appimage/) — glibc compatibility warning
-- [Tauri 2 Windows Installer Docs](https://v2.tauri.app/distribute/windows-installer/) — NSIS vs MSI trade-offs
-- [Clippy CI docs](https://doc.rust-lang.org/nightly/clippy/continuous_integration/github_actions.html) — `-D warnings` pattern
-- [Prettier CI docs](https://prettier.io/docs/ci) — `--check` flag
-- [Tauri 2 macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/) — future milestone reference
-- [Tauri 2 Windows Code Signing](https://v2.tauri.app/distribute/sign/windows/) — future milestone reference
+- [Tauri 2 WebDriver docs](https://v2.tauri.app/develop/tests/webdriver/) — E2E platform support matrix, tauri-driver setup, macOS gap documentation
+- [Tauri 2 WebdriverIO Example](https://v2.tauri.app/develop/tests/webdriver/example/webdriverio/) — step-by-step wdio.conf.ts setup
+- [Tauri 2 Updater Plugin](https://v2.tauri.app/plugin/updater/) — full configuration, signing, endpoints, createUpdaterArtifacts
+- [Tauri 2 macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/) — certificate types, notarization, App Store Connect API keys
+- [Tauri 2 Windows Code Signing](https://v2.tauri.app/distribute/sign/windows/) — Azure Trusted Signing setup
+- [Tauri 2 GitHub Pipelines](https://v2.tauri.app/distribute/pipelines/github/) — tauri-action workflow, latest.json generation
+- [criterion.rs docs](https://bheisler.github.io/criterion.rs/book/getting_started.html) — Rust benchmark harness, v0.5.x API, CI noise warning
+- [iai-callgrind GitHub](https://github.com/iai-callgrind/iai-callgrind) — deterministic CI benchmarking via instruction counts
+- [tauri-apps/tauri-action](https://github.com/tauri-apps/tauri-action) — includeUpdaterJson, signing integration
 
 ### Secondary (MEDIUM confidence)
+- [Ship Tauri v2 Like a Pro: Code Signing](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-code-signing-for-macos-and-windows-part-12-3o9n) — practitioner certificate export walkthrough
+- [Tauri auto-updater with GitHub Releases](https://thatgurjot.com/til/tauri-auto-updater/) — practical GitHub Releases updater setup
+- [Shipping a Production macOS App with Tauri 2.0](https://dev.to/0xmassi/shipping-a-production-macos-app-with-tauri-20-code-signing-notarization-and-homebrew-mc3) — end-to-end notarization walkthrough
 
-- [Ship Tauri v2 Like a Pro Part 2](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-github-actions-and-release-automation-part-22-2ef7) — real-world draft release pattern, concurrency control, fail-fast (verified against official docs)
-- [How to Make Rust CI 2-3x Faster](https://www.reillywood.com/blog/rust-faster-ci/) — clippy ordering, cache strategy
-- [VaultNote CI/CD Post-Mortem](https://dev.to/dev_michael/my-first-tauri-cicd-pipeline-lessons-from-building-vaultnote-with-sveltekit-17mp) — version sync failures, 60+ failed runs
-
-### Tertiary (LOW confidence / known open issues)
-
-- [dependabot-core#13623: Bun lockfile configVersion removal](https://github.com/dependabot/dependabot-core/issues/13623) — open bug; mitigated by `--frozen-lockfile` CI check
-- [dependabot-core#11691: Rust 2024 edition support](https://github.com/dependabot/dependabot-core/issues/11691) — not relevant now (project uses 2021 edition); note for future if edition is upgraded
+### Tertiary (LOW confidence — needs validation)
+- [tauri-webdriver (danielraffel)](https://github.com/danielraffel/tauri-webdriver) — macOS WKWebView WebDriver alternative; 12 stars, Feb 2026, experimental; evaluate during Phase 2 planning before committing to this path
+- [CrabNebula E2E Tests](https://docs.crabnebula.dev/plugins/tauri-e2e-tests/) — cross-platform tauri-driver with macOS support; commercial, rejected for personal project
 
 ---
-*Research completed: 2026-03-25*
+*Research completed: 2026-03-26*
 *Ready for roadmap: yes*
