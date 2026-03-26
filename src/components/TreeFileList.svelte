@@ -133,6 +133,7 @@ function handleKeydown(e: KeyboardEvent) {
   if (flatRows.length === 0) return;
   const row = flatRows[focusIndex];
   if (!row) return;
+  const prevIndex = focusIndex;
 
   switch (e.key) {
     case "ArrowDown":
@@ -178,6 +179,13 @@ function handleKeydown(e: KeyboardEvent) {
   // Track focused path for preservation across data changes
   const focusedRow = flatRows[focusIndex];
   lastFocusedPath = focusedRow?.node.path ?? null;
+
+  // Emit selection on arrow navigation so the diff pane updates
+  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && focusIndex !== prevIndex) {
+    if (focusedRow?.type === "file") {
+      onfileclick?.(focusedRow.node.file.path);
+    }
+  }
 }
 </script>
 
