@@ -79,11 +79,12 @@ Plan: Not started
 | 260325-j3y | Remove left tab offset when window is maximized/fullscreen | 2026-03-25 | 13597f5 | [260325-j3y-remove-left-tab-offset-when-window-is-ma](./quick/260325-j3y-remove-left-tab-offset-when-window-is-ma/) |
 | 260325-jb3 | Prevent Ctrl+Cmd+F from being captured by Cmd+F search handler | 2026-03-25 | 8b3dcd9 | [260325-jb3-prevent-ctrl-cmd-f-from-being-captured-b](./quick/260325-jb3-prevent-ctrl-cmd-f-from-being-captured-b/) |
 | 260325-lkj | Fix graph column width too wide for linear repos (auto-fit to content) | 2026-03-25 | 51add5e | [260325-lkj-fix-graph-column-width-too-wide-for-line](./quick/260325-lkj-fix-graph-column-width-too-wide-for-line/) |
+| 260325-up9 | Add keyboard arrow navigation to commit graph pane | 2026-03-26 | a048c3f | [260325-up9-when-the-commit-graph-pane-has-focus-the](./quick/260325-up9-when-the-commit-graph-pane-has-focus-the/) |
 
 ## Session Continuity
 
-Last activity: 2026-03-25
-Last session: 2026-03-25T23:54:20.444Z
-Stopped at: Completed 51-01-PLAN.md
+Last activity: 2026-03-26
+Last session: 2026-03-26T01:10:33Z
+Stopped at: Completed 260325-up9 quick task
 Resume file: None
-Next action: /gsd:plan-phase 50
+Next action: /gsd:next
