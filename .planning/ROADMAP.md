@@ -153,7 +153,7 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
 **Milestone Goal:** Production-readiness infrastructure -- automated testing at all levels, performance benchmarks with regression detection, and macOS code signing with notarization.
 
 - [x] **Phase 53: Rust Unit Tests & Test Harness** - GOOS-style test harness architecture + unit tests for all Rust backend commands (completed 2026-03-26)
-- [ ] **Phase 54: Frontend Unit Tests** - Unit tests for TypeScript utilities and Svelte components
+- [x] **Phase 54: Frontend Unit Tests** - Unit tests for TypeScript utilities and Svelte components (completed 2026-03-26)
 - [ ] **Phase 55: Integration Tests** - End-to-end validation of Tauri IPC bridge, git operations, and filesystem watcher
 - [ ] **Phase 56: Test Coverage & CI Reporting** - Coverage measurement and reporting integrated into CI pipeline
 - [ ] **Phase 57: Performance Benchmarks** - Criterion benchmarks for critical Rust operations with CI regression detection
@@ -191,12 +191,12 @@ Plans:
   2. Svelte components have tests covering user interactions and reactive state transitions
   3. Tests for graph transformation, tree building, merge parsing, and search logic pass deterministically
   4. All tests pass in CI (vitest gate already exists)
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 54-01-PLAN.md -- Test infrastructure + shared helpers + utility test audit (UNIT-02)
 - [x] 54-02-PLAN.md -- Simple/medium component tests: 13 components (UNIT-03)
 - [x] 54-03-PLAN.md -- Complex component tests A: 7 components (UNIT-03)
-- [ ] 54-04-PLAN.md -- Complex component tests B: 6 components (UNIT-03)
+- [x] 54-04-PLAN.md -- Complex component tests B: 6 components (UNIT-03)
 
 ### Phase 55: Integration Tests
 **Goal**: The Tauri IPC bridge, git operations against real repos, and filesystem watcher are validated as integrated systems
@@ -261,7 +261,7 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 53. Rust Unit Tests & Test Harness | 4/4 | Complete    | 2026-03-26 |
-| 54. Frontend Unit Tests | 3/4 | In Progress|  |
+| 54. Frontend Unit Tests | 4/4 | Complete   | 2026-03-26 |
 | 55. Integration Tests | 0/TBD | Not started | - |
 | 56. Test Coverage & CI Reporting | 0/TBD | Not started | - |
 | 57. Performance Benchmarks | 0/TBD | Not started | - |
