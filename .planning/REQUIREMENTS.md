@@ -1,0 +1,110 @@
+# Requirements: Trunk
+
+**Defined:** 2026-03-26
+**Core Value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
+
+## v1.0 Requirements
+
+Requirements for production-readiness infrastructure. Each maps to roadmap phases.
+
+### Unit Testing
+
+- [ ] **UNIT-01**: All Rust backend commands have unit tests via inner-fn pattern
+- [ ] **UNIT-02**: All TypeScript utilities and state management modules have unit tests
+- [ ] **UNIT-03**: All Svelte components have unit tests for behavior and state transitions
+- [ ] **UNIT-04**: Test coverage metrics are measured and reported in CI
+
+### Integration Testing
+
+- [ ] **INTG-01**: Tauri IPC bridge is tested with real invoke/listen round-trips
+- [ ] **INTG-02**: Git operations are integration-tested against real git repositories (not mocks)
+- [ ] **INTG-03**: Filesystem watcher integration is tested with real file change events
+
+### End-to-End Testing
+
+- [ ] **E2E-01**: E2E test harness using WebdriverIO + tauri-driver runs on Linux CI
+- [ ] **E2E-02**: E2E tests cover core workflow: open repo, browse commit history, view diffs
+- [ ] **E2E-03**: E2E tests cover staging workflow: stage/unstage files, create commits
+- [ ] **E2E-04**: E2E tests cover branch operations: checkout, create, delete
+- [ ] **E2E-05**: macOS E2E tests via experimental WebDriver plugin
+
+### Performance Benchmarks
+
+- [ ] **BENCH-01**: Criterion benchmarks for graph lane algorithm (walk_commits) with varying repo sizes
+- [ ] **BENCH-02**: Criterion benchmarks for ref listing, diff computation, and hunk staging
+- [ ] **BENCH-03**: Frontend IPC round-trip benchmarks for key commands (get_graph, get_diff, list_refs)
+- [ ] **BENCH-04**: Application startup time measurement (launch to first meaningful paint)
+- [ ] **BENCH-05**: CI pipeline detects performance regressions with threshold-based gates
+
+### Code Signing
+
+- [ ] **SIGN-01**: macOS builds are code-signed and notarized in CI release workflow
+- [ ] **SIGN-02**: Signed .dmg installs without Gatekeeper warnings on macOS
+
+## v1.x Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Auto-Updates
+
+- **AUTO-01**: Auto-updater integration with tauri-plugin-updater (check + download + install + relaunch)
+- **AUTO-02**: Update signing keypair generation and latest.json endpoint via GitHub Releases
+- **AUTO-03**: Download progress UI and silent background check with skip-this-version preference
+
+### Code Signing
+
+- **SIGN-03**: Windows code signing with Azure Key Vault + OV certificate
+
+### Testing
+
+- **E2E-06**: Windows E2E tests in CI with msedgedriver
+- **E2E-07**: Cross-platform E2E matrix (all 3 OS in CI)
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Auto-updates | User chose to defer to v1.x -- code signing should be validated first |
+| Windows code signing | Cost ($200-400/yr) not justified for personal project; SmartScreen reputation builds over time |
+| Visual regression testing | Pixel-level diffs break on OS updates, DPI changes, font rendering -- enormous maintenance burden |
+| CrabNebula Cloud | Vendor lock-in, commercial subscription, overkill for personal open-source project |
+| App Store distribution | Sandbox restrictions conflict with git CLI subprocess usage |
+| Nightly update channel | Doubles build infrastructure, no user base to justify the cost |
+| Playwright E2E tests | Playwright does not support WKWebView or WebView2 natively -- cannot connect to Tauri rendering engine |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| UNIT-01 | — | Pending |
+| UNIT-02 | — | Pending |
+| UNIT-03 | — | Pending |
+| UNIT-04 | — | Pending |
+| INTG-01 | — | Pending |
+| INTG-02 | — | Pending |
+| INTG-03 | — | Pending |
+| E2E-01 | — | Pending |
+| E2E-02 | — | Pending |
+| E2E-03 | — | Pending |
+| E2E-04 | — | Pending |
+| E2E-05 | — | Pending |
+| BENCH-01 | — | Pending |
+| BENCH-02 | — | Pending |
+| BENCH-03 | — | Pending |
+| BENCH-04 | — | Pending |
+| BENCH-05 | — | Pending |
+| SIGN-01 | — | Pending |
+| SIGN-02 | — | Pending |
+
+**Coverage:**
+- v1.0 requirements: 19 total
+- Mapped to phases: 0
+- Unmapped: 19
+
+---
+*Requirements defined: 2026-03-26*
+*Last updated: 2026-03-26 after initial definition*
