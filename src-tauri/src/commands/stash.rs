@@ -245,4 +245,3 @@ pub async fn stash_drop(
     let _ = app.emit("repo-changed", path);
     Ok(())
 }
-

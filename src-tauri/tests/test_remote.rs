@@ -9,9 +9,8 @@ use trunk_lib::commands::remote::classify_git_error;
 
 #[test]
 fn classify_auth_failure_password() {
-    let err = classify_git_error(
-        "fatal: Authentication failed for 'https://github.com/user/repo.git'",
-    );
+    let err =
+        classify_git_error("fatal: Authentication failed for 'https://github.com/user/repo.git'");
     assert_eq!(err.code, "auth_failure");
 }
 
@@ -35,8 +34,7 @@ fn classify_auth_failure_host_key() {
 
 #[test]
 fn classify_auth_failure_connection_refused() {
-    let err =
-        classify_git_error("ssh: connect to host github.com port 22: Connection refused");
+    let err = classify_git_error("ssh: connect to host github.com port 22: Connection refused");
     assert_eq!(err.code, "auth_failure");
 }
 
@@ -60,8 +58,7 @@ fn classify_non_fast_forward_failed_push() {
 
 #[test]
 fn classify_no_upstream() {
-    let err =
-        classify_git_error("fatal: The current branch feature has no upstream branch.");
+    let err = classify_git_error("fatal: The current branch feature has no upstream branch.");
     assert_eq!(err.code, "no_upstream");
 }
 

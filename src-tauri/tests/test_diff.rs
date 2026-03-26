@@ -11,9 +11,15 @@ fn modified_tracked_file_produces_unstaged_hunks() {
         .with_commit("Initial commit")
         .build();
 
-    std::fs::write(ctx.repo_path().join("README.md"), "modified content for diff").unwrap();
+    std::fs::write(
+        ctx.repo_path().join("README.md"),
+        "modified content for diff",
+    )
+    .unwrap();
 
-    let file_diffs = ctx.diff_unstaged("README.md").expect("diff_unstaged failed");
+    let file_diffs = ctx
+        .diff_unstaged("README.md")
+        .expect("diff_unstaged failed");
     assert!(!file_diffs.is_empty(), "expected non-empty file_diffs");
 
     let fd = &file_diffs[0];
@@ -28,7 +34,9 @@ fn clean_file_produces_empty_unstaged_diff() {
         .with_commit("Initial commit")
         .build();
 
-    let file_diffs = ctx.diff_unstaged("README.md").expect("diff_unstaged failed");
+    let file_diffs = ctx
+        .diff_unstaged("README.md")
+        .expect("diff_unstaged failed");
     assert!(
         file_diffs.is_empty(),
         "expected empty file_diffs for clean file"
@@ -42,7 +50,11 @@ fn untracked_file_shows_content_in_unstaged_diff() {
         .with_commit("Initial commit")
         .build();
 
-    std::fs::write(ctx.repo_path().join("new_file.txt"), "line1\nline2\nline3\n").unwrap();
+    std::fs::write(
+        ctx.repo_path().join("new_file.txt"),
+        "line1\nline2\nline3\n",
+    )
+    .unwrap();
 
     let file_diffs = ctx
         .diff_unstaged("new_file.txt")
@@ -101,9 +113,7 @@ fn staged_modification_produces_staged_hunks() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
@@ -128,9 +138,7 @@ fn staged_file_on_unborn_head_produces_diff() {
         index.write().unwrap();
     }
 
-    let file_diffs = ctx
-        .diff_staged("new_file.txt")
-        .expect("diff_staged failed");
+    let file_diffs = ctx.diff_staged("new_file.txt").expect("diff_staged failed");
     assert!(
         !file_diffs.is_empty(),
         "expected non-empty file_diffs for unborn HEAD staged file"
@@ -178,9 +186,7 @@ fn diff_commit_root_commit_shows_added_files() {
     let root_oid_str = root_oid.to_string();
     drop(repo);
 
-    let file_diffs = ctx
-        .diff_commit(&root_oid_str)
-        .expect("diff_commit failed");
+    let file_diffs = ctx.diff_commit(&root_oid_str).expect("diff_commit failed");
     assert!(
         !file_diffs.is_empty(),
         "expected non-empty file_diffs for root commit"

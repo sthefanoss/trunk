@@ -231,4 +231,3 @@ pub async fn get_commit_detail(
         })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
-

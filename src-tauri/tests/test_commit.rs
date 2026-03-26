@@ -38,9 +38,7 @@ fn create_commit_works_on_unborn_head() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("first.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("first.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -72,9 +70,7 @@ fn create_commit_uses_configured_signature() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -145,21 +141,12 @@ fn get_head_commit_message_returns_subject_and_body() {
         let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
         std::fs::write(ctx.repo_path().join("file.txt"), "hello").unwrap();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "Subject\n\nBody text",
-            &tree,
-            &[],
-        )
-        .unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Subject\n\nBody text", &tree, &[])
+            .unwrap();
     }
 
     let msg = ctx

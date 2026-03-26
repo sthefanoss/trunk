@@ -16,9 +16,7 @@ fn stash_save_creates_entry() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -40,9 +38,7 @@ fn stash_save_with_empty_message_uses_default() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -50,7 +46,10 @@ fn stash_save_with_empty_message_uses_default() {
 
     let stashes = ctx.list_stashes().unwrap();
     assert_eq!(stashes.len(), 1);
-    assert!(!stashes[0].name.is_empty(), "stash name should not be empty");
+    assert!(
+        !stashes[0].name.is_empty(),
+        "stash name should not be empty"
+    );
 }
 
 #[test]
@@ -77,9 +76,7 @@ fn list_stashes_returns_parent_oid() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -102,9 +99,7 @@ fn stash_pop_removes_entry_and_restores_changes() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -128,9 +123,7 @@ fn stash_apply_keeps_entry() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -154,9 +147,7 @@ fn stash_drop_removes_entry_without_restoring() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 

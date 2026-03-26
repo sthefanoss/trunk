@@ -101,14 +101,11 @@ fn unstage_file_moves_back_to_unstaged() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
-    ctx.unstage_file("README.md")
-        .expect("unstage_file failed");
+    ctx.unstage_file("README.md").expect("unstage_file failed");
 
     let status = ctx.get_status().expect("get_status failed");
     let readme_in_staged = status.staged.iter().any(|f| f.path == "README.md");
@@ -183,9 +180,7 @@ fn unstage_all_clears_staged() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
@@ -214,8 +209,7 @@ fn discard_file_reverts_tracked_modification() {
     )
     .unwrap();
 
-    ctx.discard_file("README.md")
-        .expect("discard_file failed");
+    ctx.discard_file("README.md").expect("discard_file failed");
 
     let after = std::fs::read_to_string(ctx.repo_path().join("README.md")).unwrap();
     assert_eq!(
@@ -307,23 +301,14 @@ fn create_multi_hunk_file(ctx: &TestContext) {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("multi.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("multi.txt")).unwrap();
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
         let sig = repo.signature().unwrap();
         let head = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "Add multi.txt",
-            &tree,
-            &[&head],
-        )
-        .unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head])
+            .unwrap();
     }
 
     // Modify lines near the top AND near the bottom (creates 2 hunks)
@@ -344,12 +329,9 @@ fn stage_hunk_stages_single_hunk() {
 
     create_multi_hunk_file(&ctx);
 
-    ctx.stage_hunk("multi.txt", 0)
-        .expect("stage_hunk failed");
+    ctx.stage_hunk("multi.txt", 0).expect("stage_hunk failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert_eq!(staged.len(), 1, "expected 1 file in staged diff");
     assert_eq!(staged[0].hunks.len(), 1, "expected 1 hunk in staged diff");
 
@@ -419,9 +401,7 @@ fn unstage_hunk_unstages_single_hunk() {
     ctx.unstage_hunk("multi.txt", 0)
         .expect("unstage_hunk failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert_eq!(staged.len(), 1, "expected 1 file in staged diff");
     assert_eq!(
         staged[0].hunks.len(),
@@ -497,23 +477,14 @@ fn create_add_delete_hunk_file(ctx: &TestContext) {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("multi.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("multi.txt")).unwrap();
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
         let sig = repo.signature().unwrap();
         let head = repo.head().unwrap().peel_to_commit().unwrap();
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "Add multi.txt",
-            &tree,
-            &[&head],
-        )
-        .unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Add multi.txt", &tree, &[&head])
+            .unwrap();
     }
 
     // Replace line 2 and insert a new line, plus modify line 29
@@ -558,9 +529,7 @@ fn stage_lines_stages_selected_add_lines() {
     ctx.stage_lines("multi.txt", 0, add_indices)
         .expect("stage_lines failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert!(
         !staged.is_empty(),
         "expected staged diff after staging add lines"
@@ -613,9 +582,7 @@ fn stage_lines_stages_selected_delete_lines() {
     ctx.stage_lines("multi.txt", 0, del_indices)
         .expect("stage_lines failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert!(
         !staged.is_empty(),
         "expected staged diff after staging delete lines"
@@ -660,9 +627,7 @@ fn stage_lines_mixed_add_and_delete_selection() {
         .lines
         .iter()
         .enumerate()
-        .filter(|(_, l)| {
-            matches!(l.origin, DiffOrigin::Add | DiffOrigin::Delete)
-        })
+        .filter(|(_, l)| matches!(l.origin, DiffOrigin::Add | DiffOrigin::Delete))
         .map(|(i, _)| i as u32)
         .collect();
     assert!(
@@ -673,9 +638,7 @@ fn stage_lines_mixed_add_and_delete_selection() {
     ctx.stage_lines("multi.txt", 0, mixed_indices)
         .expect("stage_lines failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert!(!staged.is_empty(), "expected staged diff");
     let staged_hunk0 = &staged[0].hunks[0];
     let has_adds = staged_hunk0
@@ -728,9 +691,7 @@ fn unstage_lines_unstages_selected_lines() {
     // Stage entire file first
     ctx.stage_file("multi.txt").expect("stage_file failed");
 
-    let staged = ctx
-        .diff_staged("multi.txt")
-        .expect("diff_staged failed");
+    let staged = ctx.diff_staged("multi.txt").expect("diff_staged failed");
     assert!(!staged.is_empty(), "expected staged diff");
     let hunk0 = &staged[0].hunks[0];
 

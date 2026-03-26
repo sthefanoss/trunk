@@ -50,9 +50,7 @@ fn checkout_commit_dirty_workdir_fails() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
     }
 

@@ -78,9 +78,7 @@ fn checkout_with_non_conflicting_changes_succeeds() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
@@ -147,13 +145,7 @@ fn create_branch_from_specific_oid() {
         .build();
 
     // Get the first commit OID, then create a second commit
-    let first_oid = ctx
-        .repo()
-        .head()
-        .unwrap()
-        .target()
-        .unwrap()
-        .to_string();
+    let first_oid = ctx.repo().head().unwrap().target().unwrap().to_string();
 
     // Add a second commit by writing a file and creating a commit via the repo directly
     std::fs::write(ctx.repo_path().join("extra.txt"), "content").unwrap();
@@ -161,9 +153,7 @@ fn create_branch_from_specific_oid() {
         let repo = ctx.repo();
         let sig = repo.signature().unwrap();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("extra.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("extra.txt")).unwrap();
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
@@ -260,22 +250,14 @@ fn create_branch_dirty_workdir_returns_error() {
         .with_commit("Initial commit")
         .build();
 
-    let head_oid = ctx
-        .repo()
-        .head()
-        .unwrap()
-        .target()
-        .unwrap()
-        .to_string();
+    let head_oid = ctx.repo().head().unwrap().target().unwrap().to_string();
 
     // Make workdir dirty
     std::fs::write(ctx.repo_path().join("README.md"), "dirty content").unwrap();
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
@@ -316,9 +298,7 @@ fn list_refs_ahead_behind_tracking() {
         let sig = git2::Signature::now("Test", "test@example.com").unwrap();
         std::fs::write(work_dir.path().join("file.txt"), "content").unwrap();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("file.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("file.txt")).unwrap();
         index.write().unwrap();
         let tree_oid = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();

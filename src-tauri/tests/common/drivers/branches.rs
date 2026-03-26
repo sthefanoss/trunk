@@ -16,33 +16,17 @@ impl TestContext {
 
     /// Checkout a branch by name (needs &mut self for cache_map)
     pub fn checkout_branch(&mut self, name: &str) -> Result<(), TrunkError> {
-        branches::checkout_branch_inner(
-            &self.path,
-            name,
-            &self.state_map,
-            &mut self.cache_map,
-        )
+        branches::checkout_branch_inner(&self.path, name, &self.state_map, &mut self.cache_map)
     }
 
     /// Delete a local branch (needs &mut self for cache_map)
     pub fn delete_branch(&mut self, name: &str) -> Result<(), TrunkError> {
-        branches::delete_branch_inner(
-            &self.path,
-            name,
-            &self.state_map,
-            &mut self.cache_map,
-        )
+        branches::delete_branch_inner(&self.path, name, &self.state_map, &mut self.cache_map)
     }
 
     /// Rename a local branch (needs &mut self for cache_map)
     pub fn rename_branch(&mut self, old: &str, new: &str) -> Result<(), TrunkError> {
-        branches::rename_branch_inner(
-            &self.path,
-            old,
-            new,
-            &self.state_map,
-            &mut self.cache_map,
-        )
+        branches::rename_branch_inner(&self.path, old, new, &self.state_map, &mut self.cache_map)
     }
 
     /// Fast-forward merge to a target OID (needs &mut self for cache_map)
@@ -56,11 +40,7 @@ impl TestContext {
     }
 
     /// Create a new branch, optionally from a specific OID (needs &mut self for cache_map)
-    pub fn create_branch(
-        &mut self,
-        name: &str,
-        from_oid: Option<&str>,
-    ) -> Result<(), TrunkError> {
+    pub fn create_branch(&mut self, name: &str, from_oid: Option<&str>) -> Result<(), TrunkError> {
         branches::create_branch_inner(
             &self.path,
             name,

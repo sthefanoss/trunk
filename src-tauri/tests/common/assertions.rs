@@ -2,11 +2,8 @@ use crate::common::context::TestContext;
 
 impl TestContext {
     pub fn assert_file_staged(&self, file: &str) {
-        let status = trunk_lib::commands::staging::get_status_inner(
-            self.path(),
-            self.state_map(),
-        )
-        .expect("get_status_inner failed");
+        let status = trunk_lib::commands::staging::get_status_inner(self.path(), self.state_map())
+            .expect("get_status_inner failed");
         assert!(
             status.staged.iter().any(|f| f.path == file),
             "expected '{}' to be staged, but staged files are: {:?}",
@@ -16,29 +13,19 @@ impl TestContext {
     }
 
     pub fn assert_file_unstaged(&self, file: &str) {
-        let status = trunk_lib::commands::staging::get_status_inner(
-            self.path(),
-            self.state_map(),
-        )
-        .expect("get_status_inner failed");
+        let status = trunk_lib::commands::staging::get_status_inner(self.path(), self.state_map())
+            .expect("get_status_inner failed");
         assert!(
             status.unstaged.iter().any(|f| f.path == file),
             "expected '{}' to be unstaged, but unstaged files are: {:?}",
             file,
-            status
-                .unstaged
-                .iter()
-                .map(|f| &f.path)
-                .collect::<Vec<_>>()
+            status.unstaged.iter().map(|f| &f.path).collect::<Vec<_>>()
         );
     }
 
     pub fn assert_status_clean(&self) {
-        let status = trunk_lib::commands::staging::get_status_inner(
-            self.path(),
-            self.state_map(),
-        )
-        .expect("get_status_inner failed");
+        let status = trunk_lib::commands::staging::get_status_inner(self.path(), self.state_map())
+            .expect("get_status_inner failed");
         assert!(
             status.staged.is_empty(),
             "expected no staged files, got: {:?}",
@@ -47,11 +34,7 @@ impl TestContext {
         assert!(
             status.unstaged.is_empty(),
             "expected no unstaged files, got: {:?}",
-            status
-                .unstaged
-                .iter()
-                .map(|f| &f.path)
-                .collect::<Vec<_>>()
+            status.unstaged.iter().map(|f| &f.path).collect::<Vec<_>>()
         );
         assert!(
             status.conflicted.is_empty(),

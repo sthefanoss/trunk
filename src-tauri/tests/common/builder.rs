@@ -114,7 +114,8 @@ impl TestContextBuilder {
 
         for step in &self.steps {
             match step {
-                BuildStep::WriteFile { path, content } | BuildStep::WriteBinaryFile { path, content } => {
+                BuildStep::WriteFile { path, content }
+                | BuildStep::WriteBinaryFile { path, content } => {
                     let full_path = dir.path().join(path);
                     if let Some(parent) = full_path.parent() {
                         std::fs::create_dir_all(parent).unwrap();
@@ -128,9 +129,7 @@ impl TestContextBuilder {
                     let mut index = repo.index().unwrap();
 
                     for file in &pending_files {
-                        index
-                            .add_path(std::path::Path::new(file))
-                            .unwrap();
+                        index.add_path(std::path::Path::new(file)).unwrap();
                     }
                     index.write().unwrap();
                     pending_files.clear();
@@ -154,19 +153,15 @@ impl TestContextBuilder {
 
                 BuildStep::Checkout { name } => {
                     repo.set_head(&format!("refs/heads/{}", name)).unwrap();
-                    repo.checkout_head(Some(
-                        git2::build::CheckoutBuilder::default().force(),
-                    ))
-                    .unwrap();
+                    repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                        .unwrap();
                 }
 
                 BuildStep::Merge { branch } => {
                     let sig = repo.signature().unwrap();
 
                     // Find the branch tip
-                    let branch_ref = repo
-                        .find_branch(branch, git2::BranchType::Local)
-                        .unwrap();
+                    let branch_ref = repo.find_branch(branch, git2::BranchType::Local).unwrap();
                     let their_commit = branch_ref.get().peel_to_commit().unwrap();
 
                     // Get current HEAD
@@ -174,9 +169,7 @@ impl TestContextBuilder {
 
                     // Merge the two trees
                     let ancestor = repo
-                        .find_commit(
-                            repo.merge_base(our_commit.id(), their_commit.id()).unwrap(),
-                        )
+                        .find_commit(repo.merge_base(our_commit.id(), their_commit.id()).unwrap())
                         .unwrap();
                     let ancestor_tree = ancestor.tree().unwrap();
                     let our_tree = our_commit.tree().unwrap();
@@ -202,12 +195,9 @@ impl TestContextBuilder {
                 }
 
                 BuildStep::Conflict { branch } => {
-                    let branch_ref = repo
-                        .find_branch(branch, git2::BranchType::Local)
-                        .unwrap();
+                    let branch_ref = repo.find_branch(branch, git2::BranchType::Local).unwrap();
                     let their_commit = branch_ref.get().peel_to_commit().unwrap();
-                    let annotated =
-                        repo.find_annotated_commit(their_commit.id()).unwrap();
+                    let annotated = repo.find_annotated_commit(their_commit.id()).unwrap();
 
                     repo.merge(&[&annotated], None, None).unwrap();
                     // Leave the repo in merge/conflict state -- do NOT commit
@@ -235,8 +225,7 @@ impl TestContextBuilder {
 
                         let tree_oid = index.write_tree().unwrap();
                         let tree = repo.find_tree(tree_oid).unwrap();
-                        let parent =
-                            repo.head().ok().and_then(|h| h.peel_to_commit().ok());
+                        let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
                         let parents: Vec<&git2::Commit> =
                             parent.as_ref().map(|p| vec![p]).unwrap_or_default();
                         repo.commit(
@@ -251,16 +240,11 @@ impl TestContextBuilder {
                     }
 
                     // Modify the tracked file to create something to stash
-                    std::fs::write(
-                        &stash_marker,
-                        format!("modified-{}", stash_counter),
-                    )
-                    .unwrap();
+                    std::fs::write(&stash_marker, format!("modified-{}", stash_counter)).unwrap();
                     stash_counter += 1;
 
                     let msg = message.as_deref();
-                    repo.stash_save(&sig, msg.unwrap_or("stash"), None)
-                        .unwrap();
+                    repo.stash_save(&sig, msg.unwrap_or("stash"), None).unwrap();
                 }
 
                 BuildStep::Remote { name } => {

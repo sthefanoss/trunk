@@ -37,11 +37,7 @@ fn merge_in_progress_reports_merge_state() {
     // Write MERGE_MSG manually (libgit2 merge does not create it; git CLI does)
     let repo = ctx.repo();
     let git_dir = repo.path();
-    std::fs::write(
-        git_dir.join("MERGE_MSG"),
-        "Merge branch 'feature'\n",
-    )
-    .unwrap();
+    std::fs::write(git_dir.join("MERGE_MSG"), "Merge branch 'feature'\n").unwrap();
 
     let info = ctx.get_operation_state().unwrap();
     assert!(matches!(info.op_type, OperationType::Merge));
@@ -118,7 +114,10 @@ fn merge_branch_with_conflict_returns_error() {
         .build();
 
     let result = ctx.merge_branch("feature");
-    assert!(result.is_err(), "merge_branch returns error on conflict (CONFLICT is on stdout, not stderr)");
+    assert!(
+        result.is_err(),
+        "merge_branch returns error on conflict (CONFLICT is on stdout, not stderr)"
+    );
 }
 
 #[test]
