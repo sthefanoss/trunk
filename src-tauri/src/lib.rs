@@ -1,7 +1,7 @@
-mod commands;
-mod error;
-mod git;
-mod state;
+pub mod commands;
+pub mod error;
+pub mod git;
+pub mod state;
 mod watcher;
 
 use state::{CommitCache, RepoState, RunningOp};
