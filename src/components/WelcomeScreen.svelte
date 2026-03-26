@@ -2,11 +2,16 @@
 import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
-import { addRecentRepo, getRecentRepos, type RecentRepo, removeRecentRepo } from "../lib/store.js";
+import {
+	addRecentRepo,
+	getRecentRepos,
+	type RecentRepo,
+	removeRecentRepo,
+} from "../lib/store.js";
 
 interface Props {
-  onopen: (path: string, name: string) => void;
-  isFullscreen?: boolean;
+	onopen: (path: string, name: string) => void;
+	isFullscreen?: boolean;
 }
 
 let { onopen, isFullscreen = false }: Props = $props();
@@ -17,49 +22,49 @@ let error = $state<string | null>(null);
 let home = $state("");
 
 function displayPath(path: string): string {
-  if (!home || !path.startsWith(home)) return path;
-  const rest = path.slice(home.length).replace(/^\//, "");
-  return `~/${rest}`;
+	if (!home || !path.startsWith(home)) return path;
+	const rest = path.slice(home.length).replace(/^\//, "");
+	return `~/${rest}`;
 }
 
 $effect(() => {
-  homeDir().then((h) => {
-    home = h;
-  });
-  getRecentRepos().then((repos) => {
-    recentRepos = repos;
-  });
+	homeDir().then((h) => {
+		home = h;
+	});
+	getRecentRepos().then((repos) => {
+		recentRepos = repos;
+	});
 });
 
 async function openRepository() {
-  error = null;
-  const selected = await open({ directory: true, multiple: false });
-  if (typeof selected !== "string") return;
+	error = null;
+	const selected = await open({ directory: true, multiple: false });
+	if (typeof selected !== "string") return;
 
-  await openPath(selected);
+	await openPath(selected);
 }
 
 async function openPath(path: string) {
-  error = null;
-  loading = true;
-  try {
-    await safeInvoke("open_repo", { path });
-    const name = path.split("/").at(-1) || path;
-    await addRecentRepo({ name, path });
-    recentRepos = await getRecentRepos();
-    onopen(path, name);
-  } catch (e: unknown) {
-    const trunk = e as TrunkError;
-    error = trunk.message ?? "Failed to open repository";
-  } finally {
-    loading = false;
-  }
+	error = null;
+	loading = true;
+	try {
+		await safeInvoke("open_repo", { path });
+		const name = path.split("/").at(-1) || path;
+		await addRecentRepo({ name, path });
+		recentRepos = await getRecentRepos();
+		onopen(path, name);
+	} catch (e: unknown) {
+		const trunk = e as TrunkError;
+		error = trunk.message ?? "Failed to open repository";
+	} finally {
+		loading = false;
+	}
 }
 
 async function handleRemoveRecent(path: string, event: MouseEvent) {
-  event.stopPropagation();
-  await removeRecentRepo(path);
-  recentRepos = await getRecentRepos();
+	event.stopPropagation();
+	await removeRecentRepo(path);
+	recentRepos = await getRecentRepos();
 }
 </script>
 

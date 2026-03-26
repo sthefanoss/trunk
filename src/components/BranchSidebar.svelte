@@ -8,21 +8,21 @@ import InputDialog from "./InputDialog.svelte";
 import RemoteGroup from "./RemoteGroup.svelte";
 
 interface Props {
-  repoPath: string;
-  onrefreshed?: () => void;
-  onstashselect?: (oid: string) => void;
-  onrefnavigate?: (refNameOrOid: string) => void;
-  refreshSignal?: number;
-  onopenrebaseeditor?: (baseOid: string, inclusive?: boolean) => void;
+	repoPath: string;
+	onrefreshed?: () => void;
+	onstashselect?: (oid: string) => void;
+	onrefnavigate?: (refNameOrOid: string) => void;
+	refreshSignal?: number;
+	onopenrebaseeditor?: (baseOid: string, inclusive?: boolean) => void;
 }
 
 let {
-  repoPath,
-  onrefreshed,
-  onstashselect,
-  onrefnavigate,
-  refreshSignal,
-  onopenrebaseeditor,
+	repoPath,
+	onrefreshed,
+	onstashselect,
+	onrefnavigate,
+	refreshSignal,
+	onopenrebaseeditor,
 }: Props = $props();
 
 let refs = $state<RefsResponse | null>(null);
@@ -45,426 +45,472 @@ let newBranchName = $state("");
 let createError = $state<string | null>(null);
 
 let filteredLocal = $derived(
-  search
-    ? (refs?.local ?? []).filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
-    : (refs?.local ?? []),
+	search
+		? (refs?.local ?? []).filter((b) =>
+				b.name.toLowerCase().includes(search.toLowerCase()),
+			)
+		: (refs?.local ?? []),
 );
 
 let filteredRemote = $derived(
-  search
-    ? (refs?.remote ?? []).filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
-    : (refs?.remote ?? []),
+	search
+		? (refs?.remote ?? []).filter((b) =>
+				b.name.toLowerCase().includes(search.toLowerCase()),
+			)
+		: (refs?.remote ?? []),
 );
 
 let filteredTags = $derived(
-  search
-    ? (refs?.tags ?? []).filter((t) => t.short_name.toLowerCase().includes(search.toLowerCase()))
-    : (refs?.tags ?? []),
+	search
+		? (refs?.tags ?? []).filter((t) =>
+				t.short_name.toLowerCase().includes(search.toLowerCase()),
+			)
+		: (refs?.tags ?? []),
 );
 
 let filteredStashes = $derived<StashEntry[]>(
-  search
-    ? (refs?.stashes ?? []).filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
-    : (refs?.stashes ?? []),
+	search
+		? (refs?.stashes ?? []).filter((s) =>
+				s.name.toLowerCase().includes(search.toLowerCase()),
+			)
+		: (refs?.stashes ?? []),
 );
 
 // Group remote branches by remote name: { "origin": ["main", "dev"] }
 let remoteGroups = $derived(
-  filteredRemote.reduce<Record<string, string[]>>((acc, b) => {
-    const slash = b.name.indexOf("/");
-    const remote = slash >= 0 ? b.name.slice(0, slash) : "unknown";
-    const short = slash >= 0 ? b.name.slice(slash + 1) : b.name;
-    if (!acc[remote]) acc[remote] = [];
-    acc[remote].push(short);
-    return acc;
-  }, {}),
+	filteredRemote.reduce<Record<string, string[]>>((acc, b) => {
+		const slash = b.name.indexOf("/");
+		const remote = slash >= 0 ? b.name.slice(0, slash) : "unknown";
+		const short = slash >= 0 ? b.name.slice(slash + 1) : b.name;
+		if (!acc[remote]) acc[remote] = [];
+		acc[remote].push(short);
+		return acc;
+	}, {}),
 );
 
 // Load refs on mount and when repoPath changes
 $effect(() => {
-  const path = repoPath;
-  loadRefs(path);
+	const path = repoPath;
+	loadRefs(path);
 });
 
 // Reload refs when parent signals a refresh (e.g. context menu actions)
 $effect(() => {
-  if (refreshSignal !== undefined && refreshSignal > 0) {
-    loadRefs(repoPath);
-  }
+	if (refreshSignal !== undefined && refreshSignal > 0) {
+		loadRefs(repoPath);
+	}
 });
 
 // Dismiss error when search changes
 $effect(() => {
-  if (search) checkoutError = null;
+	if (search) checkoutError = null;
 });
 
 async function loadRefs(path: string) {
-  const seq = ++loadSeq;
-  loading = true;
-  try {
-    const result = await safeInvoke<RefsResponse>("list_refs", { path });
-    if (seq === loadSeq) {
-      refs = result;
-    }
-  } catch {
-    if (seq === loadSeq) {
-      refs = null;
-    }
-  } finally {
-    if (seq === loadSeq) {
-      loading = false;
-    }
-  }
+	const seq = ++loadSeq;
+	loading = true;
+	try {
+		const result = await safeInvoke<RefsResponse>("list_refs", { path });
+		if (seq === loadSeq) {
+			refs = result;
+		}
+	} catch {
+		if (seq === loadSeq) {
+			refs = null;
+		}
+	} finally {
+		if (seq === loadSeq) {
+			loading = false;
+		}
+	}
 }
 
 async function handleCheckout(branchName: string) {
-  // Dismiss any existing error first
-  checkoutError = null;
-  checkingOutBranch = branchName;
-  try {
-    await safeInvoke<void>("checkout_branch", { path: repoPath, branchName });
-    await loadRefs(repoPath);
-    onrefreshed?.();
-    showToast(`Checked out ${branchName}`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    if (err.code === "dirty_workdir") {
-      checkoutError = {
-        branch: branchName,
-        message:
-          "Cannot checkout — working tree has uncommitted changes. Commit or stash your changes first.",
-      };
-    }
-    showToast("Checkout failed", "error");
-  } finally {
-    checkingOutBranch = null;
-  }
+	// Dismiss any existing error first
+	checkoutError = null;
+	checkingOutBranch = branchName;
+	try {
+		await safeInvoke<void>("checkout_branch", { path: repoPath, branchName });
+		await loadRefs(repoPath);
+		onrefreshed?.();
+		showToast(`Checked out ${branchName}`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		if (err.code === "dirty_workdir") {
+			checkoutError = {
+				branch: branchName,
+				message:
+					"Cannot checkout — working tree has uncommitted changes. Commit or stash your changes first.",
+			};
+		}
+		showToast("Checkout failed", "error");
+	} finally {
+		checkingOutBranch = null;
+	}
 }
 
 async function handleCreateBranch() {
-  const trimmed = newBranchName.trim();
-  if (!trimmed) return;
-  createError = null;
-  try {
-    await safeInvoke<void>("create_branch", { path: repoPath, name: trimmed });
-    showCreateInput = false;
-    newBranchName = "";
-    await loadRefs(repoPath);
-    onrefreshed?.();
-    showToast(`Checked out ${trimmed}`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    if (err.code === "dirty_workdir") {
-      showToast("Branch created (checkout skipped — uncommitted changes)", "success");
-      showCreateInput = false;
-      newBranchName = "";
-      await loadRefs(repoPath);
-      onrefreshed?.();
-    } else {
-      createError = err.message;
-    }
-  }
+	const trimmed = newBranchName.trim();
+	if (!trimmed) return;
+	createError = null;
+	try {
+		await safeInvoke<void>("create_branch", { path: repoPath, name: trimmed });
+		showCreateInput = false;
+		newBranchName = "";
+		await loadRefs(repoPath);
+		onrefreshed?.();
+		showToast(`Checked out ${trimmed}`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		if (err.code === "dirty_workdir") {
+			showToast(
+				"Branch created (checkout skipped — uncommitted changes)",
+				"success",
+			);
+			showCreateInput = false;
+			newBranchName = "";
+			await loadRefs(repoPath);
+			onrefreshed?.();
+		} else {
+			createError = err.message;
+		}
+	}
 }
 
 function autoFocus(node: HTMLElement) {
-  node.focus();
-  return {};
+	node.focus();
+	return {};
 }
 
 async function handleStashSave() {
-  stashSaving = true;
-  stashCreateError = null;
-  try {
-    await safeInvoke("stash_save", { path: repoPath, message: stashName.trim() });
-    showStashForm = false;
-    stashName = "";
-    await loadRefs(repoPath);
-  } catch (e) {
-    const err = e as TrunkError;
-    if (err.code === "nothing_to_stash") {
-      stashCreateError = "Nothing to stash — working tree is clean";
-    } else {
-      stashCreateError = err.message ?? "Failed to create stash";
-    }
-  } finally {
-    stashSaving = false;
-  }
+	stashSaving = true;
+	stashCreateError = null;
+	try {
+		await safeInvoke("stash_save", {
+			path: repoPath,
+			message: stashName.trim(),
+		});
+		showStashForm = false;
+		stashName = "";
+		await loadRefs(repoPath);
+	} catch (e) {
+		const err = e as TrunkError;
+		if (err.code === "nothing_to_stash") {
+			stashCreateError = "Nothing to stash — working tree is clean";
+		} else {
+			stashCreateError = err.message ?? "Failed to create stash";
+		}
+	} finally {
+		stashSaving = false;
+	}
 }
 
 async function showStashEntryMenu(e: MouseEvent, stashIndex: number) {
-  e.preventDefault();
-  const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Pop",
-        action: () => {
-          handleStashPop(stashIndex).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Apply",
-        action: () => {
-          handleStashApply(stashIndex).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Drop",
-        action: () => {
-          handleStashDrop(stashIndex).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	e.preventDefault();
+	const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Pop",
+				action: () => {
+					handleStashPop(stashIndex).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Apply",
+				action: () => {
+					handleStashApply(stashIndex).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Drop",
+				action: () => {
+					handleStashDrop(stashIndex).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function handleStashPop(index: number) {
-  stashEntryErrors = { ...stashEntryErrors, [index]: null };
-  try {
-    await safeInvoke("stash_pop", { path: repoPath, index });
-    await loadRefs(repoPath);
-  } catch (e) {
-    const err = e as TrunkError;
-    stashEntryErrors = { ...stashEntryErrors, [index]: err.message ?? "Failed to pop stash" };
-  }
+	stashEntryErrors = { ...stashEntryErrors, [index]: null };
+	try {
+		await safeInvoke("stash_pop", { path: repoPath, index });
+		await loadRefs(repoPath);
+	} catch (e) {
+		const err = e as TrunkError;
+		stashEntryErrors = {
+			...stashEntryErrors,
+			[index]: err.message ?? "Failed to pop stash",
+		};
+	}
 }
 
 async function handleStashApply(index: number) {
-  stashEntryErrors = { ...stashEntryErrors, [index]: null };
-  try {
-    await safeInvoke("stash_apply", { path: repoPath, index });
-    await loadRefs(repoPath);
-  } catch (e) {
-    const err = e as TrunkError;
-    stashEntryErrors = { ...stashEntryErrors, [index]: err.message ?? "Failed to apply stash" };
-  }
+	stashEntryErrors = { ...stashEntryErrors, [index]: null };
+	try {
+		await safeInvoke("stash_apply", { path: repoPath, index });
+		await loadRefs(repoPath);
+	} catch (e) {
+		const err = e as TrunkError;
+		stashEntryErrors = {
+			...stashEntryErrors,
+			[index]: err.message ?? "Failed to apply stash",
+		};
+	}
 }
 
 async function handleStashDrop(index: number) {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(`Drop stash@{${index}}? This cannot be undone.`, {
-    title: "Confirm Drop",
-    kind: "warning",
-  });
-  if (!confirmed) return;
-  stashEntryErrors = { ...stashEntryErrors, [index]: null };
-  try {
-    await safeInvoke("stash_drop", { path: repoPath, index });
-    await loadRefs(repoPath);
-  } catch (e) {
-    const err = e as TrunkError;
-    stashEntryErrors = { ...stashEntryErrors, [index]: err.message ?? "Failed to drop stash" };
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(`Drop stash@{${index}}? This cannot be undone.`, {
+		title: "Confirm Drop",
+		kind: "warning",
+	});
+	if (!confirmed) return;
+	stashEntryErrors = { ...stashEntryErrors, [index]: null };
+	try {
+		await safeInvoke("stash_drop", { path: repoPath, index });
+		await loadRefs(repoPath);
+	} catch (e) {
+		const err = e as TrunkError;
+		stashEntryErrors = {
+			...stashEntryErrors,
+			[index]: err.message ?? "Failed to drop stash",
+		};
+	}
 }
 
 // --- Branch/Tag context menu support ---
 
 interface DialogConfig {
-  title: string;
-  fields: {
-    key: string;
-    label: string;
-    placeholder?: string;
-    required?: boolean;
-    defaultValue?: string;
-  }[];
-  onsubmit: (values: Record<string, string>) => void;
+	title: string;
+	fields: {
+		key: string;
+		label: string;
+		placeholder?: string;
+		required?: boolean;
+		defaultValue?: string;
+	}[];
+	onsubmit: (values: Record<string, string>) => void;
 }
 let dialogConfig = $state<DialogConfig | null>(null);
 function closeDialog() {
-  dialogConfig = null;
+	dialogConfig = null;
 }
 
 async function handleDeleteBranch(branchName: string) {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(`Delete branch '${branchName}'? This cannot be undone.`, {
-    title: "Delete Branch",
-    kind: "warning",
-  });
-  if (!confirmed) return;
-  try {
-    await safeInvoke("delete_branch", { path: repoPath, branchName });
-    await loadRefs(repoPath);
-    onrefreshed?.();
-    showToast(`Deleted branch ${branchName}`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Failed to delete branch", "error");
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		`Delete branch '${branchName}'? This cannot be undone.`,
+		{
+			title: "Delete Branch",
+			kind: "warning",
+		},
+	);
+	if (!confirmed) return;
+	try {
+		await safeInvoke("delete_branch", { path: repoPath, branchName });
+		await loadRefs(repoPath);
+		onrefreshed?.();
+		showToast(`Deleted branch ${branchName}`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Failed to delete branch", "error");
+	}
 }
 
 function handleRenameBranch(branchName: string) {
-  dialogConfig = {
-    title: "Rename Branch",
-    fields: [{ key: "name", label: "New name", required: true, defaultValue: branchName }],
-    onsubmit: async (values) => {
-      closeDialog();
-      const newName = values.name.trim();
-      if (!newName || newName === branchName) return;
-      try {
-        await safeInvoke("rename_branch", { path: repoPath, oldName: branchName, newName });
-        await loadRefs(repoPath);
-        onrefreshed?.();
-        showToast(`Renamed branch to ${newName}`, "success");
-      } catch (e) {
-        const err = e as TrunkError;
-        showToast(err.message ?? "Failed to rename branch", "error");
-      }
-    },
-  };
+	dialogConfig = {
+		title: "Rename Branch",
+		fields: [
+			{
+				key: "name",
+				label: "New name",
+				required: true,
+				defaultValue: branchName,
+			},
+		],
+		onsubmit: async (values) => {
+			closeDialog();
+			const newName = values.name.trim();
+			if (!newName || newName === branchName) return;
+			try {
+				await safeInvoke("rename_branch", {
+					path: repoPath,
+					oldName: branchName,
+					newName,
+				});
+				await loadRefs(repoPath);
+				onrefreshed?.();
+				showToast(`Renamed branch to ${newName}`, "success");
+			} catch (e) {
+				const err = e as TrunkError;
+				showToast(err.message ?? "Failed to rename branch", "error");
+			}
+		},
+	};
 }
 
 async function handleDeleteTag(tagName: string) {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(`Delete tag '${tagName}'? This cannot be undone.`, {
-    title: "Delete Tag",
-    kind: "warning",
-  });
-  if (!confirmed) return;
-  try {
-    await safeInvoke("delete_tag", { path: repoPath, tagName });
-    await loadRefs(repoPath);
-    onrefreshed?.();
-    showToast(`Deleted tag ${tagName}`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Failed to delete tag", "error");
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		`Delete tag '${tagName}'? This cannot be undone.`,
+		{
+			title: "Delete Tag",
+			kind: "warning",
+		},
+	);
+	if (!confirmed) return;
+	try {
+		await safeInvoke("delete_tag", { path: repoPath, tagName });
+		await loadRefs(repoPath);
+		onrefreshed?.();
+		showToast(`Deleted tag ${tagName}`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Failed to delete tag", "error");
+	}
 }
 
 async function handleMergeBranch(branch: string) {
-  try {
-    await safeInvoke("merge_branch", { path: repoPath, branch });
-    // No toast on success -- graph refresh via repo-changed event is sufficient
-    await loadRefs(repoPath);
-    onrefreshed?.();
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Merge failed", "error");
-  }
+	try {
+		await safeInvoke("merge_branch", { path: repoPath, branch });
+		// No toast on success -- graph refresh via repo-changed event is sufficient
+		await loadRefs(repoPath);
+		onrefreshed?.();
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Merge failed", "error");
+	}
 }
 
 async function handleRebaseBranch(ontoBranch: string) {
-  try {
-    await safeInvoke("rebase_branch", { path: repoPath, ontoBranch });
-    // No toast on success -- graph refresh via repo-changed event is sufficient
-    await loadRefs(repoPath);
-    onrefreshed?.();
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Rebase failed", "error");
-  }
+	try {
+		await safeInvoke("rebase_branch", { path: repoPath, ontoBranch });
+		// No toast on success -- graph refresh via repo-changed event is sufficient
+		await loadRefs(repoPath);
+		onrefreshed?.();
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Rebase failed", "error");
+	}
 }
 
 async function handleInteractiveRebase(branchName: string) {
-  try {
-    const forkPoint = await safeInvoke<string>("get_fork_point", {
-      path: repoPath,
-      branch: branchName,
-    });
-    onopenrebaseeditor?.(forkPoint);
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Failed to detect fork point", "error");
-  }
+	try {
+		const forkPoint = await safeInvoke<string>("get_fork_point", {
+			path: repoPath,
+			branch: branchName,
+		});
+		onopenrebaseeditor?.(forkPoint);
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Failed to detect fork point", "error");
+	}
 }
 
-async function showBranchContextMenu(_e: MouseEvent, branchName: string, isHead: boolean) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const headBranchName = refs?.local.find((b) => b.is_head)?.name;
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Checkout",
-        enabled: !isHead,
-        action: () => {
-          handleCheckout(branchName);
-        },
-      }),
-      ...(!isHead && headBranchName
-        ? [
-            await MenuItem.new({
-              text: `Merge ${branchName} into ${headBranchName}`,
-              action: () => {
-                handleMergeBranch(branchName).catch(() => {});
-              },
-            }),
-            await MenuItem.new({
-              text: `Rebase ${headBranchName} onto ${branchName}`,
-              action: () => {
-                handleRebaseBranch(branchName).catch(() => {});
-              },
-            }),
-            await MenuItem.new({
-              text: `Interactive Rebase ${branchName}...`,
-              action: () => {
-                handleInteractiveRebase(branchName).catch(() => {});
-              },
-            }),
-          ]
-        : []),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: "Rename…",
-        action: () => {
-          handleRenameBranch(branchName);
-        },
-      }),
-      await MenuItem.new({
-        text: "Delete",
-        enabled: !isHead,
-        action: () => {
-          handleDeleteBranch(branchName).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+async function showBranchContextMenu(
+	_e: MouseEvent,
+	branchName: string,
+	isHead: boolean,
+) {
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const headBranchName = refs?.local.find((b) => b.is_head)?.name;
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Checkout",
+				enabled: !isHead,
+				action: () => {
+					handleCheckout(branchName);
+				},
+			}),
+			...(!isHead && headBranchName
+				? [
+						await MenuItem.new({
+							text: `Merge ${branchName} into ${headBranchName}`,
+							action: () => {
+								handleMergeBranch(branchName).catch(() => {});
+							},
+						}),
+						await MenuItem.new({
+							text: `Rebase ${headBranchName} onto ${branchName}`,
+							action: () => {
+								handleRebaseBranch(branchName).catch(() => {});
+							},
+						}),
+						await MenuItem.new({
+							text: `Interactive Rebase ${branchName}...`,
+							action: () => {
+								handleInteractiveRebase(branchName).catch(() => {});
+							},
+						}),
+					]
+				: []),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: "Rename…",
+				action: () => {
+					handleRenameBranch(branchName);
+				},
+			}),
+			await MenuItem.new({
+				text: "Delete",
+				enabled: !isHead,
+				action: () => {
+					handleDeleteBranch(branchName).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function showTagContextMenu(_e: MouseEvent, tagShortName: string) {
-  const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Delete",
-        action: () => {
-          handleDeleteTag(tagShortName).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Delete",
+				action: () => {
+					handleDeleteTag(tagShortName).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function showRemoteContextMenu(_e: MouseEvent, fullRefName: string) {
-  const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
-  const headBranchName = refs?.local.find((b) => b.is_head)?.name;
-  if (!headBranchName) return; // Detached HEAD -- no merge/rebase items
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: `Merge ${fullRefName} into ${headBranchName}`,
-        action: () => {
-          handleMergeBranch(fullRefName).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: `Rebase ${headBranchName} onto ${fullRefName}`,
-        action: () => {
-          handleRebaseBranch(fullRefName).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: `Interactive Rebase ${fullRefName}...`,
-        action: () => {
-          handleInteractiveRebase(fullRefName).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
+	const headBranchName = refs?.local.find((b) => b.is_head)?.name;
+	if (!headBranchName) return; // Detached HEAD -- no merge/rebase items
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: `Merge ${fullRefName} into ${headBranchName}`,
+				action: () => {
+					handleMergeBranch(fullRefName).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: `Rebase ${headBranchName} onto ${fullRefName}`,
+				action: () => {
+					handleRebaseBranch(fullRefName).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: `Interactive Rebase ${fullRefName}...`,
+				action: () => {
+					handleInteractiveRebase(fullRefName).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 </script>
 

@@ -1,167 +1,177 @@
 // All TypeScript DTO interfaces mirroring Rust DTOs in src-tauri/src/git/types.rs
 // Use string literal unions (not enum) — matches serde default serialization
 
-export type EdgeType = "Straight" | "MergeLeft" | "MergeRight" | "ForkLeft" | "ForkRight";
+export type EdgeType =
+	| "Straight"
+	| "MergeLeft"
+	| "MergeRight"
+	| "ForkLeft"
+	| "ForkRight";
 export type RefType = "LocalBranch" | "RemoteBranch" | "Tag" | "Stash";
 export type FileStatusType =
-  | "New"
-  | "Modified"
-  | "Deleted"
-  | "Renamed"
-  | "Typechange"
-  | "Conflicted";
+	| "New"
+	| "Modified"
+	| "Deleted"
+	| "Renamed"
+	| "Typechange"
+	| "Conflicted";
 export type DiffOrigin = "Context" | "Add" | "Delete";
 
 export interface GraphEdge {
-  from_column: number;
-  to_column: number;
-  edge_type: EdgeType;
-  color_index: number;
-  dashed: boolean;
+	from_column: number;
+	to_column: number;
+	edge_type: EdgeType;
+	color_index: number;
+	dashed: boolean;
 }
 
 export interface RefLabel {
-  name: string;
-  short_name: string;
-  ref_type: RefType;
-  is_head: boolean;
-  color_index: number;
+	name: string;
+	short_name: string;
+	ref_type: RefType;
+	is_head: boolean;
+	color_index: number;
 }
 
 export interface GraphCommit {
-  oid: string;
-  short_oid: string;
-  summary: string;
-  body: string | null;
-  author_name: string;
-  author_email: string;
-  author_timestamp: number;
-  parent_oids: string[];
-  column: number;
-  color_index: number;
-  edges: GraphEdge[];
-  refs: RefLabel[];
-  is_head: boolean;
-  is_merge: boolean;
-  is_branch_tip: boolean;
-  is_stash: boolean;
+	oid: string;
+	short_oid: string;
+	summary: string;
+	body: string | null;
+	author_name: string;
+	author_email: string;
+	author_timestamp: number;
+	parent_oids: string[];
+	column: number;
+	color_index: number;
+	edges: GraphEdge[];
+	refs: RefLabel[];
+	is_head: boolean;
+	is_merge: boolean;
+	is_branch_tip: boolean;
+	is_stash: boolean;
 }
 
 export interface GraphResponse {
-  commits: GraphCommit[];
-  max_columns: number;
+	commits: GraphCommit[];
+	max_columns: number;
 }
 
 export type MatchType = "Sha" | "Message" | "Ref" | "Author";
 
 export interface SearchResult {
-  oid: string;
-  match_types: MatchType[];
+	oid: string;
+	match_types: MatchType[];
 }
 
 export interface BranchInfo {
-  name: string;
-  is_head: boolean;
-  upstream: string | null;
-  ahead: number;
-  behind: number;
-  last_commit_timestamp: number;
+	name: string;
+	is_head: boolean;
+	upstream: string | null;
+	ahead: number;
+	behind: number;
+	last_commit_timestamp: number;
 }
 
 export interface StashEntry {
-  index: number;
-  name: string;
-  short_name: string;
-  oid: string;
-  parent_oid: string | null;
+	index: number;
+	name: string;
+	short_name: string;
+	oid: string;
+	parent_oid: string | null;
 }
 
 export interface RefsResponse {
-  local: BranchInfo[];
-  remote: BranchInfo[];
-  tags: RefLabel[];
-  stashes: StashEntry[];
+	local: BranchInfo[];
+	remote: BranchInfo[];
+	tags: RefLabel[];
+	stashes: StashEntry[];
 }
 
 export interface FileStatus {
-  path: string;
-  status: FileStatusType;
-  is_binary: boolean;
+	path: string;
+	status: FileStatusType;
+	is_binary: boolean;
 }
 
 export interface WorkingTreeStatus {
-  unstaged: FileStatus[];
-  staged: FileStatus[];
-  conflicted: FileStatus[];
+	unstaged: FileStatus[];
+	staged: FileStatus[];
+	conflicted: FileStatus[];
 }
 
-export type OperationType = "None" | "Merge" | "Rebase" | "CherryPick" | "Revert";
+export type OperationType =
+	| "None"
+	| "Merge"
+	| "Rebase"
+	| "CherryPick"
+	| "Revert";
 
 export interface OperationInfo {
-  op_type: OperationType;
-  source_branch: string | null;
-  target_branch: string | null;
-  progress: string | null;
-  source_color_index: number | null;
-  target_color_index: number | null;
-  rebase_message: string | null;
+	op_type: OperationType;
+	source_branch: string | null;
+	target_branch: string | null;
+	progress: string | null;
+	source_color_index: number | null;
+	target_color_index: number | null;
+	rebase_message: string | null;
 }
 
 export interface MergeSides {
-  base: string;
-  ours: string;
-  theirs: string;
+	base: string;
+	ours: string;
+	theirs: string;
 }
 
 export interface DiffLine {
-  origin: DiffOrigin;
-  content: string;
-  old_lineno: number | null;
-  new_lineno: number | null;
+	origin: DiffOrigin;
+	content: string;
+	old_lineno: number | null;
+	new_lineno: number | null;
 }
 
 export interface DiffHunk {
-  header: string;
-  old_start: number;
-  old_lines: number;
-  new_start: number;
-  new_lines: number;
-  lines: DiffLine[];
+	header: string;
+	old_start: number;
+	old_lines: number;
+	new_start: number;
+	new_lines: number;
+	lines: DiffLine[];
 }
 
 export type DiffStatus =
-  | "Added"
-  | "Deleted"
-  | "Modified"
-  | "Renamed"
-  | "Copied"
-  | "Untracked"
-  | "Unknown";
+	| "Added"
+	| "Deleted"
+	| "Modified"
+	| "Renamed"
+	| "Copied"
+	| "Untracked"
+	| "Unknown";
 
 export interface FileDiff {
-  path: string;
-  status: DiffStatus;
-  is_binary: boolean;
-  hunks: DiffHunk[];
+	path: string;
+	status: DiffStatus;
+	is_binary: boolean;
+	hunks: DiffHunk[];
 }
 
 export interface HeadCommitMessage {
-  subject: string;
-  body: string | null;
+	subject: string;
+	body: string | null;
 }
 
 export interface CommitDetail {
-  oid: string;
-  short_oid: string;
-  summary: string;
-  body: string | null;
-  author_name: string;
-  author_email: string;
-  author_timestamp: number;
-  committer_name: string;
-  committer_email: string;
-  committer_timestamp: number;
-  parent_oids: string[];
+	oid: string;
+	short_oid: string;
+	summary: string;
+	body: string | null;
+	author_name: string;
+	author_email: string;
+	author_timestamp: number;
+	committer_name: string;
+	committer_email: string;
+	committer_timestamp: number;
+	parent_oids: string[];
 }
 
 // Graph display settings — user-configurable layout constants for the commit graph.
@@ -169,76 +179,76 @@ export interface CommitDetail {
 // expose these values; the pure functions that produce SVG paths accept them as
 // a parameter so they re-derive correctly when settings change.
 export interface GraphDisplaySettings {
-  rowHeight: number; // px per commit row
-  laneWidth: number; // px per swimlane column
-  dotRadius: number; // px radius of commit dots
-  edgeStroke: number; // px stroke width for rails / connections
-  mergeStroke: number; // px stroke width for merge-commit circles
-  pillStroke: number; // px stroke width for ref-pill connector lines
+	rowHeight: number; // px per commit row
+	laneWidth: number; // px per swimlane column
+	dotRadius: number; // px radius of commit dots
+	edgeStroke: number; // px stroke width for rails / connections
+	mergeStroke: number; // px stroke width for merge-commit circles
+	pillStroke: number; // px stroke width for ref-pill connector lines
 }
 
 // Overlay types — global grid coordinate system for SVG overlay (Phase 20+)
 export interface OverlayNode {
-  oid: string;
-  x: number; // swimlane index (column)
-  y: number; // row index
-  colorIndex: number;
-  isMerge: boolean;
-  isBranchTip: boolean;
-  isStash: boolean;
-  isWip: boolean;
+	oid: string;
+	x: number; // swimlane index (column)
+	y: number; // row index
+	colorIndex: number;
+	isMerge: boolean;
+	isBranchTip: boolean;
+	isStash: boolean;
+	isWip: boolean;
 }
 
 export interface OverlayConnection {
-  childX: number; // child column
-  childY: number; // child row
-  parentX: number; // parent column
-  parentY: number; // parent row
-  colorIndex: number;
-  dashed: boolean;
+	childX: number; // child column
+	childY: number; // child row
+	parentX: number; // parent column
+	parentY: number; // parent row
+	colorIndex: number;
+	dashed: boolean;
 }
 
 export interface OverlayGraphData {
-  nodes: OverlayNode[];
-  connections: OverlayConnection[];
-  maxColumns: number;
+	nodes: OverlayNode[];
+	connections: OverlayConnection[];
+	maxColumns: number;
 }
 
 export interface OverlayPath {
-  d: string;
-  colorIndex: number;
-  dashed: boolean;
-  minRow: number;
-  maxRow: number;
+	d: string;
+	colorIndex: number;
+	dashed: boolean;
+	minRow: number;
+	maxRow: number;
 }
 
 export interface OverlayRefPill {
-  x: number; // left edge of pill in SVG space
-  y: number; // vertical center (cy(rowIndex))
-  width: number; // computed from text measurement + padding
-  textWidth: number; // raw canvas-measured text width (for precise foreignObject sizing)
-  height: number; // PILL_HEIGHT constant
-  label: string; // original ref short_name
-  truncatedLabel: string; // possibly truncated with "…"
-  refType: RefType; // for icon rendering
-  colorIndex: number; // for laneColor() fill
-  isHead: boolean; // full brightness, bold text
-  isRemoteOnly: boolean; // 65-70% opacity dimming
-  isNonHead: boolean; // brightness(0.75)
-  overflowCount: number; // 0 = no badge, >0 = "+N" badge
-  allRefs: RefLabel[]; // all refs on this commit (for hover expansion)
-  dotCx: number; // target commit dot X coordinate
-  dotCy: number; // target commit dot Y coordinate
-  commitColorIndex: number; // commit's lane color for connector line
-  rowIndex: number; // for virtualization filtering
-  isHollow: boolean; // true for merge/stash/WIP dots (stroke-only, no fill)
+	x: number; // left edge of pill in SVG space
+	y: number; // vertical center (cy(rowIndex))
+	width: number; // computed from text measurement + padding
+	textWidth: number; // raw canvas-measured text width (for precise foreignObject sizing)
+	height: number; // PILL_HEIGHT constant
+	label: string; // original ref short_name
+	truncatedLabel: string; // possibly truncated with "…"
+	refType: RefType; // for icon rendering
+	colorIndex: number; // for laneColor() fill
+	isHead: boolean; // full brightness, bold text
+	isRemoteOnly: boolean; // 65-70% opacity dimming
+	isNonHead: boolean; // brightness(0.75)
+	overflowCount: number; // 0 = no badge, >0 = "+N" badge
+	allRefs: RefLabel[]; // all refs on this commit (for hover expansion)
+	dotCx: number; // target commit dot X coordinate
+	dotCy: number; // target commit dot Y coordinate
+	commitColorIndex: number; // commit's lane color for connector line
+	rowIndex: number; // for virtualization filtering
+	isHollow: boolean; // true for merge/stash/WIP dots (stroke-only, no fill)
 }
 
 // Interactive rebase types (mirrors src-tauri/src/git/types.rs RebaseTodoItem)
 export interface RebaseTodoItem {
-  oid: string;
-  short_oid: string;
-  summary: string;
-  author_name: string;
-  author_timestamp: number;
+	oid: string;
+	short_oid: string;
+	summary: string;
+	author_name: string;
+	author_timestamp: number;
 }

@@ -1,44 +1,52 @@
 <script lang="ts">
 import {
-  AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  FolderTree,
-  List,
+	AlertTriangle,
+	ChevronDown,
+	ChevronRight,
+	ChevronsDownUp,
+	ChevronsUpDown,
+	FolderTree,
+	List,
 } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { buildTree, collectFilePaths } from "../lib/build-tree.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { showToast } from "../lib/toast.svelte.js";
-import type { FileStatusType, MergeSides, OperationInfo, WorkingTreeStatus } from "../lib/types.js";
+import type {
+	FileStatusType,
+	MergeSides,
+	OperationInfo,
+	WorkingTreeStatus,
+} from "../lib/types.js";
 import CommitForm from "./CommitForm.svelte";
 import FileRow from "./FileRow.svelte";
 import OperationBanner from "./OperationBanner.svelte";
 import TreeFileList from "./TreeFileList.svelte";
 
 interface Props {
-  repoPath: string;
-  currentBranch?: string;
-  onfileselect?: (path: string, kind: "unstaged" | "staged" | "conflicted") => void;
-  onsubjectchange?: (value: string) => void;
-  onfileresolved?: () => void;
-  clearRedoStack: () => void;
-  treeViewEnabled?: boolean;
-  ontreeviewtoggle?: () => void;
+	repoPath: string;
+	currentBranch?: string;
+	onfileselect?: (
+		path: string,
+		kind: "unstaged" | "staged" | "conflicted",
+	) => void;
+	onsubjectchange?: (value: string) => void;
+	onfileresolved?: () => void;
+	clearRedoStack: () => void;
+	treeViewEnabled?: boolean;
+	ontreeviewtoggle?: () => void;
 }
 
 let {
-  repoPath,
-  currentBranch,
-  onfileselect,
-  onsubjectchange,
-  onfileresolved,
-  clearRedoStack,
-  treeViewEnabled = false,
-  ontreeviewtoggle,
+	repoPath,
+	currentBranch,
+	onfileselect,
+	onsubjectchange,
+	onfileresolved,
+	clearRedoStack,
+	treeViewEnabled = false,
+	ontreeviewtoggle,
 }: Props = $props();
 
 let status = $state<WorkingTreeStatus | null>(null);
@@ -57,431 +65,467 @@ let isRebase = $derived(operationInfo?.op_type === "Rebase");
 let isOperation = $derived(isMerge || isRebase);
 
 let rebaseProgressNum = $derived(operationInfo?.progress?.split("/")[0] ?? "?");
-let rebaseProgressTotal = $derived(operationInfo?.progress?.split("/")[1] ?? "?");
+let rebaseProgressTotal = $derived(
+	operationInfo?.progress?.split("/")[1] ?? "?",
+);
 let rebaseMsgSummary = $state("");
 let rebaseMsgBody = $state("");
 let lastRebaseMessage = $state("");
 
 // Sync editable message when operation info changes (new rebase step)
 $effect(() => {
-  const raw = operationInfo?.rebase_message ?? "";
-  if (raw !== lastRebaseMessage) {
-    lastRebaseMessage = raw;
-    const clean = raw
-      .split("\n")
-      .filter((l: string) => !l.startsWith("#"))
-      .join("\n")
-      .trim();
-    const lines = clean.split("\n");
-    rebaseMsgSummary = lines[0] ?? "";
-    rebaseMsgBody = lines.slice(1).join("\n").replace(/^\n/, "");
-  }
+	const raw = operationInfo?.rebase_message ?? "";
+	if (raw !== lastRebaseMessage) {
+		lastRebaseMessage = raw;
+		const clean = raw
+			.split("\n")
+			.filter((l: string) => !l.startsWith("#"))
+			.join("\n")
+			.trim();
+		const lines = clean.split("\n");
+		rebaseMsgSummary = lines[0] ?? "";
+		rebaseMsgBody = lines.slice(1).join("\n").replace(/^\n/, "");
+	}
 });
 let totalCount = $derived(
-  (status?.unstaged.length ?? 0) + (status?.staged.length ?? 0) + (status?.conflicted.length ?? 0),
+	(status?.unstaged.length ?? 0) +
+		(status?.staged.length ?? 0) +
+		(status?.conflicted.length ?? 0),
 );
 let allResolved = $derived((status?.conflicted.length ?? 0) === 0);
 
 async function loadOperationState() {
-  const result = await safeInvoke<OperationInfo>("get_operation_state", { path: repoPath });
-  operationInfo = result;
+	const result = await safeInvoke<OperationInfo>("get_operation_state", {
+		path: repoPath,
+	});
+	operationInfo = result;
 }
 
 async function loadStatus() {
-  const seq = ++loadSeq;
-  const result = await safeInvoke<WorkingTreeStatus>("get_status", { path: repoPath });
-  if (seq === loadSeq) {
-    status = result;
-  }
-  await loadOperationState();
+	const seq = ++loadSeq;
+	const result = await safeInvoke<WorkingTreeStatus>("get_status", {
+		path: repoPath,
+	});
+	if (seq === loadSeq) {
+		status = result;
+	}
+	await loadOperationState();
 }
 
 async function stageFile(filePath: string) {
-  loadingFiles = new Set([...loadingFiles, filePath]);
-  await safeInvoke("stage_file", { path: repoPath, filePath });
-  await loadStatus();
-  const next = new Set(loadingFiles);
-  next.delete(filePath);
-  loadingFiles = next;
+	loadingFiles = new Set([...loadingFiles, filePath]);
+	await safeInvoke("stage_file", { path: repoPath, filePath });
+	await loadStatus();
+	const next = new Set(loadingFiles);
+	next.delete(filePath);
+	loadingFiles = next;
 }
 
 async function unstageFile(filePath: string) {
-  loadingFiles = new Set([...loadingFiles, filePath]);
-  await safeInvoke("unstage_file", { path: repoPath, filePath });
-  await loadStatus();
-  const next = new Set(loadingFiles);
-  next.delete(filePath);
-  loadingFiles = next;
+	loadingFiles = new Set([...loadingFiles, filePath]);
+	await safeInvoke("unstage_file", { path: repoPath, filePath });
+	await loadStatus();
+	const next = new Set(loadingFiles);
+	next.delete(filePath);
+	loadingFiles = next;
 }
 
 async function stageDirectory(dirPath: string) {
-  const directMatches = (status?.unstaged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  const pathsToStage = directMatches.map((f) => f.path);
-  if (pathsToStage.length === 0) return;
+	const directMatches = (status?.unstaged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	const pathsToStage = directMatches.map((f) => f.path);
+	if (pathsToStage.length === 0) return;
 
-  loadingFiles = new Set([...loadingFiles, ...pathsToStage]);
-  await Promise.all(
-    pathsToStage.map((p) => safeInvoke("stage_file", { path: repoPath, filePath: p })),
-  );
-  await loadStatus();
-  const next = new Set(loadingFiles);
-  for (const p of pathsToStage) next.delete(p);
-  loadingFiles = next;
+	loadingFiles = new Set([...loadingFiles, ...pathsToStage]);
+	await Promise.all(
+		pathsToStage.map((p) =>
+			safeInvoke("stage_file", { path: repoPath, filePath: p }),
+		),
+	);
+	await loadStatus();
+	const next = new Set(loadingFiles);
+	for (const p of pathsToStage) next.delete(p);
+	loadingFiles = next;
 }
 
 async function unstageDirectory(dirPath: string) {
-  const directMatches = (status?.staged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  const pathsToUnstage = directMatches.map((f) => f.path);
-  if (pathsToUnstage.length === 0) return;
+	const directMatches = (status?.staged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	const pathsToUnstage = directMatches.map((f) => f.path);
+	if (pathsToUnstage.length === 0) return;
 
-  loadingFiles = new Set([...loadingFiles, ...pathsToUnstage]);
-  await Promise.all(
-    pathsToUnstage.map((p) => safeInvoke("unstage_file", { path: repoPath, filePath: p })),
-  );
-  await loadStatus();
-  const next = new Set(loadingFiles);
-  for (const p of pathsToUnstage) next.delete(p);
-  loadingFiles = next;
+	loadingFiles = new Set([...loadingFiles, ...pathsToUnstage]);
+	await Promise.all(
+		pathsToUnstage.map((p) =>
+			safeInvoke("unstage_file", { path: repoPath, filePath: p }),
+		),
+	);
+	await loadStatus();
+	const next = new Set(loadingFiles);
+	for (const p of pathsToUnstage) next.delete(p);
+	loadingFiles = next;
 }
 
 async function stageAll() {
-  await safeInvoke("stage_all", { path: repoPath });
-  await loadStatus();
+	await safeInvoke("stage_all", { path: repoPath });
+	await loadStatus();
 }
 
 async function unstageAll() {
-  await safeInvoke("unstage_all", { path: repoPath });
-  await loadStatus();
+	await safeInvoke("unstage_all", { path: repoPath });
+	await loadStatus();
 }
 
 async function handleDiscardFile(filePath: string, fileStatus: FileStatusType) {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const isUntracked = fileStatus === "New";
-  const msg = isUntracked
-    ? `Delete ${filePath}? This file is untracked and will be permanently removed. This cannot be undone.`
-    : `Discard changes to ${filePath}? This cannot be undone.`;
-  const confirmed = await ask(msg, {
-    title: isUntracked ? "Delete File" : "Discard Changes",
-    kind: "warning",
-  });
-  if (!confirmed) return;
-  try {
-    await safeInvoke("discard_file", { path: repoPath, filePath });
-    await loadStatus();
-    showToast(`Discarded ${filePath}`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Discard failed", "error");
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const isUntracked = fileStatus === "New";
+	const msg = isUntracked
+		? `Delete ${filePath}? This file is untracked and will be permanently removed. This cannot be undone.`
+		: `Discard changes to ${filePath}? This cannot be undone.`;
+	const confirmed = await ask(msg, {
+		title: isUntracked ? "Delete File" : "Discard Changes",
+		kind: "warning",
+	});
+	if (!confirmed) return;
+	try {
+		await safeInvoke("discard_file", { path: repoPath, filePath });
+		await loadStatus();
+		showToast(`Discarded ${filePath}`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Discard failed", "error");
+	}
 }
 
 async function handleDiscardDirectory(dirPath: string) {
-  const files = (status?.unstaged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
+	const files = (status?.unstaged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
 
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(
-    `Discard all changes in ${dirPath}/ (${files.length} file${files.length === 1 ? "" : "s"})? This cannot be undone.`,
-    { title: "Discard Directory Changes", kind: "warning" },
-  );
-  if (!confirmed) return;
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		`Discard all changes in ${dirPath}/ (${files.length} file${files.length === 1 ? "" : "s"})? This cannot be undone.`,
+		{ title: "Discard Directory Changes", kind: "warning" },
+	);
+	if (!confirmed) return;
 
-  try {
-    await Promise.all(
-      files.map((f) => safeInvoke("discard_file", { path: repoPath, filePath: f.path })),
-    );
-    await loadStatus();
-    showToast(`Discarded ${files.length} files in ${dirPath}/`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Discard failed", "error");
-  }
+	try {
+		await Promise.all(
+			files.map((f) =>
+				safeInvoke("discard_file", { path: repoPath, filePath: f.path }),
+			),
+		);
+		await loadStatus();
+		showToast(`Discarded ${files.length} files in ${dirPath}/`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Discard failed", "error");
+	}
 }
 
 async function showUnstagedContextMenu(
-  _e: MouseEvent,
-  filePath: string,
-  fileStatus: FileStatusType,
+	_e: MouseEvent,
+	filePath: string,
+	fileStatus: FileStatusType,
 ) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const isUntracked = fileStatus === "New";
-  const absPath = `${repoPath}/${filePath}`;
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(filePath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: "Stage File",
-        action: () => {
-          stageFile(filePath);
-        },
-      }),
-      await MenuItem.new({
-        text: isUntracked ? "Delete File" : "Discard Changes",
-        action: () => {
-          handleDiscardFile(filePath, fileStatus).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const isUntracked = fileStatus === "New";
+	const absPath = `${repoPath}/${filePath}`;
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(filePath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: "Stage File",
+				action: () => {
+					stageFile(filePath);
+				},
+			}),
+			await MenuItem.new({
+				text: isUntracked ? "Delete File" : "Discard Changes",
+				action: () => {
+					handleDiscardFile(filePath, fileStatus).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function showUnstagedDirContextMenu(_e: MouseEvent, dirPath: string) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${dirPath}`;
-  const files = (status?.unstaged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const absPath = `${repoPath}/${dirPath}`;
+	const files = (status?.unstaged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
 
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(dirPath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: `Stage All (${files.length})`,
-        action: () => {
-          stageDirectory(dirPath);
-        },
-      }),
-      await MenuItem.new({
-        text: `Discard All (${files.length})`,
-        action: () => {
-          handleDiscardDirectory(dirPath).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(dirPath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: `Stage All (${files.length})`,
+				action: () => {
+					stageDirectory(dirPath);
+				},
+			}),
+			await MenuItem.new({
+				text: `Discard All (${files.length})`,
+				action: () => {
+					handleDiscardDirectory(dirPath).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function showStagedContextMenu(_e: MouseEvent, filePath: string) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${filePath}`;
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(filePath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: "Unstage File",
-        action: () => {
-          unstageFile(filePath);
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const absPath = `${repoPath}/${filePath}`;
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(filePath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: "Unstage File",
+				action: () => {
+					unstageFile(filePath);
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function showStagedDirContextMenu(_e: MouseEvent, dirPath: string) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${dirPath}`;
-  const files = (status?.staged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const absPath = `${repoPath}/${dirPath}`;
+	const files = (status?.staged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
 
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(dirPath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: `Unstage All (${files.length})`,
-        action: () => {
-          unstageDirectory(dirPath);
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(dirPath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: `Unstage All (${files.length})`,
+				action: () => {
+					unstageDirectory(dirPath);
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
-async function resolveConflictedFile(filePath: string, side: "ours" | "theirs") {
-  try {
-    const sides = await safeInvoke<MergeSides>("get_merge_sides", { path: repoPath, filePath });
-    const content = side === "ours" ? sides.ours : sides.theirs;
-    await safeInvoke("save_merge_result", { path: repoPath, filePath, content });
-    await loadStatus();
-    onfileresolved?.();
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Resolution failed", "error");
-  }
+async function resolveConflictedFile(
+	filePath: string,
+	side: "ours" | "theirs",
+) {
+	try {
+		const sides = await safeInvoke<MergeSides>("get_merge_sides", {
+			path: repoPath,
+			filePath,
+		});
+		const content = side === "ours" ? sides.ours : sides.theirs;
+		await safeInvoke("save_merge_result", {
+			path: repoPath,
+			filePath,
+			content,
+		});
+		await loadStatus();
+		onfileresolved?.();
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Resolution failed", "error");
+	}
 }
 
 async function showConflictedContextMenu(_e: MouseEvent, filePath: string) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${filePath}`;
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Take All Current",
-        action: () => {
-          resolveConflictedFile(filePath, "ours").catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Take All Incoming",
-        action: () => {
-          resolveConflictedFile(filePath, "theirs").catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(filePath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const absPath = `${repoPath}/${filePath}`;
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Take All Current",
+				action: () => {
+					resolveConflictedFile(filePath, "ours").catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Take All Incoming",
+				action: () => {
+					resolveConflictedFile(filePath, "theirs").catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(filePath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function resolveDirectory(dirPath: string) {
-  const files = (status?.conflicted ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
-  for (const f of files) {
-    await safeInvoke("stage_file", { path: repoPath, filePath: f.path });
-  }
-  await loadStatus();
+	const files = (status?.conflicted ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
+	for (const f of files) {
+		await safeInvoke("stage_file", { path: repoPath, filePath: f.path });
+	}
+	await loadStatus();
 }
 
 async function unresolveDirectory(dirPath: string) {
-  const files = (status?.staged ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
-  for (const f of files) {
-    await safeInvoke("unstage_file", { path: repoPath, filePath: f.path });
-  }
-  await loadStatus();
+	const files = (status?.staged ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
+	for (const f of files) {
+		await safeInvoke("unstage_file", { path: repoPath, filePath: f.path });
+	}
+	await loadStatus();
 }
 
 async function showConflictedDirContextMenu(_e: MouseEvent, dirPath: string) {
-  const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${dirPath}`;
-  const files = (status?.conflicted ?? []).filter(
-    (f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
-  );
-  if (files.length === 0) return;
+	const { Menu, MenuItem, PredefinedMenuItem } = await import(
+		"@tauri-apps/api/menu"
+	);
+	const absPath = `${repoPath}/${dirPath}`;
+	const files = (status?.conflicted ?? []).filter(
+		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
+	);
+	if (files.length === 0) return;
 
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(dirPath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await MenuItem.new({
-        text: `Resolve All (${files.length})`,
-        action: () => {
-          resolveDirectory(dirPath);
-        },
-      }),
-      await MenuItem.new({
-        text: `Unresolve All (${files.length})`,
-        action: () => {
-          unresolveDirectory(dirPath);
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(dirPath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+			await PredefinedMenuItem.new({ item: "Separator" }),
+			await MenuItem.new({
+				text: `Resolve All (${files.length})`,
+				action: () => {
+					resolveDirectory(dirPath);
+				},
+			}),
+			await MenuItem.new({
+				text: `Unresolve All (${files.length})`,
+				action: () => {
+					unresolveDirectory(dirPath);
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
 async function handleDiscardAll() {
-  const count = status?.unstaged.length ?? 0;
-  if (count === 0) return;
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(
-    `Discard all changes to ${count} file${count === 1 ? "" : "s"}? This cannot be undone.`,
-    { title: "Discard All Changes", kind: "warning" },
-  );
-  if (!confirmed) return;
-  try {
-    await safeInvoke("discard_all", { path: repoPath });
-    await loadStatus();
-    showToast(`Discarded all changes (${count} files)`, "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Discard all failed", "error");
-  }
+	const count = status?.unstaged.length ?? 0;
+	if (count === 0) return;
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		`Discard all changes to ${count} file${count === 1 ? "" : "s"}? This cannot be undone.`,
+		{ title: "Discard All Changes", kind: "warning" },
+	);
+	if (!confirmed) return;
+	try {
+		await safeInvoke("discard_all", { path: repoPath });
+		await loadStatus();
+		showToast(`Discarded all changes (${count} files)`, "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Discard all failed", "error");
+	}
 }
 
 // ---------- Merge-mode actions ----------
 async function markAllResolved() {
-  for (const f of status?.conflicted ?? []) {
-    await safeInvoke("stage_file", { path: repoPath, filePath: f.path });
-  }
-  await loadStatus();
+	for (const f of status?.conflicted ?? []) {
+		await safeInvoke("stage_file", { path: repoPath, filePath: f.path });
+	}
+	await loadStatus();
 }
 
 let mergeLoading = $state(false);
@@ -490,148 +534,160 @@ let mergeBody = $state("");
 
 // Pre-fill merge message when entering merge state
 $effect(() => {
-  if (isMerge && operationInfo) {
-    const src = operationInfo.source_branch ?? "???";
-    const tgt = operationInfo.target_branch ?? "???";
-    mergeSubject = `Merge branch '${src}' into ${tgt}`;
-    mergeBody = "";
-  }
+	if (isMerge && operationInfo) {
+		const src = operationInfo.source_branch ?? "???";
+		const tgt = operationInfo.target_branch ?? "???";
+		mergeSubject = `Merge branch '${src}' into ${tgt}`;
+		mergeBody = "";
+	}
 });
 
 async function commitMerge() {
-  mergeLoading = true;
-  const msg = mergeBody.trim()
-    ? `${mergeSubject.trim()}\n\n${mergeBody.trim()}`
-    : mergeSubject.trim();
-  try {
-    await safeInvoke("merge_continue", { path: repoPath, message: msg || null });
-    showToast("Merge completed", "success");
-    mergeSubject = "";
-    mergeBody = "";
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Merge commit failed", "error");
-  } finally {
-    mergeLoading = false;
-    await loadStatus();
-  }
+	mergeLoading = true;
+	const msg = mergeBody.trim()
+		? `${mergeSubject.trim()}\n\n${mergeBody.trim()}`
+		: mergeSubject.trim();
+	try {
+		await safeInvoke("merge_continue", {
+			path: repoPath,
+			message: msg || null,
+		});
+		showToast("Merge completed", "success");
+		mergeSubject = "";
+		mergeBody = "";
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Merge commit failed", "error");
+	} finally {
+		mergeLoading = false;
+		await loadStatus();
+	}
 }
 
 async function abortMerge() {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask(
-    "Abort merge? This will discard all merge progress and return to the previous state.",
-    { title: "Abort Merge", kind: "warning" },
-  );
-  if (!confirmed) return;
-  mergeLoading = true;
-  try {
-    await safeInvoke("merge_abort", { path: repoPath });
-    showToast("Merge aborted", "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Abort failed", "error");
-  } finally {
-    mergeLoading = false;
-    await loadStatus();
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		"Abort merge? This will discard all merge progress and return to the previous state.",
+		{ title: "Abort Merge", kind: "warning" },
+	);
+	if (!confirmed) return;
+	mergeLoading = true;
+	try {
+		await safeInvoke("merge_abort", { path: repoPath });
+		showToast("Merge aborted", "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Abort failed", "error");
+	} finally {
+		mergeLoading = false;
+		await loadStatus();
+	}
 }
 
 // ---------- Rebase-mode actions ----------
 let rebaseLoading = $state(false);
 
 async function continueRebase() {
-  rebaseLoading = true;
-  try {
-    const msg = rebaseMsgBody.trim()
-      ? `${rebaseMsgSummary.trim()}\n\n${rebaseMsgBody.trim()}`
-      : rebaseMsgSummary.trim();
-    await safeInvoke("rebase_continue", { path: repoPath, message: msg || null });
-  } catch (e) {
-    const err = e as TrunkError;
-    const msg = err.message ?? "";
-    if (msg.toLowerCase().includes("conflict") || msg.toLowerCase().includes("resolve")) {
-      showToast("Resolve all conflicts before continuing", "error");
-    } else {
-      showToast(msg || "Rebase continue failed", "error");
-    }
-  } finally {
-    rebaseLoading = false;
-    await loadStatus();
-  }
+	rebaseLoading = true;
+	try {
+		const msg = rebaseMsgBody.trim()
+			? `${rebaseMsgSummary.trim()}\n\n${rebaseMsgBody.trim()}`
+			: rebaseMsgSummary.trim();
+		await safeInvoke("rebase_continue", {
+			path: repoPath,
+			message: msg || null,
+		});
+	} catch (e) {
+		const err = e as TrunkError;
+		const msg = err.message ?? "";
+		if (
+			msg.toLowerCase().includes("conflict") ||
+			msg.toLowerCase().includes("resolve")
+		) {
+			showToast("Resolve all conflicts before continuing", "error");
+		} else {
+			showToast(msg || "Rebase continue failed", "error");
+		}
+	} finally {
+		rebaseLoading = false;
+		await loadStatus();
+	}
 }
 
 async function abortRebase() {
-  const { ask } = await import("@tauri-apps/plugin-dialog");
-  const confirmed = await ask("Abort rebase? This will return to the pre-rebase state.", {
-    title: "Abort Rebase",
-    kind: "warning",
-  });
-  if (!confirmed) return;
-  rebaseLoading = true;
-  try {
-    await safeInvoke("rebase_abort", { path: repoPath });
-    showToast("Rebase aborted", "success");
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Abort failed", "error");
-  } finally {
-    rebaseLoading = false;
-    await loadStatus();
-  }
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		"Abort rebase? This will return to the pre-rebase state.",
+		{
+			title: "Abort Rebase",
+			kind: "warning",
+		},
+	);
+	if (!confirmed) return;
+	rebaseLoading = true;
+	try {
+		await safeInvoke("rebase_abort", { path: repoPath });
+		showToast("Rebase aborted", "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Abort failed", "error");
+	} finally {
+		rebaseLoading = false;
+		await loadStatus();
+	}
 }
 
 async function skipRebase() {
-  rebaseLoading = true;
-  try {
-    await safeInvoke("rebase_skip", { path: repoPath });
-  } catch (e) {
-    const err = e as TrunkError;
-    showToast(err.message ?? "Skip failed", "error");
-  } finally {
-    rebaseLoading = false;
-    await loadStatus();
-  }
+	rebaseLoading = true;
+	try {
+		await safeInvoke("rebase_skip", { path: repoPath });
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Skip failed", "error");
+	} finally {
+		rebaseLoading = false;
+		await loadStatus();
+	}
 }
 
 // --- Bottom form resize ---
 let bottomHeight = $state(180);
 
 function startBottomResize(e: MouseEvent) {
-  e.preventDefault();
-  const startY = e.clientY;
-  const startHeight = bottomHeight;
+	e.preventDefault();
+	const startY = e.clientY;
+	const startHeight = bottomHeight;
 
-  function onMouseMove(ev: MouseEvent) {
-    const delta = startY - ev.clientY;
-    bottomHeight = Math.max(100, Math.min(500, startHeight + delta));
-  }
+	function onMouseMove(ev: MouseEvent) {
+		const delta = startY - ev.clientY;
+		bottomHeight = Math.max(100, Math.min(500, startHeight + delta));
+	}
 
-  function onMouseUp() {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-  }
+	function onMouseUp() {
+		window.removeEventListener("mousemove", onMouseMove);
+		window.removeEventListener("mouseup", onMouseUp);
+	}
 
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
+	window.addEventListener("mousemove", onMouseMove);
+	window.addEventListener("mouseup", onMouseUp);
 }
 
 // Initial load on mount
 $effect(() => {
-  if (repoPath) loadStatus();
+	if (repoPath) loadStatus();
 });
 
 // Auto-refresh on repo-changed event
 $effect(() => {
-  let unlisten: (() => void) | undefined;
-  listen<string>("repo-changed", (event) => {
-    if (event.payload === repoPath) loadStatus();
-  }).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+	let unlisten: (() => void) | undefined;
+	listen<string>("repo-changed", (event) => {
+		if (event.payload === repoPath) loadStatus();
+	}).then((fn) => {
+		unlisten = fn;
+	});
+	return () => {
+		unlisten?.();
+	};
 });
 </script>
 

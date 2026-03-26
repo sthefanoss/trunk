@@ -4,25 +4,25 @@ import type { DirectoryNode } from "../lib/build-tree.js";
 import { countFiles } from "../lib/build-tree.js";
 
 interface Props {
-  node: DirectoryNode;
-  depth: number;
-  expanded: boolean;
-  focused: boolean;
-  ontoggle: () => void;
-  actionLabel?: string;
-  onaction?: () => void;
-  oncontextmenu?: (e: MouseEvent) => void;
+	node: DirectoryNode;
+	depth: number;
+	expanded: boolean;
+	focused: boolean;
+	ontoggle: () => void;
+	actionLabel?: string;
+	onaction?: () => void;
+	oncontextmenu?: (e: MouseEvent) => void;
 }
 
 let {
-  node,
-  depth,
-  expanded,
-  focused,
-  ontoggle,
-  actionLabel = "",
-  onaction,
-  oncontextmenu,
+	node,
+	depth,
+	expanded,
+	focused,
+	ontoggle,
+	actionLabel = "",
+	onaction,
+	oncontextmenu,
 }: Props = $props();
 
 let hovered = $state(false);

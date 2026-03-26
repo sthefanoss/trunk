@@ -1,39 +1,39 @@
 <script lang="ts">
 import {
-  FileMinus,
-  FilePen,
-  FilePlus,
-  FileSymlink,
-  FileType2,
-  FileWarning,
-  Minus,
-  Plus,
+	FileMinus,
+	FilePen,
+	FilePlus,
+	FileSymlink,
+	FileType2,
+	FileWarning,
+	Minus,
+	Plus,
 } from "@lucide/svelte";
 import type { Component } from "svelte";
 import type { FileStatus, FileStatusType } from "../lib/types.js";
 
 interface Props {
-  file: FileStatus;
-  isLoading?: boolean;
-  actionLabel: string;
-  onaction: () => void;
-  onclick?: () => void;
-  oncontextmenu?: (e: MouseEvent) => void;
-  depth?: number;
-  displayName?: string;
-  focused?: boolean;
+	file: FileStatus;
+	isLoading?: boolean;
+	actionLabel: string;
+	onaction: () => void;
+	onclick?: () => void;
+	oncontextmenu?: (e: MouseEvent) => void;
+	depth?: number;
+	displayName?: string;
+	focused?: boolean;
 }
 
 let {
-  file,
-  isLoading = false,
-  actionLabel,
-  onaction,
-  onclick,
-  oncontextmenu,
-  depth = 0,
-  displayName,
-  focused = false,
+	file,
+	isLoading = false,
+	actionLabel,
+	onaction,
+	onclick,
+	oncontextmenu,
+	depth = 0,
+	displayName,
+	focused = false,
 }: Props = $props();
 
 let hovered = $state(false);
@@ -41,16 +41,19 @@ let hovered = $state(false);
 type StatusIconConfig = { component: Component<any>; color: string };
 
 const STATUS_ICON_COMPONENTS: Record<FileStatusType, StatusIconConfig> = {
-  New: { component: FilePlus, color: "#22c55e" },
-  Modified: { component: FilePen, color: "#fb923c" },
-  Deleted: { component: FileMinus, color: "#f87171" },
-  Renamed: { component: FileSymlink, color: "#60a5fa" },
-  Typechange: { component: FileType2, color: "#a78bfa" },
-  Conflicted: { component: FileWarning, color: "#facc15" },
+	New: { component: FilePlus, color: "#22c55e" },
+	Modified: { component: FilePen, color: "#fb923c" },
+	Deleted: { component: FileMinus, color: "#f87171" },
+	Renamed: { component: FileSymlink, color: "#60a5fa" },
+	Typechange: { component: FileType2, color: "#a78bfa" },
+	Conflicted: { component: FileWarning, color: "#facc15" },
 };
 
 let iconConfig = $derived(
-  STATUS_ICON_COMPONENTS[file.status] ?? { component: FilePen, color: "var(--color-text-muted)" },
+	STATUS_ICON_COMPONENTS[file.status] ?? {
+		component: FilePen,
+		color: "var(--color-text-muted)",
+	},
 );
 </script>
 

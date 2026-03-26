@@ -1,22 +1,27 @@
 {
-  "compilerOptions": {
-    "allowJs": true,
-    "checkJs": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "strict": true,
-    "moduleResolution": "bundler",
-    "target": "ESNext",
-    "module": "ESNext",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "paths": {
-      "$lib": ["./src/lib"],
-      "$lib/*": ["./src/lib/*"]
-    }
-  },
-  "include": ["src/**/*.ts", "src/**/*.svelte"],
-  "exclude": ["node_modules", "build", ".svelte-kit", "src/components/virtual-list/**/*.js"]
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"target": "ESNext",
+		"module": "ESNext",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"paths": {
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.svelte"],
+	"exclude": [
+		"node_modules",
+		"build",
+		".svelte-kit",
+		"src/components/virtual-list/**/*.js"
+	]
 }

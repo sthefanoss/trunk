@@ -2,31 +2,31 @@
 import { ArrowDown, ArrowUp, Globe, Laptop, Tag } from "@lucide/svelte";
 
 interface Props {
-  name: string;
-  kind?: "local" | "remote" | "tag";
-  isHead?: boolean;
-  isLoading?: boolean;
-  isError?: boolean;
-  errorText?: string;
-  ahead?: number;
-  behind?: number;
-  onclick?: () => void;
-  ondblclick?: () => void;
-  oncontextmenu?: (e: MouseEvent) => void;
+	name: string;
+	kind?: "local" | "remote" | "tag";
+	isHead?: boolean;
+	isLoading?: boolean;
+	isError?: boolean;
+	errorText?: string;
+	ahead?: number;
+	behind?: number;
+	onclick?: () => void;
+	ondblclick?: () => void;
+	oncontextmenu?: (e: MouseEvent) => void;
 }
 
 let {
-  name,
-  kind = "local",
-  isHead = false,
-  isLoading = false,
-  isError = false,
-  errorText,
-  ahead = 0,
-  behind = 0,
-  onclick,
-  ondblclick,
-  oncontextmenu,
+	name,
+	kind = "local",
+	isHead = false,
+	isLoading = false,
+	isError = false,
+	errorText,
+	ahead = 0,
+	behind = 0,
+	onclick,
+	ondblclick,
+	oncontextmenu,
 }: Props = $props();
 
 const kindIcon = { local: Laptop, remote: Globe, tag: Tag } as const;

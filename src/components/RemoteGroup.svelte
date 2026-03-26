@@ -2,23 +2,23 @@
 import BranchRow from "./BranchRow.svelte";
 
 interface Props {
-  remoteName: string;
-  branches: string[];
-  checkingOut: string | null;
-  errorBranch: string | null;
-  errorText: string;
-  oncheckout: (fullName: string) => void;
-  oncontextmenu?: (e: MouseEvent, fullName: string) => void;
+	remoteName: string;
+	branches: string[];
+	checkingOut: string | null;
+	errorBranch: string | null;
+	errorText: string;
+	oncheckout: (fullName: string) => void;
+	oncontextmenu?: (e: MouseEvent, fullName: string) => void;
 }
 
 let {
-  remoteName,
-  branches,
-  checkingOut,
-  errorBranch,
-  errorText,
-  oncheckout,
-  oncontextmenu,
+	remoteName,
+	branches,
+	checkingOut,
+	errorBranch,
+	errorText,
+	oncheckout,
+	oncontextmenu,
 }: Props = $props();
 </script>
 

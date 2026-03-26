@@ -1,31 +1,31 @@
 import { DEFAULT_GRAPH_SETTINGS } from "./graph-constants.js";
 import type {
-  GraphDisplaySettings,
-  OverlayConnection,
-  OverlayGraphData,
-  OverlayNode,
-  OverlayPath,
+	GraphDisplaySettings,
+	OverlayConnection,
+	OverlayGraphData,
+	OverlayNode,
+	OverlayPath,
 } from "./types.js";
 
 // ─── Coordinate context ───────────────────────────────────────────────────────
 
 /** Pre-computed coordinate helpers derived from display settings. */
 interface PathContext {
-  cx: (col: number) => number;
-  cy: (row: number) => number;
-  /** Fixed corner radius for cubic bezier connections (= laneWidth / 2) */
-  R: number;
-  dotRadius: number;
+	cx: (col: number) => number;
+	cy: (row: number) => number;
+	/** Fixed corner radius for cubic bezier connections (= laneWidth / 2) */
+	R: number;
+	dotRadius: number;
 }
 
 function makePathContext(s: GraphDisplaySettings): PathContext {
-  const { rowHeight, laneWidth, dotRadius } = s;
-  return {
-    cx: (col) => col * laneWidth + laneWidth / 2,
-    cy: (row) => row * rowHeight + rowHeight / 2,
-    R: laneWidth / 2,
-    dotRadius,
-  };
+	const { rowHeight, laneWidth, dotRadius } = s;
+	return {
+		cx: (col) => col * laneWidth + laneWidth / 2,
+		cy: (row) => row * rowHeight + rowHeight / 2,
+		R: laneWidth / 2,
+		dotRadius,
+	};
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -44,145 +44,145 @@ const DASH_GAP = 3;
 
 /** Whether a node renders as a hollow tip (stroke-only dot with gap) */
 function isHollowTip(node: OverlayNode | undefined): boolean {
-  if (!node) return false;
-  const tip = node.isBranchTip || node.isWip;
-  const hollow = node.isStash || node.isWip || node.isMerge;
-  return tip && hollow;
+	if (!node) return false;
+	const tip = node.isBranchTip || node.isWip;
+	const hollow = node.isStash || node.isWip || node.isMerge;
+	return tip && hollow;
 }
 
 // ─── Path builder ─────────────────────────────────────────────────────────────
 
 function buildPath(
-  conn: OverlayConnection,
-  nodeByPos: Map<string, OverlayNode>,
-  ctx: PathContext,
+	conn: OverlayConnection,
+	nodeByPos: Map<string, OverlayNode>,
+	ctx: PathContext,
 ): OverlayPath {
-  const { cx, cy, R, dotRadius } = ctx;
+	const { cx, cy, R, dotRadius } = ctx;
 
-  const childNode = nodeByPos.get(`${conn.childX},${conn.childY}`);
-  const parentNode = nodeByPos.get(`${conn.parentX},${conn.parentY}`);
+	const childNode = nodeByPos.get(`${conn.childX},${conn.childY}`);
+	const parentNode = nodeByPos.get(`${conn.parentX},${conn.parentY}`);
 
-  if (conn.childX === conn.parentX) {
-    // ── Same column: vertical line ──
-    const col = conn.childX;
-    const startY = isHollowTip(childNode)
-      ? cy(conn.childY) + dotRadius + DASH_GAP
-      : cy(conn.childY);
-    const endY = isHollowTip(parentNode)
-      ? cy(conn.parentY) - dotRadius - DASH_GAP
-      : cy(conn.parentY);
+	if (conn.childX === conn.parentX) {
+		// ── Same column: vertical line ──
+		const col = conn.childX;
+		const startY = isHollowTip(childNode)
+			? cy(conn.childY) + dotRadius + DASH_GAP
+			: cy(conn.childY);
+		const endY = isHollowTip(parentNode)
+			? cy(conn.parentY) - dotRadius - DASH_GAP
+			: cy(conn.parentY);
 
-    if (startY >= endY) {
-      return {
-        d: "",
-        colorIndex: conn.colorIndex,
-        dashed: conn.dashed,
-        minRow: conn.childY,
-        maxRow: conn.parentY,
-      };
-    }
+		if (startY >= endY) {
+			return {
+				d: "",
+				colorIndex: conn.colorIndex,
+				dashed: conn.dashed,
+				minRow: conn.childY,
+				maxRow: conn.parentY,
+			};
+		}
 
-    return {
-      d: `M ${cx(col)} ${startY} V ${endY}`,
-      colorIndex: conn.colorIndex,
-      dashed: conn.dashed,
-      minRow: conn.childY,
-      maxRow: conn.parentY,
-    };
-  } else if (childNode?.isMerge) {
-    // ── Merge: horizontal → bezier curve → vertical ──
-    // Path: H from merge commit to parent's column, curve down, V to parent
-    const goingRight = conn.parentX > conn.childX;
-    const hSign = goingRight ? 1 : -1;
+		return {
+			d: `M ${cx(col)} ${startY} V ${endY}`,
+			colorIndex: conn.colorIndex,
+			dashed: conn.dashed,
+			minRow: conn.childY,
+			maxRow: conn.parentY,
+		};
+	} else if (childNode?.isMerge) {
+		// ── Merge: horizontal → bezier curve → vertical ──
+		// Path: H from merge commit to parent's column, curve down, V to parent
+		const goingRight = conn.parentX > conn.childX;
+		const hSign = goingRight ? 1 : -1;
 
-    const startX = cx(conn.childX);
-    const startY = cy(conn.childY);
+		const startX = cx(conn.childX);
+		const startY = cy(conn.childY);
 
-    // Horizontal segment stops R before parent column
-    const hTarget = cx(conn.parentX) - hSign * R;
-    // Corner point: at parent column, R below child row
-    const cornerX = cx(conn.parentX);
-    const cornerY = cy(conn.childY) + R;
+		// Horizontal segment stops R before parent column
+		const hTarget = cx(conn.parentX) - hSign * R;
+		// Corner point: at parent column, R below child row
+		const cornerX = cx(conn.parentX);
+		const cornerY = cy(conn.childY) + R;
 
-    // Vertical end: parent position
-    const endY = isHollowTip(parentNode)
-      ? cy(conn.parentY) - dotRadius - DASH_GAP
-      : cy(conn.parentY);
+		// Vertical end: parent position
+		const endY = isHollowTip(parentNode)
+			? cy(conn.parentY) - dotRadius - DASH_GAP
+			: cy(conn.parentY);
 
-    // Bezier control points for 90° quarter-circle
-    const cp1x = cx(conn.parentX) - hSign * (1 - KAPPA) * R;
-    const cp1y = cy(conn.childY);
-    const cp2x = cx(conn.parentX);
-    const cp2y = cy(conn.childY) + KAPPA * R;
+		// Bezier control points for 90° quarter-circle
+		const cp1x = cx(conn.parentX) - hSign * (1 - KAPPA) * R;
+		const cp1y = cy(conn.childY);
+		const cp2x = cx(conn.parentX);
+		const cp2y = cy(conn.childY) + KAPPA * R;
 
-    const d = `M ${startX} ${startY} H ${hTarget} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${cornerX} ${cornerY} V ${endY}`;
+		const d = `M ${startX} ${startY} H ${hTarget} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${cornerX} ${cornerY} V ${endY}`;
 
-    return {
-      d,
-      colorIndex: conn.colorIndex,
-      dashed: conn.dashed,
-      minRow: conn.childY,
-      maxRow: conn.parentY,
-    };
-  } else {
-    // ── Fork/normal: vertical → bezier curve → horizontal ──
-    // Path: V down child's column to parent's row, curve, H to parent
-    const goingRight = conn.parentX > conn.childX;
-    const hSign = goingRight ? 1 : -1;
+		return {
+			d,
+			colorIndex: conn.colorIndex,
+			dashed: conn.dashed,
+			minRow: conn.childY,
+			maxRow: conn.parentY,
+		};
+	} else {
+		// ── Fork/normal: vertical → bezier curve → horizontal ──
+		// Path: V down child's column to parent's row, curve, H to parent
+		const goingRight = conn.parentX > conn.childX;
+		const hSign = goingRight ? 1 : -1;
 
-    const startY = isHollowTip(childNode)
-      ? cy(conn.childY) + dotRadius + DASH_GAP
-      : cy(conn.childY);
+		const startY = isHollowTip(childNode)
+			? cy(conn.childY) + dotRadius + DASH_GAP
+			: cy(conn.childY);
 
-    // Vertical segment stops R above parent row center
-    const vTarget = cy(conn.parentY) - R;
-    // Corner point: where curve ends, at parent row center in child's column
-    const cornerX = cx(conn.childX);
-    const cornerY = cy(conn.parentY);
-    // Horizontal end: parent position
-    const endX = isHollowTip(parentNode)
-      ? cx(conn.parentX) - hSign * (dotRadius + DASH_GAP)
-      : cx(conn.parentX);
+		// Vertical segment stops R above parent row center
+		const vTarget = cy(conn.parentY) - R;
+		// Corner point: where curve ends, at parent row center in child's column
+		const cornerX = cx(conn.childX);
+		const cornerY = cy(conn.parentY);
+		// Horizontal end: parent position
+		const endX = isHollowTip(parentNode)
+			? cx(conn.parentX) - hSign * (dotRadius + DASH_GAP)
+			: cx(conn.parentX);
 
-    // Bezier control points for 90° quarter-circle
-    const cp1x = cx(conn.childX);
-    const cp1y = cornerY - (1 - KAPPA) * R;
-    const cp2x = cx(conn.childX) + hSign * KAPPA * R;
-    const cp2y = cornerY;
+		// Bezier control points for 90° quarter-circle
+		const cp1x = cx(conn.childX);
+		const cp1y = cornerY - (1 - KAPPA) * R;
+		const cp2x = cx(conn.childX) + hSign * KAPPA * R;
+		const cp2y = cornerY;
 
-    // After curve, horizontal target: R into the turn from child's column
-    const hStart = cx(conn.childX) + hSign * R;
+		// After curve, horizontal target: R into the turn from child's column
+		const hStart = cx(conn.childX) + hSign * R;
 
-    const d = `M ${cornerX} ${startY} V ${vTarget} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${hStart} ${cornerY} H ${endX}`;
+		const d = `M ${cornerX} ${startY} V ${vTarget} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${hStart} ${cornerY} H ${endX}`;
 
-    return {
-      d,
-      colorIndex: conn.colorIndex,
-      dashed: conn.dashed,
-      minRow: conn.childY,
-      maxRow: conn.parentY,
-    };
-  }
+		return {
+			d,
+			colorIndex: conn.colorIndex,
+			dashed: conn.dashed,
+			minRow: conn.childY,
+			maxRow: conn.parentY,
+		};
+	}
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export function buildOverlayPaths(
-  data: OverlayGraphData,
-  settings: GraphDisplaySettings = DEFAULT_GRAPH_SETTINGS,
+	data: OverlayGraphData,
+	settings: GraphDisplaySettings = DEFAULT_GRAPH_SETTINGS,
 ): OverlayPath[] {
-  const ctx = makePathContext(settings);
-  const { connections, nodes } = data;
+	const ctx = makePathContext(settings);
+	const { connections, nodes } = data;
 
-  // Build position→node map for O(1) lookups
-  const nodeByPos = new Map<string, OverlayNode>();
-  for (const node of nodes) {
-    nodeByPos.set(`${node.x},${node.y}`, node);
-  }
+	// Build position→node map for O(1) lookups
+	const nodeByPos = new Map<string, OverlayNode>();
+	for (const node of nodes) {
+		nodeByPos.set(`${node.x},${node.y}`, node);
+	}
 
-  const result: OverlayPath[] = [];
-  for (const conn of connections) {
-    result.push(buildPath(conn, nodeByPos, ctx));
-  }
-  return result;
+	const result: OverlayPath[] = [];
+	for (const conn of connections) {
+		result.push(buildPath(conn, nodeByPos, ctx));
+	}
+	return result;
 }

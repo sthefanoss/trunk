@@ -1,30 +1,30 @@
 import {
-  COLUMN_PADDING_X,
-  DEFAULT_GRAPH_SETTINGS,
-  ICON_GAP,
-  ICON_WIDTH,
-  PILL_FONT,
-  PILL_FONT_BOLD,
-  PILL_GAP,
-  PILL_HEIGHT,
-  PILL_MARGIN_LEFT,
-  PILL_PADDING_X,
+	COLUMN_PADDING_X,
+	DEFAULT_GRAPH_SETTINGS,
+	ICON_GAP,
+	ICON_WIDTH,
+	PILL_FONT,
+	PILL_FONT_BOLD,
+	PILL_GAP,
+	PILL_HEIGHT,
+	PILL_MARGIN_LEFT,
+	PILL_PADDING_X,
 } from "./graph-constants.js";
 import { truncateWithEllipsis } from "./text-measure.js";
 import type {
-  GraphCommit,
-  GraphDisplaySettings,
-  OverlayNode,
-  OverlayRefPill,
-  RefLabel,
+	GraphCommit,
+	GraphDisplaySettings,
+	OverlayNode,
+	OverlayRefPill,
+	RefLabel,
 } from "./types.js";
 
 /** Type priority for sorting: lower = higher priority */
 const TYPE_ORDER: Record<string, number> = {
-  LocalBranch: 0,
-  Tag: 1,
-  Stash: 2,
-  RemoteBranch: 3,
+	LocalBranch: 0,
+	Tag: 1,
+	Stash: 2,
+	RemoteBranch: 3,
 };
 
 /**
@@ -32,13 +32,13 @@ const TYPE_ORDER: Record<string, number> = {
  * (LocalBranch > Tag > Stash > RemoteBranch).
  */
 export function sortRefs(refs: RefLabel[]): RefLabel[] {
-  return [...refs].sort((a, b) => {
-    // HEAD always first
-    if (a.is_head && !b.is_head) return -1;
-    if (!a.is_head && b.is_head) return 1;
-    // Then by type order
-    return (TYPE_ORDER[a.ref_type] ?? 99) - (TYPE_ORDER[b.ref_type] ?? 99);
-  });
+	return [...refs].sort((a, b) => {
+		// HEAD always first
+		if (a.is_head && !b.is_head) return -1;
+		if (!a.is_head && b.is_head) return 1;
+		// Then by type order
+		return (TYPE_ORDER[a.ref_type] ?? 99) - (TYPE_ORDER[b.ref_type] ?? 99);
+	});
 }
 
 /**
@@ -47,15 +47,17 @@ export function sortRefs(refs: RefLabel[]): RefLabel[] {
  * Preserves exact logic from RefPill.svelte.
  */
 export function isRemoteOnlyRef(ref: RefLabel, allRefs: RefLabel[]): boolean {
-  if (ref.ref_type !== "RemoteBranch") return false;
-  return !allRefs.some((r) => r !== ref && (r.ref_type === "LocalBranch" || r.ref_type === "Tag"));
+	if (ref.ref_type !== "RemoteBranch") return false;
+	return !allRefs.some(
+		(r) => r !== ref && (r.ref_type === "LocalBranch" || r.ref_type === "Tag"),
+	);
 }
 
 /** Estimate "+N" badge width based on character count */
 function estimateBadgeWidth(count: number): number {
-  // "+N" text is small (BADGE_FONT_SIZE), estimate ~7px per char + padding
-  const chars = `+${count}`.length;
-  return chars * 7 + 6;
+	// "+N" text is small (BADGE_FONT_SIZE), estimate ~7px per char + padding
+	const chars = `+${count}`.length;
+	return chars * 7 + 6;
 }
 
 /**
@@ -73,80 +75,84 @@ function estimateBadgeWidth(count: number): number {
  *   store to make pill positions update without code changes.
  */
 export function buildRefPillData(
-  nodes: OverlayNode[],
-  commits: GraphCommit[],
-  refColumnWidth: number,
-  measureFn: (text: string, font: string) => number,
-  settings: GraphDisplaySettings = DEFAULT_GRAPH_SETTINGS,
+	nodes: OverlayNode[],
+	commits: GraphCommit[],
+	refColumnWidth: number,
+	measureFn: (text: string, font: string) => number,
+	settings: GraphDisplaySettings = DEFAULT_GRAPH_SETTINGS,
 ): OverlayRefPill[] {
-  const cx = (col: number): number => col * settings.laneWidth + settings.laneWidth / 2;
-  const cy = (row: number): number => row * settings.rowHeight + settings.rowHeight / 2;
-  const pills: OverlayRefPill[] = [];
+	const cx = (col: number): number =>
+		col * settings.laneWidth + settings.laneWidth / 2;
+	const cy = (row: number): number =>
+		row * settings.rowHeight + settings.rowHeight / 2;
+	const pills: OverlayRefPill[] = [];
 
-  for (const node of nodes) {
-    // Skip WIP and stash nodes
-    if (node.isWip || node.isStash) continue;
+	for (const node of nodes) {
+		// Skip WIP and stash nodes
+		if (node.isWip || node.isStash) continue;
 
-    // Look up commit at this row
-    const commit = commits[node.y];
-    if (!commit || commit.refs.length === 0) continue;
+		// Look up commit at this row
+		const commit = commits[node.y];
+		if (!commit || commit.refs.length === 0) continue;
 
-    const sorted = sortRefs(commit.refs);
-    const primary = sorted[0];
-    const overflowCount = sorted.length - 1;
+		const sorted = sortRefs(commit.refs);
+		const primary = sorted[0];
+		const overflowCount = sorted.length - 1;
 
-    // All ref types include icon width (Laptop for local, Globe for remote, Tag for tag, Archive for stash)
-    const iconWidth = ICON_WIDTH;
+		// All ref types include icon width (Laptop for local, Globe for remote, Tag for tag, Archive for stash)
+		const iconWidth = ICON_WIDTH;
 
-    // Compute available text width
-    const badgeWidth = overflowCount > 0 ? PILL_GAP + estimateBadgeWidth(overflowCount) : 0;
-    // Right gap matches the dot's visual inset: COLUMN_PADDING_X + (laneWidth/2 - dotRadius)
-    // so the pill and first dot are equidistant from the column divider
-    const dotInset = settings.laneWidth / 2 - settings.dotRadius;
-    const maxTextWidth =
-      refColumnWidth -
-      PILL_MARGIN_LEFT -
-      COLUMN_PADDING_X -
-      dotInset -
-      PILL_PADDING_X * 2 -
-      iconWidth -
-      ICON_GAP -
-      badgeWidth;
+		// Compute available text width
+		const badgeWidth =
+			overflowCount > 0 ? PILL_GAP + estimateBadgeWidth(overflowCount) : 0;
+		// Right gap matches the dot's visual inset: COLUMN_PADDING_X + (laneWidth/2 - dotRadius)
+		// so the pill and first dot are equidistant from the column divider
+		const dotInset = settings.laneWidth / 2 - settings.dotRadius;
+		const maxTextWidth =
+			refColumnWidth -
+			PILL_MARGIN_LEFT -
+			COLUMN_PADDING_X -
+			dotInset -
+			PILL_PADDING_X * 2 -
+			iconWidth -
+			ICON_GAP -
+			badgeWidth;
 
-    // Measure and truncate text
-    const font = primary.is_head ? PILL_FONT_BOLD : PILL_FONT;
-    const { text: truncatedLabel, width: textWidth } = truncateWithEllipsis(
-      primary.short_name,
-      maxTextWidth,
-      font,
-      measureFn,
-    );
+		// Measure and truncate text
+		const font = primary.is_head ? PILL_FONT_BOLD : PILL_FONT;
+		const { text: truncatedLabel, width: textWidth } = truncateWithEllipsis(
+			primary.short_name,
+			maxTextWidth,
+			font,
+			measureFn,
+		);
 
-    // Compute pill width — ceil textWidth to avoid sub-pixel rounding gaps
-    const pillWidth = Math.ceil(textWidth) + PILL_PADDING_X * 2 + iconWidth + ICON_GAP;
+		// Compute pill width — ceil textWidth to avoid sub-pixel rounding gaps
+		const pillWidth =
+			Math.ceil(textWidth) + PILL_PADDING_X * 2 + iconWidth + ICON_GAP;
 
-    pills.push({
-      x: PILL_MARGIN_LEFT,
-      y: cy(node.y),
-      width: pillWidth,
-      textWidth,
-      height: PILL_HEIGHT,
-      label: primary.short_name,
-      truncatedLabel,
-      refType: primary.ref_type,
-      colorIndex: primary.color_index,
-      isHead: primary.is_head,
-      isRemoteOnly: isRemoteOnlyRef(primary, sorted),
-      isNonHead: !primary.is_head,
-      overflowCount,
-      allRefs: sorted,
-      dotCx: cx(node.x),
-      dotCy: cy(node.y),
-      commitColorIndex: node.colorIndex,
-      rowIndex: node.y,
-      isHollow: node.isMerge || node.isStash || node.isWip,
-    });
-  }
+		pills.push({
+			x: PILL_MARGIN_LEFT,
+			y: cy(node.y),
+			width: pillWidth,
+			textWidth,
+			height: PILL_HEIGHT,
+			label: primary.short_name,
+			truncatedLabel,
+			refType: primary.ref_type,
+			colorIndex: primary.color_index,
+			isHead: primary.is_head,
+			isRemoteOnly: isRemoteOnlyRef(primary, sorted),
+			isNonHead: !primary.is_head,
+			overflowCount,
+			allRefs: sorted,
+			dotCx: cx(node.x),
+			dotCy: cy(node.y),
+			commitColorIndex: node.colorIndex,
+			rowIndex: node.y,
+			isHollow: node.isMerge || node.isStash || node.isWip,
+		});
+	}
 
-  return pills;
+	return pills;
 }

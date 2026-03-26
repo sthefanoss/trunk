@@ -4,13 +4,14 @@ import { showToast } from "../lib/toast.svelte.js";
 import type { HeadCommitMessage } from "../lib/types.js";
 
 interface Props {
-  repoPath: string;
-  stagedCount: number;
-  onsubjectchange?: (value: string) => void;
-  clearRedoStack: () => void;
+	repoPath: string;
+	stagedCount: number;
+	onsubjectchange?: (value: string) => void;
+	clearRedoStack: () => void;
 }
 
-let { repoPath, stagedCount, onsubjectchange, clearRedoStack }: Props = $props();
+let { repoPath, stagedCount, onsubjectchange, clearRedoStack }: Props =
+	$props();
 
 let subject = $state("");
 let body = $state("");
@@ -20,93 +21,101 @@ let subjectError = $state("");
 let stagedError = $state("");
 
 let buttonLabel = $derived.by(() => {
-  if (committing) {
-    return mode === "commit" ? "Committing..." : mode === "amend" ? "Amending..." : "Stashing...";
-  }
-  return mode === "commit" ? "Commit" : mode === "amend" ? "Amend" : "Stash";
+	if (committing) {
+		return mode === "commit"
+			? "Committing..."
+			: mode === "amend"
+				? "Amending..."
+				: "Stashing...";
+	}
+	return mode === "commit" ? "Commit" : mode === "amend" ? "Amend" : "Stash";
 });
 
 // Clear stagedError when stagedCount changes or mode changes
 $effect(() => {
-  // access reactive values to track them
-  const _staged = stagedCount;
-  const _mode = mode;
-  stagedError = "";
+	// access reactive values to track them
+	const _staged = stagedCount;
+	const _mode = mode;
+	stagedError = "";
 });
 
 async function handleModeSwitch(newMode: "commit" | "amend" | "stash") {
-  if (newMode === mode) return;
-  mode = newMode;
-  if (newMode === "amend") {
-    try {
-      const msg = await safeInvoke<HeadCommitMessage>("get_head_commit_message", {
-        path: repoPath,
-      });
-      subject = msg.subject;
-      body = msg.body ?? "";
-    } catch (e) {
-      console.error("Failed to get HEAD commit message:", e);
-    }
-  }
-  // Switching away from amend or between commit/stash: keep current values (don't clear)
+	if (newMode === mode) return;
+	mode = newMode;
+	if (newMode === "amend") {
+		try {
+			const msg = await safeInvoke<HeadCommitMessage>(
+				"get_head_commit_message",
+				{
+					path: repoPath,
+				},
+			);
+			subject = msg.subject;
+			body = msg.body ?? "";
+		} catch (e) {
+			console.error("Failed to get HEAD commit message:", e);
+		}
+	}
+	// Switching away from amend or between commit/stash: keep current values (don't clear)
 }
 
 async function handleSubmit() {
-  subjectError = "";
-  stagedError = "";
+	subjectError = "";
+	stagedError = "";
 
-  // Stash mode: subject is optional (stash name). Commit/amend: subject required.
-  if (mode !== "stash" && !subject.trim()) {
-    subjectError = "Subject is required";
-    return;
-  }
+	// Stash mode: subject is optional (stash name). Commit/amend: subject required.
+	if (mode !== "stash" && !subject.trim()) {
+		subjectError = "Subject is required";
+		return;
+	}
 
-  // All modes require staged files (except amend which can amend message-only)
-  if (mode !== "amend" && stagedCount === 0) {
-    stagedError = "No files staged";
-    return;
-  }
+	// All modes require staged files (except amend which can amend message-only)
+	if (mode !== "amend" && stagedCount === 0) {
+		stagedError = "No files staged";
+		return;
+	}
 
-  // clearRedoStack only for commit/amend (modifies history), not stash
-  if (mode !== "stash") {
-    clearRedoStack();
-  }
+	// clearRedoStack only for commit/amend (modifies history), not stash
+	if (mode !== "stash") {
+		clearRedoStack();
+	}
 
-  committing = true;
-  try {
-    if (mode === "amend") {
-      await safeInvoke("amend_commit", {
-        path: repoPath,
-        subject: subject.trim(),
-        body: body.trim() || null,
-      });
-    } else if (mode === "stash") {
-      await safeInvoke("stash_save", {
-        path: repoPath,
-        message: subject.trim(),
-      });
-      showToast("Stash created", "success");
-    } else {
-      await safeInvoke("create_commit", {
-        path: repoPath,
-        subject: subject.trim(),
-        body: body.trim() || null,
-      });
-    }
-    subject = "";
-    onsubjectchange?.("");
-    body = "";
-    mode = "commit"; // Always reset to commit mode after any successful operation
-  } catch (e) {
-    const err = e as { message?: string };
-    const action = mode === "commit" ? "Commit" : mode === "amend" ? "Amend" : "Stash";
-    console.error(`${action} failed:`, e);
-    if (mode === "stash") {
-      showToast(err.message ?? "Stash failed", "error");
-    }
-  } finally {
-    committing = false;
-  }
+	committing = true;
+	try {
+		if (mode === "amend") {
+			await safeInvoke("amend_commit", {
+				path: repoPath,
+				subject: subject.trim(),
+				body: body.trim() || null,
+			});
+		} else if (mode === "stash") {
+			await safeInvoke("stash_save", {
+				path: repoPath,
+				message: subject.trim(),
+			});
+			showToast("Stash created", "success");
+		} else {
+			await safeInvoke("create_commit", {
+				path: repoPath,
+				subject: subject.trim(),
+				body: body.trim() || null,
+			});
+		}
+		subject = "";
+		onsubjectchange?.("");
+		body = "";
+		mode = "commit"; // Always reset to commit mode after any successful operation
+	} catch (e) {
+		const err = e as { message?: string };
+		const action =
+			mode === "commit" ? "Commit" : mode === "amend" ? "Amend" : "Stash";
+		console.error(`${action} failed:`, e);
+		if (mode === "stash") {
+			showToast(err.message ?? "Stash failed", "error");
+		}
+	} finally {
+		committing = false;
+	}
 }
 </script>
 

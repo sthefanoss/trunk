@@ -1,75 +1,77 @@
 <script lang="ts">
 interface Field {
-  key: string;
-  label: string;
-  placeholder?: string;
-  multiline?: boolean;
-  required?: boolean;
-  defaultValue?: string;
+	key: string;
+	label: string;
+	placeholder?: string;
+	multiline?: boolean;
+	required?: boolean;
+	defaultValue?: string;
 }
 
 interface Props {
-  title: string;
-  fields: Field[];
-  onsubmit: (values: Record<string, string>) => void;
-  oncancel: () => void;
-  confirmLabel?: string;
-  cancelLabel?: string;
+	title: string;
+	fields: Field[];
+	onsubmit: (values: Record<string, string>) => void;
+	oncancel: () => void;
+	confirmLabel?: string;
+	cancelLabel?: string;
 }
 
 import { untrack } from "svelte";
 
 let {
-  title,
-  fields,
-  onsubmit,
-  oncancel,
-  confirmLabel = "OK",
-  cancelLabel = "Cancel",
+	title,
+	fields,
+	onsubmit,
+	oncancel,
+	confirmLabel = "OK",
+	cancelLabel = "Cancel",
 }: Props = $props();
 
 let values = $state<Record<string, string>>({});
 
 // Initialize values when fields change (untrack values to avoid feedback loop)
 $effect(() => {
-  // Track fields as dependency
-  const currentFields = fields;
-  // Read values without creating dependency
-  const currentValues = untrack(() => values);
-  const init: Record<string, string> = {};
-  for (const field of currentFields) {
-    init[field.key] = currentValues[field.key] ?? field.defaultValue ?? "";
-  }
-  values = init;
+	// Track fields as dependency
+	const currentFields = fields;
+	// Read values without creating dependency
+	const currentValues = untrack(() => values);
+	const init: Record<string, string> = {};
+	for (const field of currentFields) {
+		init[field.key] = currentValues[field.key] ?? field.defaultValue ?? "";
+	}
+	values = init;
 });
 
 const canSubmit = $derived(
-  fields.filter((f) => f.required).every((f) => (values[f.key] ?? "").trim().length > 0),
+	fields
+		.filter((f) => f.required)
+		.every((f) => (values[f.key] ?? "").trim().length > 0),
 );
 
 function handleSubmit() {
-  if (!canSubmit) return;
-  onsubmit(values);
+	if (!canSubmit) return;
+	onsubmit(values);
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    oncancel();
-  } else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
-    e.preventDefault();
-    handleSubmit();
-  }
+	if (e.key === "Escape") {
+		e.preventDefault();
+		oncancel();
+	} else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+		e.preventDefault();
+		handleSubmit();
+	}
 }
 
 function handleBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) {
-    oncancel();
-  }
+	if (e.target === e.currentTarget) {
+		oncancel();
+	}
 }
 
 function autofocus(node: HTMLElement) {
-  node.focus();
+	node.focus();
 }
 </script>
 

@@ -2,91 +2,95 @@
 import { FolderTree, List } from "@lucide/svelte";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import type {
-  CommitDetail,
-  DiffStatus,
-  FileDiff,
-  FileStatus,
-  FileStatusType,
+	CommitDetail,
+	DiffStatus,
+	FileDiff,
+	FileStatus,
+	FileStatusType,
 } from "../lib/types.js";
 import TreeFileList from "./TreeFileList.svelte";
 
 const STATUS_ICONS: Record<DiffStatus, { symbol: string; color: string }> = {
-  Added: { symbol: "+", color: "#4ade80" },
-  Deleted: { symbol: "−", color: "#f87171" },
-  Modified: { symbol: "✎", color: "#fb923c" },
-  Renamed: { symbol: "→", color: "#60a5fa" },
-  Copied: { symbol: "⎘", color: "#c084fc" },
-  Untracked: { symbol: "?", color: "#facc15" },
-  Unknown: { symbol: "?", color: "var(--color-text-muted)" },
+	Added: { symbol: "+", color: "#4ade80" },
+	Deleted: { symbol: "−", color: "#f87171" },
+	Modified: { symbol: "✎", color: "#fb923c" },
+	Renamed: { symbol: "→", color: "#60a5fa" },
+	Copied: { symbol: "⎘", color: "#c084fc" },
+	Untracked: { symbol: "?", color: "#facc15" },
+	Unknown: { symbol: "?", color: "var(--color-text-muted)" },
 };
 
 interface Props {
-  commitDetail: CommitDetail;
-  fileDiffs: FileDiff[];
-  selectedFile: string | null;
-  onfileselect: (path: string) => void;
-  onclose: () => void;
-  repoPath?: string;
-  treeViewEnabled?: boolean;
-  ontreeviewtoggle?: () => void;
+	commitDetail: CommitDetail;
+	fileDiffs: FileDiff[];
+	selectedFile: string | null;
+	onfileselect: (path: string) => void;
+	onclose: () => void;
+	repoPath?: string;
+	treeViewEnabled?: boolean;
+	ontreeviewtoggle?: () => void;
 }
 
 let {
-  commitDetail,
-  fileDiffs,
-  selectedFile,
-  onfileselect,
-  onclose,
-  repoPath = "",
-  treeViewEnabled = false,
-  ontreeviewtoggle,
+	commitDetail,
+	fileDiffs,
+	selectedFile,
+	onfileselect,
+	onclose,
+	repoPath = "",
+	treeViewEnabled = false,
+	ontreeviewtoggle,
 }: Props = $props();
 
 const DIFF_STATUS_MAP: Record<string, FileStatusType> = {
-  Added: "New",
-  Deleted: "Deleted",
-  Modified: "Modified",
-  Renamed: "Renamed",
-  Copied: "Modified",
-  Untracked: "New",
-  Unknown: "Modified",
+	Added: "New",
+	Deleted: "Deleted",
+	Modified: "Modified",
+	Renamed: "Renamed",
+	Copied: "Modified",
+	Untracked: "New",
+	Unknown: "Modified",
 };
 
 let fileStatusList = $derived<FileStatus[]>(
-  fileDiffs.map((fd) => ({
-    path: fd.path,
-    status: DIFF_STATUS_MAP[fd.status] ?? "Modified",
-    is_binary: fd.is_binary,
-  })),
+	fileDiffs.map((fd) => ({
+		path: fd.path,
+		status: DIFF_STATUS_MAP[fd.status] ?? "Modified",
+		is_binary: fd.is_binary,
+	})),
 );
 
 async function showFileContextMenu(e: MouseEvent, filePath: string) {
-  e.preventDefault();
-  const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
-  const absPath = `${repoPath}/${filePath}`;
-  const menu = await Menu.new({
-    items: [
-      await MenuItem.new({
-        text: "Copy Relative Path",
-        action: () => {
-          writeText(filePath).catch(() => {});
-        },
-      }),
-      await MenuItem.new({
-        text: "Copy Absolute Path",
-        action: () => {
-          writeText(absPath).catch(() => {});
-        },
-      }),
-    ],
-  });
-  await menu.popup();
+	e.preventDefault();
+	const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
+	const absPath = `${repoPath}/${filePath}`;
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy Relative Path",
+				action: () => {
+					writeText(filePath).catch(() => {});
+				},
+			}),
+			await MenuItem.new({
+				text: "Copy Absolute Path",
+				action: () => {
+					writeText(absPath).catch(() => {});
+				},
+			}),
+		],
+	});
+	await menu.popup();
 }
 
-let authorDate = $derived(new Date(commitDetail.author_timestamp * 1000).toLocaleString());
+let authorDate = $derived(
+	new Date(commitDetail.author_timestamp * 1000).toLocaleString(),
+);
 
 let parentShort = $derived(
-  commitDetail.parent_oids.length > 0 ? commitDetail.parent_oids[0].slice(0, 7) : null,
+	commitDetail.parent_oids.length > 0
+		? commitDetail.parent_oids[0].slice(0, 7)
+		: null,
 );
 </script>
 

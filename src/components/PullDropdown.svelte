@@ -6,88 +6,97 @@ import type { RemoteState } from "../lib/remote-state.svelte.js";
 import { showToast } from "../lib/toast.svelte.js";
 
 interface Props {
-  repoPath: string;
-  disabled: boolean;
-  remoteState: RemoteState;
+	repoPath: string;
+	disabled: boolean;
+	remoteState: RemoteState;
 }
 
 let { repoPath, disabled, remoteState }: Props = $props();
 let open = $state(false);
 
 interface PullOption {
-  label: string;
-  action: () => Promise<void>;
+	label: string;
+	action: () => Promise<void>;
 }
 
 const options: PullOption[] = [
-  {
-    label: "Fetch",
-    action: () => runRemote("git_fetch", "Fetched successfully", {}),
-  },
-  {
-    label: "Fast-forward if possible",
-    action: () => runRemote("git_pull", "Pulled successfully", { strategy: "ff" }),
-  },
-  {
-    label: "Fast-forward only",
-    action: () => runRemote("git_pull", "Pulled successfully", { strategy: "ff-only" }),
-  },
-  {
-    label: "Pull (rebase)",
-    action: () => runRemote("git_pull", "Pulled successfully (rebase)", { strategy: "rebase" }),
-  },
+	{
+		label: "Fetch",
+		action: () => runRemote("git_fetch", "Fetched successfully", {}),
+	},
+	{
+		label: "Fast-forward if possible",
+		action: () =>
+			runRemote("git_pull", "Pulled successfully", { strategy: "ff" }),
+	},
+	{
+		label: "Fast-forward only",
+		action: () =>
+			runRemote("git_pull", "Pulled successfully", { strategy: "ff-only" }),
+	},
+	{
+		label: "Pull (rebase)",
+		action: () =>
+			runRemote("git_pull", "Pulled successfully (rebase)", {
+				strategy: "rebase",
+			}),
+	},
 ];
 
 function errorMessage(error: TrunkError): string {
-  switch (error.code) {
-    case "auth_failure":
-      return "Authentication failed \u2014 check your SSH key or credential helper";
-    case "non_fast_forward":
-      return "Push rejected (non-fast-forward)";
-    default:
-      return error.message;
-  }
+	switch (error.code) {
+		case "auth_failure":
+			return "Authentication failed \u2014 check your SSH key or credential helper";
+		case "non_fast_forward":
+			return "Push rejected (non-fast-forward)";
+		default:
+			return error.message;
+	}
 }
 
-async function runRemote(cmd: string, successMsg: string, extra: Record<string, unknown>) {
-  remoteState.isRunning = true;
-  remoteState.error = null;
-  remoteState.progressLine = "";
-  try {
-    await safeInvoke(cmd, { path: repoPath, ...extra });
-    remoteState.isRunning = false;
-    remoteState.progressLine = "";
-    showToast(successMsg, "success");
-  } catch (e: unknown) {
-    remoteState.isRunning = false;
-    const err = e as TrunkError;
-    remoteState.error = err;
-    showToast(errorMessage(err), "error");
-  }
+async function runRemote(
+	cmd: string,
+	successMsg: string,
+	extra: Record<string, unknown>,
+) {
+	remoteState.isRunning = true;
+	remoteState.error = null;
+	remoteState.progressLine = "";
+	try {
+		await safeInvoke(cmd, { path: repoPath, ...extra });
+		remoteState.isRunning = false;
+		remoteState.progressLine = "";
+		showToast(successMsg, "success");
+	} catch (e: unknown) {
+		remoteState.isRunning = false;
+		const err = e as TrunkError;
+		remoteState.error = err;
+		showToast(errorMessage(err), "error");
+	}
 }
 
 function handleOptionClick(opt: PullOption) {
-  open = false;
-  opt.action();
+	open = false;
+	opt.action();
 }
 
 function toggle() {
-  if (!disabled) open = !open;
+	if (!disabled) open = !open;
 }
 
 // Close on outside click
 function handleWindowClick(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  if (!target.closest(".pull-dropdown")) {
-    open = false;
-  }
+	const target = e.target as HTMLElement;
+	if (!target.closest(".pull-dropdown")) {
+		open = false;
+	}
 }
 
 $effect(() => {
-  if (open) {
-    window.addEventListener("click", handleWindowClick, true);
-    return () => window.removeEventListener("click", handleWindowClick, true);
-  }
+	if (open) {
+		window.addEventListener("click", handleWindowClick, true);
+		return () => window.removeEventListener("click", handleWindowClick, true);
+	}
 });
 </script>
 

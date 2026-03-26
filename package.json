@@ -1,39 +1,39 @@
 {
-  "name": "trunk",
-  "version": "0.1.0",
-  "description": "",
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri",
-    "test": "vitest run"
-  },
-  "license": "MIT",
-  "dependencies": {
-    "@humanspeak/svelte-virtual-list": "^0.4.2",
-    "@lucide/svelte": "^0.577.0",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
-    "@tauri-apps/plugin-dialog": "^2.6.0",
-    "@tauri-apps/plugin-store": "^2.4.2",
-    "@tauri-apps/plugin-window-state": "^2.4.1",
-    "sortablejs": "^1.15.7"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@sveltejs/vite-plugin-svelte": "^5.0.0",
-    "@tailwindcss/vite": "^4.2.1",
-    "@tauri-apps/cli": "^2",
-    "@types/sortablejs": "^1.15.9",
-    "svelte": "^5.0.0",
-    "svelte-check": "^4.0.0",
-    "tailwindcss": "^4.2.1",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
-    "vitest": "^4.1.0"
-  }
+	"name": "trunk",
+	"version": "0.1.0",
+	"description": "",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
+		"tauri": "tauri",
+		"test": "vitest run"
+	},
+	"license": "MIT",
+	"dependencies": {
+		"@humanspeak/svelte-virtual-list": "^0.4.2",
+		"@lucide/svelte": "^0.577.0",
+		"@tauri-apps/api": "^2",
+		"@tauri-apps/plugin-clipboard-manager": "^2.3.2",
+		"@tauri-apps/plugin-dialog": "^2.6.0",
+		"@tauri-apps/plugin-store": "^2.4.2",
+		"@tauri-apps/plugin-window-state": "^2.4.1",
+		"sortablejs": "^1.15.7"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.9",
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@tailwindcss/vite": "^4.2.1",
+		"@tauri-apps/cli": "^2",
+		"@types/sortablejs": "^1.15.9",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"tailwindcss": "^4.2.1",
+		"typescript": "~5.6.2",
+		"vite": "^6.0.3",
+		"vitest": "^4.1.0"
+	}
 }

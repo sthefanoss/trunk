@@ -1,26 +1,26 @@
 import type { FileStatus } from "./types.js";
 
 export interface DirectoryNode {
-  type: "directory";
-  name: string; // Display name, may be compressed ("src/lib")
-  path: string; // Full relative path prefix ("src/lib")
-  children: TreeNode[];
+	type: "directory";
+	name: string; // Display name, may be compressed ("src/lib")
+	path: string; // Full relative path prefix ("src/lib")
+	children: TreeNode[];
 }
 
 export interface FileNode {
-  type: "file";
-  name: string; // Filename only ("App.svelte")
-  path: string; // Full relative path ("src/App.svelte")
-  file: FileStatus; // Original FileStatus for downstream rendering
+	type: "file";
+	name: string; // Filename only ("App.svelte")
+	path: string; // Full relative path ("src/App.svelte")
+	file: FileStatus; // Original FileStatus for downstream rendering
 }
 
 export type TreeNode = DirectoryNode | FileNode;
 
 /** Intermediate trie node used during tree construction. */
 interface IntermediateDir {
-  children: Map<string, IntermediateDir>;
-  files: FileStatus[];
-  path: string;
+	children: Map<string, IntermediateDir>;
+	files: FileStatus[];
+	path: string;
 }
 
 /**
@@ -33,65 +33,65 @@ interface IntermediateDir {
  * - Does not mutate the input array
  */
 export function buildTree(files: FileStatus[]): TreeNode[] {
-  if (files.length === 0) return [];
+	if (files.length === 0) return [];
 
-  // Phase 1: Build intermediate trie
-  const root: IntermediateDir = { children: new Map(), files: [], path: "" };
+	// Phase 1: Build intermediate trie
+	const root: IntermediateDir = { children: new Map(), files: [], path: "" };
 
-  for (const file of files) {
-    const segments = file.path.split("/");
-    let current = root;
+	for (const file of files) {
+		const segments = file.path.split("/");
+		let current = root;
 
-    // Walk directory segments (all but last, which is the filename)
-    for (let i = 0; i < segments.length - 1; i++) {
-      const seg = segments[i];
-      let child = current.children.get(seg);
-      if (!child) {
-        child = {
-          children: new Map(),
-          files: [],
-          path: segments.slice(0, i + 1).join("/"),
-        };
-        current.children.set(seg, child);
-      }
-      current = child;
-    }
+		// Walk directory segments (all but last, which is the filename)
+		for (let i = 0; i < segments.length - 1; i++) {
+			const seg = segments[i];
+			let child = current.children.get(seg);
+			if (!child) {
+				child = {
+					children: new Map(),
+					files: [],
+					path: segments.slice(0, i + 1).join("/"),
+				};
+				current.children.set(seg, child);
+			}
+			current = child;
+		}
 
-    // Push file into the deepest directory
-    current.files.push(file);
-  }
+		// Push file into the deepest directory
+		current.files.push(file);
+	}
 
-  // Phase 2: Convert trie to TreeNode[]
-  return convert(root);
+	// Phase 2: Convert trie to TreeNode[]
+	return convert(root);
 }
 
 /** Recursively convert an IntermediateDir into sorted TreeNode[]. */
 function convert(dir: IntermediateDir): TreeNode[] {
-  const result: TreeNode[] = [];
+	const result: TreeNode[] = [];
 
-  // Convert subdirectories
-  for (const [name, child] of dir.children) {
-    const dirNode: DirectoryNode = {
-      type: "directory",
-      name,
-      path: child.path,
-      children: convert(child),
-    };
-    result.push(compress(dirNode));
-  }
+	// Convert subdirectories
+	for (const [name, child] of dir.children) {
+		const dirNode: DirectoryNode = {
+			type: "directory",
+			name,
+			path: child.path,
+			children: convert(child),
+		};
+		result.push(compress(dirNode));
+	}
 
-  // Convert files
-  for (const file of dir.files) {
-    const filename = file.path.split("/").pop()!;
-    result.push({
-      type: "file",
-      name: filename,
-      path: file.path,
-      file,
-    });
-  }
+	// Convert files
+	for (const file of dir.files) {
+		const filename = file.path.split("/").pop()!;
+		result.push({
+			type: "file",
+			name: filename,
+			path: file.path,
+			file,
+		});
+	}
 
-  return sortNodes(result);
+	return sortNodes(result);
 }
 
 /**
@@ -100,16 +100,16 @@ function convert(dir: IntermediateDir): TreeNode[] {
  * a directory with exactly one child that is a file is NOT compressed).
  */
 function compress(node: DirectoryNode): DirectoryNode {
-  while (node.children.length === 1 && node.children[0].type === "directory") {
-    const child = node.children[0] as DirectoryNode;
-    node = {
-      type: "directory",
-      name: `${node.name}/${child.name}`,
-      path: child.path,
-      children: child.children,
-    };
-  }
-  return node;
+	while (node.children.length === 1 && node.children[0].type === "directory") {
+		const child = node.children[0] as DirectoryNode;
+		node = {
+			type: "directory",
+			name: `${node.name}/${child.name}`,
+			path: child.path,
+			children: child.children,
+		};
+	}
+	return node;
 }
 
 /**
@@ -117,10 +117,10 @@ function compress(node: DirectoryNode): DirectoryNode {
  * alphabetically case-insensitive within each group (D-07).
  */
 function sortNodes(nodes: TreeNode[]): TreeNode[] {
-  return nodes.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-  });
+	return nodes.sort((a, b) => {
+		if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+		return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+	});
 }
 
 /**
@@ -128,28 +128,28 @@ function sortNodes(nodes: TreeNode[]): TreeNode[] {
  * Counts only file nodes, not directory nodes.
  */
 export function countFiles(nodes: TreeNode[]): number {
-  let count = 0;
-  for (const node of nodes) {
-    if (node.type === "file") {
-      count++;
-    } else {
-      count += countFiles(node.children);
-    }
-  }
-  return count;
+	let count = 0;
+	for (const node of nodes) {
+		if (node.type === "file") {
+			count++;
+		} else {
+			count += countFiles(node.children);
+		}
+	}
+	return count;
 }
 
 /**
  * Collect all file paths recursively from a tree node array.
  */
 export function collectFilePaths(nodes: TreeNode[]): string[] {
-  const paths: string[] = [];
-  for (const node of nodes) {
-    if (node.type === "file") {
-      paths.push(node.path);
-    } else {
-      paths.push(...collectFilePaths(node.children));
-    }
-  }
-  return paths;
+	const paths: string[] = [];
+	for (const node of nodes) {
+		if (node.type === "file") {
+			paths.push(node.path);
+		} else {
+			paths.push(...collectFilePaths(node.children));
+		}
+	}
+	return paths;
 }

@@ -9,10 +9,10 @@
  */
 
 export interface ConflictRegion {
-  type: "context" | "conflict";
-  baseLines: string[];
-  oursLines: string[];
-  theirsLines: string[];
+	type: "context" | "conflict";
+	baseLines: string[];
+	oursLines: string[];
+	theirsLines: string[];
 }
 
 /**
@@ -20,8 +20,8 @@ export interface ConflictRegion {
  * (not `[""]` which would create a phantom line).
  */
 function splitLines(text: string): string[] {
-  if (text === "") return [];
-  return text.split("\n");
+	if (text === "") return [];
+	return text.split("\n");
 }
 
 /**
@@ -29,16 +29,16 @@ function splitLines(text: string): string[] {
  * Used to turn O(n) indexOf scans into O(log n) binary searches.
  */
 function buildLineIndex(lines: string[]): Map<string, number[]> {
-  const index = new Map<string, number[]>();
-  for (let i = 0; i < lines.length; i++) {
-    const positions = index.get(lines[i]);
-    if (positions) {
-      positions.push(i);
-    } else {
-      index.set(lines[i], [i]);
-    }
-  }
-  return index;
+	const index = new Map<string, number[]>();
+	for (let i = 0; i < lines.length; i++) {
+		const positions = index.get(lines[i]);
+		if (positions) {
+			positions.push(i);
+		} else {
+			index.set(lines[i], [i]);
+		}
+	}
+	return index;
 }
 
 /**
@@ -46,14 +46,14 @@ function buildLineIndex(lines: string[]): Map<string, number[]> {
  * Returns the value, or -1 if none found.
  */
 function findFirstGe(positions: number[], minVal: number): number {
-  let lo = 0;
-  let hi = positions.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (positions[mid] < minVal) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo < positions.length ? positions[lo] : -1;
+	let lo = 0;
+	let hi = positions.length;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (positions[mid] < minVal) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo < positions.length ? positions[lo] : -1;
 }
 
 /**
@@ -64,26 +64,26 @@ function findFirstGe(positions: number[], minVal: number): number {
  * Uses pre-built line indexes for O(log n) lookups instead of O(n) indexOf.
  */
 function findSyncPoint(
-  base: string[],
-  bi: number,
-  oi: number,
-  ti: number,
-  oursIndex: Map<string, number[]>,
-  theirsIndex: Map<string, number[]>,
+	base: string[],
+	bi: number,
+	oi: number,
+	ti: number,
+	oursIndex: Map<string, number[]>,
+	theirsIndex: Map<string, number[]>,
 ): { bi: number; oi: number; ti: number } | null {
-  for (let b = bi; b < base.length; b++) {
-    const needle = base[b];
-    const oPositions = oursIndex.get(needle);
-    if (!oPositions) continue;
-    const oIdx = findFirstGe(oPositions, oi);
-    if (oIdx === -1) continue;
-    const tPositions = theirsIndex.get(needle);
-    if (!tPositions) continue;
-    const tIdx = findFirstGe(tPositions, ti);
-    if (tIdx === -1) continue;
-    return { bi: b, oi: oIdx, ti: tIdx };
-  }
-  return null;
+	for (let b = bi; b < base.length; b++) {
+		const needle = base[b];
+		const oPositions = oursIndex.get(needle);
+		if (!oPositions) continue;
+		const oIdx = findFirstGe(oPositions, oi);
+		if (oIdx === -1) continue;
+		const tPositions = theirsIndex.get(needle);
+		if (!tPositions) continue;
+		const tIdx = findFirstGe(tPositions, ti);
+		if (tIdx === -1) continue;
+		return { bi: b, oi: oIdx, ti: tIdx };
+	}
+	return null;
 }
 
 /**
@@ -95,92 +95,107 @@ function findSyncPoint(
  * The parser walks through lines using three pointers and groups
  * consecutive matching lines as context and differing lines as conflict.
  */
-export function parseConflictRegions(base: string, ours: string, theirs: string): ConflictRegion[] {
-  const baseLines = splitLines(base);
-  const oursLines = splitLines(ours);
-  const theirsLines = splitLines(theirs);
+export function parseConflictRegions(
+	base: string,
+	ours: string,
+	theirs: string,
+): ConflictRegion[] {
+	const baseLines = splitLines(base);
+	const oursLines = splitLines(ours);
+	const theirsLines = splitLines(theirs);
 
-  // Edge case: empty base (new file on both sides)
-  if (baseLines.length === 0) {
-    // If ours equals theirs, everything is context
-    if (ours === theirs) {
-      if (oursLines.length === 0) return [];
-      return [{ type: "context", baseLines: [], oursLines, theirsLines }];
-    }
-    // Otherwise, the entire file is one conflict
-    return [{ type: "conflict", baseLines: [], oursLines, theirsLines }];
-  }
+	// Edge case: empty base (new file on both sides)
+	if (baseLines.length === 0) {
+		// If ours equals theirs, everything is context
+		if (ours === theirs) {
+			if (oursLines.length === 0) return [];
+			return [{ type: "context", baseLines: [], oursLines, theirsLines }];
+		}
+		// Otherwise, the entire file is one conflict
+		return [{ type: "conflict", baseLines: [], oursLines, theirsLines }];
+	}
 
-  const oursIndex = buildLineIndex(oursLines);
-  const theirsIndex = buildLineIndex(theirsLines);
+	const oursIndex = buildLineIndex(oursLines);
+	const theirsIndex = buildLineIndex(theirsLines);
 
-  const regions: ConflictRegion[] = [];
-  let bi = 0;
-  let oi = 0;
-  let ti = 0;
+	const regions: ConflictRegion[] = [];
+	let bi = 0;
+	let oi = 0;
+	let ti = 0;
 
-  while (bi < baseLines.length || oi < oursLines.length || ti < theirsLines.length) {
-    // Check if current lines all match
-    if (
-      bi < baseLines.length &&
-      oi < oursLines.length &&
-      ti < theirsLines.length &&
-      baseLines[bi] === oursLines[oi] &&
-      baseLines[bi] === theirsLines[ti]
-    ) {
-      // Accumulate context lines
-      const ctxBase: string[] = [];
-      const ctxOurs: string[] = [];
-      const ctxTheirs: string[] = [];
-      while (
-        bi < baseLines.length &&
-        oi < oursLines.length &&
-        ti < theirsLines.length &&
-        baseLines[bi] === oursLines[oi] &&
-        baseLines[bi] === theirsLines[ti]
-      ) {
-        ctxBase.push(baseLines[bi]);
-        ctxOurs.push(oursLines[oi]);
-        ctxTheirs.push(theirsLines[ti]);
-        bi++;
-        oi++;
-        ti++;
-      }
-      regions.push({
-        type: "context",
-        baseLines: ctxBase,
-        oursLines: ctxOurs,
-        theirsLines: ctxTheirs,
-      });
-    } else {
-      // Lines diverge -- find the next sync point
-      const sync = findSyncPoint(baseLines, bi + 1, oi + 1, ti + 1, oursIndex, theirsIndex);
+	while (
+		bi < baseLines.length ||
+		oi < oursLines.length ||
+		ti < theirsLines.length
+	) {
+		// Check if current lines all match
+		if (
+			bi < baseLines.length &&
+			oi < oursLines.length &&
+			ti < theirsLines.length &&
+			baseLines[bi] === oursLines[oi] &&
+			baseLines[bi] === theirsLines[ti]
+		) {
+			// Accumulate context lines
+			const ctxBase: string[] = [];
+			const ctxOurs: string[] = [];
+			const ctxTheirs: string[] = [];
+			while (
+				bi < baseLines.length &&
+				oi < oursLines.length &&
+				ti < theirsLines.length &&
+				baseLines[bi] === oursLines[oi] &&
+				baseLines[bi] === theirsLines[ti]
+			) {
+				ctxBase.push(baseLines[bi]);
+				ctxOurs.push(oursLines[oi]);
+				ctxTheirs.push(theirsLines[ti]);
+				bi++;
+				oi++;
+				ti++;
+			}
+			regions.push({
+				type: "context",
+				baseLines: ctxBase,
+				oursLines: ctxOurs,
+				theirsLines: ctxTheirs,
+			});
+		} else {
+			// Lines diverge -- find the next sync point
+			const sync = findSyncPoint(
+				baseLines,
+				bi + 1,
+				oi + 1,
+				ti + 1,
+				oursIndex,
+				theirsIndex,
+			);
 
-      if (sync) {
-        // Everything between current position and sync point is conflict
-        regions.push({
-          type: "conflict",
-          baseLines: baseLines.slice(bi, sync.bi),
-          oursLines: oursLines.slice(oi, sync.oi),
-          theirsLines: theirsLines.slice(ti, sync.ti),
-        });
-        bi = sync.bi;
-        oi = sync.oi;
-        ti = sync.ti;
-      } else {
-        // No sync point found -- rest of all three is one conflict
-        regions.push({
-          type: "conflict",
-          baseLines: baseLines.slice(bi),
-          oursLines: oursLines.slice(oi),
-          theirsLines: theirsLines.slice(ti),
-        });
-        break;
-      }
-    }
-  }
+			if (sync) {
+				// Everything between current position and sync point is conflict
+				regions.push({
+					type: "conflict",
+					baseLines: baseLines.slice(bi, sync.bi),
+					oursLines: oursLines.slice(oi, sync.oi),
+					theirsLines: theirsLines.slice(ti, sync.ti),
+				});
+				bi = sync.bi;
+				oi = sync.oi;
+				ti = sync.ti;
+			} else {
+				// No sync point found -- rest of all three is one conflict
+				regions.push({
+					type: "conflict",
+					baseLines: baseLines.slice(bi),
+					oursLines: oursLines.slice(oi),
+					theirsLines: theirsLines.slice(ti),
+				});
+				break;
+			}
+		}
+	}
 
-  return regions;
+	return regions;
 }
 
 /**
@@ -190,30 +205,33 @@ export function parseConflictRegions(base: string, ours: string, theirs: string)
  * For conflict regions, lines are included if their key is in takenLines.
  * Ours lines come before theirs lines within each conflict region.
  */
-export function computeOutput(regions: ConflictRegion[], takenLines: Set<string>): string {
-  const lines: string[] = [];
+export function computeOutput(
+	regions: ConflictRegion[],
+	takenLines: Set<string>,
+): string {
+	const lines: string[] = [];
 
-  for (let i = 0; i < regions.length; i++) {
-    const region = regions[i];
-    if (region.type === "context") {
-      // For context, include all lines (oursLines === theirsLines === baseLines)
-      lines.push(...region.oursLines);
-    } else {
-      // For conflict, include taken ours lines first, then taken theirs lines
-      region.oursLines.forEach((line, j) => {
-        if (takenLines.has(`ours-${i}-${j}`)) {
-          lines.push(line);
-        }
-      });
-      region.theirsLines.forEach((line, j) => {
-        if (takenLines.has(`theirs-${i}-${j}`)) {
-          lines.push(line);
-        }
-      });
-    }
-  }
+	for (let i = 0; i < regions.length; i++) {
+		const region = regions[i];
+		if (region.type === "context") {
+			// For context, include all lines (oursLines === theirsLines === baseLines)
+			lines.push(...region.oursLines);
+		} else {
+			// For conflict, include taken ours lines first, then taken theirs lines
+			region.oursLines.forEach((line, j) => {
+				if (takenLines.has(`ours-${i}-${j}`)) {
+					lines.push(line);
+				}
+			});
+			region.theirsLines.forEach((line, j) => {
+				if (takenLines.has(`theirs-${i}-${j}`)) {
+					lines.push(line);
+				}
+			});
+		}
+	}
 
-  return lines.join("\n");
+	return lines.join("\n");
 }
 
 /**
@@ -221,15 +239,15 @@ export function computeOutput(regions: ConflictRegion[], takenLines: Set<string>
  * Returns a new Set with keys like "ours-{regionIdx}-{lineIdx}".
  */
 export function takeAllCurrent(regions: ConflictRegion[]): Set<string> {
-  const keys = new Set<string>();
-  for (let i = 0; i < regions.length; i++) {
-    if (regions[i].type === "conflict") {
-      for (let j = 0; j < regions[i].oursLines.length; j++) {
-        keys.add(`ours-${i}-${j}`);
-      }
-    }
-  }
-  return keys;
+	const keys = new Set<string>();
+	for (let i = 0; i < regions.length; i++) {
+		if (regions[i].type === "conflict") {
+			for (let j = 0; j < regions[i].oursLines.length; j++) {
+				keys.add(`ours-${i}-${j}`);
+			}
+		}
+	}
+	return keys;
 }
 
 /**
@@ -237,15 +255,15 @@ export function takeAllCurrent(regions: ConflictRegion[]): Set<string> {
  * Returns a new Set with keys like "theirs-{regionIdx}-{lineIdx}".
  */
 export function takeAllIncoming(regions: ConflictRegion[]): Set<string> {
-  const keys = new Set<string>();
-  for (let i = 0; i < regions.length; i++) {
-    if (regions[i].type === "conflict") {
-      for (let j = 0; j < regions[i].theirsLines.length; j++) {
-        keys.add(`theirs-${i}-${j}`);
-      }
-    }
-  }
-  return keys;
+	const keys = new Set<string>();
+	for (let i = 0; i < regions.length; i++) {
+		if (regions[i].type === "conflict") {
+			for (let j = 0; j < regions[i].theirsLines.length; j++) {
+				keys.add(`theirs-${i}-${j}`);
+			}
+		}
+	}
+	return keys;
 }
 
 /**
@@ -256,31 +274,31 @@ export function takeAllIncoming(regions: ConflictRegion[]): Set<string> {
  * Returns a new Set (immutable update).
  */
 export function toggleHunk(
-  side: "ours" | "theirs",
-  regionIdx: number,
-  regions: ConflictRegion[],
-  takenLines: Set<string>,
+	side: "ours" | "theirs",
+	regionIdx: number,
+	regions: ConflictRegion[],
+	takenLines: Set<string>,
 ): Set<string> {
-  const region = regions[regionIdx];
-  const lines = side === "ours" ? region.oursLines : region.theirsLines;
-  const keys = lines.map((_, j) => `${side}-${regionIdx}-${j}`);
+	const region = regions[regionIdx];
+	const lines = side === "ours" ? region.oursLines : region.theirsLines;
+	const keys = lines.map((_, j) => `${side}-${regionIdx}-${j}`);
 
-  const allTaken = keys.every((k) => takenLines.has(k));
-  const result = new Set(takenLines);
+	const allTaken = keys.every((k) => takenLines.has(k));
+	const result = new Set(takenLines);
 
-  if (allTaken) {
-    // Remove all
-    for (const k of keys) {
-      result.delete(k);
-    }
-  } else {
-    // Add all
-    for (const k of keys) {
-      result.add(k);
-    }
-  }
+	if (allTaken) {
+		// Remove all
+		for (const k of keys) {
+			result.delete(k);
+		}
+	} else {
+		// Add all
+		for (const k of keys) {
+			result.add(k);
+		}
+	}
 
-  return result;
+	return result;
 }
 
 /**
@@ -289,18 +307,20 @@ export function toggleHunk(
  * Returns a new Set (immutable update).
  */
 export function toggleLine(key: string, takenLines: Set<string>): Set<string> {
-  const result = new Set(takenLines);
-  if (result.has(key)) {
-    result.delete(key);
-  } else {
-    result.add(key);
-  }
-  return result;
+	const result = new Set(takenLines);
+	if (result.has(key)) {
+		result.delete(key);
+	} else {
+		result.add(key);
+	}
+	return result;
 }
 
 /**
  * Return indices of all conflict regions (for Prev/Next navigation).
  */
 export function getConflictIndices(regions: ConflictRegion[]): number[] {
-  return regions.map((r, i) => (r.type === "conflict" ? i : -1)).filter((i) => i !== -1);
+	return regions
+		.map((r, i) => (r.type === "conflict" ? i : -1))
+		.filter((i) => i !== -1);
 }
