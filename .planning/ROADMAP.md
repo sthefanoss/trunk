@@ -175,7 +175,12 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
   6. Tests use real git2 repositories (tempdir fixtures), not mocks
   7. Edge cases are covered: empty repos, merge commits, binary files, conflict states
   8. All tests pass in CI (cargo test gate already exists)
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 53-01-PLAN.md -- Test harness foundation (TestContext, builder, assertions, visibility)
+- [ ] 53-02-PLAN.md -- Drivers + migration for staging, diff, commit, stash
+- [ ] 53-03-PLAN.md -- Drivers + migration for branches, history, commit_actions, repo
+- [ ] 53-04-PLAN.md -- Drivers + migration for operation_state, merge_editor, interactive_rebase, remote, graph, repository
 
 ### Phase 54: Frontend Unit Tests
 **Goal**: TypeScript utilities and Svelte components have unit tests verifying behavior and state transitions
@@ -251,7 +256,7 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. Rust Unit Tests & Test Harness | 0/TBD | Not started | - |
+| 53. Rust Unit Tests & Test Harness | 0/4 | Planned | - |
 | 54. Frontend Unit Tests | 0/TBD | Not started | - |
 | 55. Integration Tests | 0/TBD | Not started | - |
 | 56. Test Coverage & CI Reporting | 0/TBD | Not started | - |
@@ -271,8 +276,8 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 | v0.8 Conflict & Rebase | 37-43 | 19/19 | Complete | 2026-03-23 |
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
-| v1.0 Infrastructure | 53-59 | 0/TBD | In progress | - |
+| v1.0 Infrastructure | 53-59 | 0/4+ | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-26 — v1.0 milestone roadmap created*
+*Last updated: 2026-03-26 -- Phase 53 planned (4 plans)*
