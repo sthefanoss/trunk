@@ -1,6 +1,5 @@
 use crate::common::context::TestContext;
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 pub struct TestContextBuilder {
     steps: Vec<BuildStep>,
@@ -98,7 +97,7 @@ impl TestContextBuilder {
 
     pub fn build(&mut self) -> TestContext {
         let dir = tempfile::tempdir().expect("failed to create tempdir");
-        let repo = git2::Repository::init(dir.path()).expect("failed to init repo");
+        let mut repo = git2::Repository::init(dir.path()).expect("failed to init repo");
 
         // Configure user identity
         let mut cfg = repo.config().expect("failed to get config");
@@ -111,6 +110,7 @@ impl TestContextBuilder {
 
         // Track files written since the last commit so Commit knows what to stage
         let mut pending_files: Vec<String> = Vec::new();
+        let mut stash_counter: usize = 0;
 
         for step in &self.steps {
             match step {
@@ -253,9 +253,10 @@ impl TestContextBuilder {
                     // Modify the tracked file to create something to stash
                     std::fs::write(
                         &stash_marker,
-                        format!("modified-{}", repo.stash_count()),
+                        format!("modified-{}", stash_counter),
                     )
                     .unwrap();
+                    stash_counter += 1;
 
                     let msg = message.as_deref();
                     repo.stash_save(&sig, msg.unwrap_or("stash"), None)
