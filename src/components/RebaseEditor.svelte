@@ -1,7 +1,6 @@
 <script lang="ts">
 import Sortable from "sortablejs";
 import { COLUMN_PADDING_X, ROW_HEIGHT } from "../lib/graph-constants.js";
-import { measureTextWidth } from "../lib/text-measure.js";
 import { safeInvoke } from "../lib/invoke.js";
 import { validateRebasePlan } from "../lib/rebase-validation.js";
 import type {
@@ -14,6 +13,7 @@ import {
 	setRebaseColumnVisibility,
 	setRebaseColumnWidths,
 } from "../lib/store.js";
+import { measureTextWidth } from "../lib/text-measure.js";
 import type { RebaseTodoItem } from "../lib/types.js";
 
 type RebaseAction = "pick" | "squash" | "reword" | "drop";
