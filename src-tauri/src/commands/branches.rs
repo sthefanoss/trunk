@@ -927,9 +927,13 @@ mod tests {
                 .unwrap();
         }
 
-        // Clone into working repo
+        // Clone into working repo (explicitly checkout "main" so the test
+        // does not depend on the system's init.defaultBranch setting)
         let work_dir = tempfile::tempdir().unwrap();
+        let fetch_opts = git2::FetchOptions::new();
         let repo = git2::build::RepoBuilder::new()
+            .branch("main")
+            .fetch_options(fetch_opts)
             .clone(remote_dir.path().to_str().unwrap(), work_dir.path())
             .unwrap();
 
