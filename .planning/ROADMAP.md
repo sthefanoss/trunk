@@ -142,7 +142,7 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
 
 - [x] **Phase 50: CI Quality Gates** - Biome setup, Rust checks, frontend checks, and formatting enforcement on every push/PR (completed 2026-03-25)
 - [x] **Phase 51: Cross-Platform Release Pipeline** - Tag-triggered builds producing installers and archives for macOS, Linux, and Windows (completed 2026-03-25)
-- [ ] **Phase 52: Homebrew Distribution** - Homebrew cask formula for macOS installation via `brew install --cask`
+- [x] **Phase 52: Homebrew Distribution** - Homebrew cask formula for macOS installation via `brew install --cask` (completed 2026-03-26)
 
 ## Phase Details
 
@@ -182,9 +182,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Running `brew install --cask joaofnds/tap/trunk` downloads and installs the macOS .dmg from the latest release
   2. The cask formula lives in the joaofnds/homebrew-tap repository and references the correct .dmg artifact URL
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 52-01-PLAN.md -- Extend release workflow with publish + update-tap jobs, update homebrew-tap README
+- [x] 52-01-PLAN.md -- Extend release workflow with publish + update-tap jobs, update homebrew-tap README
 
 ## Progress
 
