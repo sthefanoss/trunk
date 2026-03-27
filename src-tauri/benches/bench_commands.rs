@@ -82,9 +82,7 @@ fn make_repo_with_unstaged_changes() -> BenchRepo {
     // Write README.md to filesystem and commit it
     std::fs::write(dir.path().join("README.md"), "initial content").unwrap();
     let mut index = repo.index().unwrap();
-    index
-        .add_path(std::path::Path::new("README.md"))
-        .unwrap();
+    index.add_path(std::path::Path::new("README.md")).unwrap();
     index.write().unwrap();
     let tree_oid = index.write_tree().unwrap();
     let tree = repo.find_tree(tree_oid).unwrap();
@@ -117,9 +115,7 @@ fn make_repo_for_stage_hunk() -> (tempfile::TempDir, String, HashMap<String, Pat
     // Write README.md and commit
     std::fs::write(dir.path().join("README.md"), "initial content\n").unwrap();
     let mut index = repo.index().unwrap();
-    index
-        .add_path(std::path::Path::new("README.md"))
-        .unwrap();
+    index.add_path(std::path::Path::new("README.md")).unwrap();
     index.write().unwrap();
     let tree_oid = index.write_tree().unwrap();
     let tree = repo.find_tree(tree_oid).unwrap();
@@ -192,13 +188,8 @@ fn bench_stage_hunk(c: &mut Criterion) {
         b.iter_batched(
             || make_repo_for_stage_hunk(),
             |(_dir, path, state_map)| {
-                trunk_lib::commands::staging::stage_hunk_inner(
-                    &path,
-                    "README.md",
-                    0,
-                    &state_map,
-                )
-                .unwrap();
+                trunk_lib::commands::staging::stage_hunk_inner(&path, "README.md", 0, &state_map)
+                    .unwrap();
                 // _dir dropped here, cleaning up temp directory
             },
             BatchSize::SmallInput,

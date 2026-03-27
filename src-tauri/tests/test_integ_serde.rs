@@ -16,9 +16,7 @@ fn graph_result_serializes_with_expected_fields() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
 
@@ -64,7 +62,10 @@ fn graph_result_serializes_with_expected_fields() {
     );
     assert!(commit["edges"].is_array(), "edges should be an array");
     assert!(commit["refs"].is_array(), "refs should be an array");
-    assert!(commit["is_head"].is_boolean(), "is_head should be a boolean");
+    assert!(
+        commit["is_head"].is_boolean(),
+        "is_head should be a boolean"
+    );
     assert!(
         commit["is_merge"].is_boolean(),
         "is_merge should be a boolean"
@@ -176,12 +177,7 @@ fn ref_label_serializes_with_expected_fields() {
     let commits = json["commits"].as_array().unwrap();
     let ref_commit = commits
         .iter()
-        .find(|c| {
-            c["refs"]
-                .as_array()
-                .map(|r| !r.is_empty())
-                .unwrap_or(false)
-        })
+        .find(|c| c["refs"].as_array().map(|r| !r.is_empty()).unwrap_or(false))
         .expect("expected at least one commit with refs");
 
     let refs = ref_commit["refs"].as_array().unwrap();
@@ -443,7 +439,10 @@ fn commit_detail_serializes_correctly() {
 
     assert!(json.is_object(), "CommitDetail should be an object");
     assert!(json["oid"].is_string(), "oid should be a string");
-    assert!(json["short_oid"].is_string(), "short_oid should be a string");
+    assert!(
+        json["short_oid"].is_string(),
+        "short_oid should be a string"
+    );
     assert!(json["summary"].is_string(), "summary should be a string");
     // body is Option<String>
     let body = &json["body"];
@@ -550,10 +549,7 @@ fn head_commit_message_serializes_correctly() {
     let json = serde_json::to_value(&result).expect("HeadCommitMessage serialization failed");
 
     assert!(json.is_object(), "HeadCommitMessage should be an object");
-    assert!(
-        json["subject"].is_string(),
-        "subject should be a string"
-    );
+    assert!(json["subject"].is_string(), "subject should be a string");
     // body is Option<String>
     let body = &json["body"];
     assert!(
@@ -578,10 +574,7 @@ fn operation_info_serializes_correctly() {
     let json = serde_json::to_value(&result).expect("OperationInfo serialization failed");
 
     assert!(json.is_object(), "OperationInfo should be an object");
-    assert!(
-        json["op_type"].is_string(),
-        "op_type should be a string"
-    );
+    assert!(json["op_type"].is_string(), "op_type should be a string");
 
     // In normal state, op_type is "None"
     assert_eq!(json["op_type"].as_str().unwrap(), "None");
@@ -638,10 +631,7 @@ fn undo_result_serializes_correctly() {
     let json = serde_json::to_value(&result).expect("UndoResult serialization failed");
 
     assert!(json.is_object(), "UndoResult should be an object");
-    assert!(
-        json["subject"].is_string(),
-        "subject should be a string"
-    );
+    assert!(json["subject"].is_string(), "subject should be a string");
     // body is Option<String>
     let body = &json["body"];
     assert!(
@@ -686,10 +676,7 @@ fn search_result_serializes_correctly() {
 
     // Verify MatchType valid variants
     let match_types = search_result["match_types"].as_array().unwrap();
-    assert!(
-        !match_types.is_empty(),
-        "expected at least one match type"
-    );
+    assert!(!match_types.is_empty(), "expected at least one match type");
     let valid_match_types = ["Sha", "Message", "Ref", "Author"];
     for mt in match_types {
         let mt_str = mt.as_str().unwrap();
@@ -753,9 +740,7 @@ fn stash_entry_serializes_correctly() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("README.md"))
-            .unwrap();
+        index.add_path(std::path::Path::new("README.md")).unwrap();
         index.write().unwrap();
     }
     ctx.stash_save("my test stash").unwrap();
