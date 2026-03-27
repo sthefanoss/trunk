@@ -939,7 +939,7 @@ $effect(() => {
 
     <!-- Unstaged Files section (hidden during rebase — only conflicted + resolved shown) -->
     {#if !isRebase}
-    <div style="
+    <div data-testid="staging-unstaged-section" style="
       {unstaged_expanded && staged_expanded ? 'flex: 1;' : unstaged_expanded ? 'max-height: calc(100% - 28px);' : ''}
       display: flex;
       flex-direction: column;
@@ -1066,7 +1066,7 @@ $effect(() => {
     {/if}
 
     <!-- Staged Files section -->
-    <div style="
+    <div data-testid="staging-staged-section" style="
       {staged_expanded && unstaged_expanded ? 'flex: 1;' : staged_expanded ? 'max-height: calc(100% - 28px);' : ''}
       display: flex;
       flex-direction: column;

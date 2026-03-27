@@ -59,6 +59,7 @@ const isStash = $derived(commit.is_stash);
 </script>
 
 <div
+  data-testid="commit-row"
   class="relative flex items-center cursor-pointer text-[13px]"
   class:hover:bg-[var(--color-surface)]={!selected && !isCurrentMatch && !isSearchMatch}
   style:height="{rowHeight}px"
@@ -79,11 +80,11 @@ const isStash = $derived(commit.is_stash);
 
   <!-- Column 3: Message (flex-1, always visible) -->
   {#if isWip || isStash}
-    <div class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic" style="color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;">
+    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic" style="color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;">
       {commit.summary}
     </div>
   {:else}
-    <div class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap" style="padding: 0 {COLUMN_PADDING_X}px;">
+    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap" style="padding: 0 {COLUMN_PADDING_X}px;">
       {commit.summary}
     </div>
   {/if}

@@ -514,7 +514,7 @@ async function showRemoteContextMenu(_e: MouseEvent, fullRefName: string) {
 }
 </script>
 
-<aside style="
+<aside data-testid="branch-sidebar" style="
   width: 100%;
   min-width: 0;
   background: var(--color-bg);
@@ -557,6 +557,7 @@ async function showRemoteContextMenu(_e: MouseEvent, fullRefName: string) {
         {#if showCreateInput}
           <div style="padding: 2px 8px 4px;">
             <input
+              data-testid="branch-create-input"
               type="text"
               placeholder="New branch name"
               bind:value={newBranchName}

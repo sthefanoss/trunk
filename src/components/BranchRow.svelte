@@ -35,7 +35,7 @@ const KindIcon = $derived(kindIcon[kind]);
 let hovered = $state(false);
 </script>
 
-<div>
+<div data-testid="branch-row">
   <div
     role="button"
     tabindex="0"

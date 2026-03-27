@@ -58,6 +58,7 @@ let iconConfig = $derived(
 </script>
 
 <div
+  data-testid="staging-file"
   role={depth > 0 ? 'treeitem' : 'listitem'}
   aria-level={depth > 0 ? depth + 1 : undefined}
   onmouseenter={() => (hovered = true)}

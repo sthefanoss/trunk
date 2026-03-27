@@ -23,7 +23,7 @@ let {
 }: Props = $props();
 </script>
 
-<div>
+<div data-testid="branch-section-{label.toLowerCase()}">
   <!-- Section header -->
   <div
     role="button"
@@ -48,6 +48,7 @@ let {
     </span>
     {#if showCreateButton}
       <button
+        data-testid="branch-section-create-btn"
         onclick={(e) => { e.stopPropagation(); oncreate?.(); }}
         style="color: var(--color-text-muted); background: none; border: none; cursor: pointer; padding: 0 4px; display: inline-flex; align-items: center;"
         aria-label="Create new branch"

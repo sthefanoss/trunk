@@ -151,6 +151,7 @@ async function handleSubmit() {
 
   <!-- Subject field -->
   <input
+    data-testid="commit-form-subject"
     type="text"
     bind:value={subject}
     placeholder={mode === 'stash' ? 'Stash name (optional)' : 'Summary (required)'}
@@ -195,6 +196,7 @@ async function handleSubmit() {
 
   <!-- Commit button -->
   <button
+    data-testid="commit-form-submit"
     onclick={handleSubmit}
     disabled={committing}
     style="
