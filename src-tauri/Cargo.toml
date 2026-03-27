@@ -44,3 +44,7 @@ harness = false
 name = "bench_commands"
 harness = false
 
+[[bench]]
+name = "bench_ipc"
+harness = false
+
