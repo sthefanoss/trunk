@@ -29,7 +29,7 @@ Requirements for production-readiness infrastructure. Each maps to roadmap phase
 
 ### End-to-End Testing
 
-- [ ] **E2E-01**: E2E test harness using WebdriverIO + tauri-driver runs on Linux CI
+- [x] **E2E-01**: E2E test harness using WebdriverIO + tauri-driver runs on Linux CI
 - [ ] **E2E-02**: E2E tests cover core workflow: open repo, browse commit history, view diffs
 - [ ] **E2E-03**: E2E tests cover staging workflow: stage/unstage files, create commits
 - [ ] **E2E-04**: E2E tests cover branch operations: checkout, create, delete
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTG-01 | Phase 55 | Complete |
 | INTG-02 | Phase 55 | Complete |
 | INTG-03 | Phase 55 | Complete |
-| E2E-01 | Phase 58 | Pending |
+| E2E-01 | Phase 58 | Complete |
 | E2E-02 | Phase 58 | Pending |
 | E2E-03 | Phase 58 | Pending |
 | E2E-04 | Phase 58 | Pending |
