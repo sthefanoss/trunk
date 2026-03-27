@@ -442,7 +442,7 @@ pub struct DirtyCounts {
     pub conflicted: usize,
 }
 
-fn get_dirty_counts_inner(
+pub fn get_dirty_counts_inner(
     path: &str,
     state_map: &std::collections::HashMap<String, std::path::PathBuf>,
 ) -> Result<DirtyCounts, TrunkError> {
