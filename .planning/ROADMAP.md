@@ -154,7 +154,7 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
 
 - [x] **Phase 53: Rust Unit Tests & Test Harness** - GOOS-style test harness architecture + unit tests for all Rust backend commands (completed 2026-03-26)
 - [x] **Phase 54: Frontend Unit Tests** - Unit tests for TypeScript utilities and Svelte components (completed 2026-03-26)
-- [ ] **Phase 55: Integration Tests** - End-to-end validation of Tauri IPC bridge, git operations, and filesystem watcher
+- [x] **Phase 55: Integration Tests** - End-to-end validation of Tauri IPC bridge, git operations, and filesystem watcher (completed 2026-03-27)
 - [ ] **Phase 56: Test Coverage & CI Reporting** - Coverage measurement and reporting integrated into CI pipeline
 - [ ] **Phase 57: Performance Benchmarks** - Criterion benchmarks for critical Rust operations with CI regression detection
 - [ ] **Phase 58: E2E Test Harness** - WebdriverIO + tauri-driver E2E tests covering core workflows on Linux CI
@@ -207,11 +207,11 @@ Plans:
   2. Git operation sequences (init, commit, branch, merge, rebase) work end-to-end against real temporary repositories
   3. Filesystem watcher fires events within expected debounce window when files change in a watched repo
   4. Integration tests run in CI without flakiness (deterministic fixtures, no timing races)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 55-01-PLAN.md -- Serde round-trip tests for all IPC return types (INTG-01)
 - [x] 55-02-PLAN.md -- Multi-step workflow and state transition integration tests (INTG-02)
-- [ ] 55-03-PLAN.md -- Filesystem watcher integration tests with real notify events (INTG-03)
+- [x] 55-03-PLAN.md -- Filesystem watcher integration tests with real notify events (INTG-03)
 
 ### Phase 56: Test Coverage & CI Reporting
 **Goal**: Test coverage is measured for both Rust and TypeScript and reported in CI
@@ -266,7 +266,7 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 |-------|----------------|--------|-----------|
 | 53. Rust Unit Tests & Test Harness | 4/4 | Complete    | 2026-03-26 |
 | 54. Frontend Unit Tests | 4/4 | Complete    | 2026-03-26 |
-| 55. Integration Tests | 2/3 | In Progress|  |
+| 55. Integration Tests | 3/3 | Complete   | 2026-03-27 |
 | 56. Test Coverage & CI Reporting | 0/TBD | Not started | - |
 | 57. Performance Benchmarks | 0/TBD | Not started | - |
 | 58. E2E Test Harness | 0/TBD | Not started | - |

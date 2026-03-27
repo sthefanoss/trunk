@@ -25,7 +25,7 @@ Requirements for production-readiness infrastructure. Each maps to roadmap phase
 
 - [x] **INTG-01**: Tauri IPC bridge is tested with real invoke/listen round-trips
 - [x] **INTG-02**: Git operations are integration-tested against real git repositories (not mocks)
-- [ ] **INTG-03**: Filesystem watcher integration is tested with real file change events
+- [x] **INTG-03**: Filesystem watcher integration is tested with real file change events
 
 ### End-to-End Testing
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UNIT-04 | Phase 56 | Pending |
 | INTG-01 | Phase 55 | Complete |
 | INTG-02 | Phase 55 | Complete |
-| INTG-03 | Phase 55 | Pending |
+| INTG-03 | Phase 55 | Complete |
 | E2E-01 | Phase 58 | Pending |
 | E2E-02 | Phase 58 | Pending |
 | E2E-03 | Phase 58 | Pending |
