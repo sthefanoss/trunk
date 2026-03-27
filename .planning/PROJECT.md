@@ -99,13 +99,11 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 ## Current Milestone: v1.0 Infrastructure
 
-**Goal:** Production-readiness infrastructure — automated testing, performance validation, code signing, and auto-updates.
+**Goal:** Production-readiness infrastructure — automated testing and performance validation.
 
 **Target features:**
 - E2E test harness
 - Performance benchmarks
-- Code signing
-- Auto-updates
 
 ### Planned
 
@@ -120,6 +118,7 @@ A developer can open any Git repository, browse its full commit history as a vis
 - Virtual scrolling for file tree — staging file counts rarely exceed 500
 - Auto-generated changelog — GSD milestone summaries provide release notes context
 - Homebrew tap for Linux — macOS only for Homebrew; Linux users use .AppImage directly
+- macOS code signing & notarization — Apple Developer fee ($99/yr) not justified for personal project
 
 ## Context
 

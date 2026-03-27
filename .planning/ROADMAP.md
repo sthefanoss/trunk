@@ -150,7 +150,7 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
 
 ### v1.0 Infrastructure (In Progress)
 
-**Milestone Goal:** Production-readiness infrastructure -- automated testing at all levels, performance benchmarks with regression detection, and macOS code signing with notarization.
+**Milestone Goal:** Production-readiness infrastructure -- automated testing at all levels and performance benchmarks with regression detection.
 
 - [x] **Phase 53: Rust Unit Tests & Test Harness** - GOOS-style test harness architecture + unit tests for all Rust backend commands (completed 2026-03-26)
 - [x] **Phase 54: Frontend Unit Tests** - Unit tests for TypeScript utilities and Svelte components (completed 2026-03-26)
@@ -158,7 +158,7 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
 - [x] **Phase 56: Test Coverage & CI Reporting** - Coverage measurement and reporting integrated into CI pipeline (completed 2026-03-27)
 - [x] **Phase 57: Performance Benchmarks** - Criterion benchmarks for critical Rust operations with CI regression detection (completed 2026-03-27)
 - [x] **Phase 58: E2E Test Harness** - WebdriverIO + tauri-driver E2E tests covering core workflows on Linux CI (completed 2026-03-27)
-- [ ] **Phase 59: Code Signing** - macOS code signing and notarization in release pipeline
+- ~~**Phase 59: Code Signing**~~ - REMOVED: Apple Developer fee ($99/yr) not justified for personal project
 
 ## Phase Details
 
@@ -255,20 +255,13 @@ Plans:
 - [x] 58-01-PLAN.md -- E2E infrastructure: WDIO config, helpers, data-testid attributes (E2E-01)
 - [x] 58-02-PLAN.md -- E2E test specs + CI workflow + macOS validation checklist (E2E-02, E2E-03, E2E-04, E2E-05)
 
-### Phase 59: Code Signing
-**Goal**: macOS builds are signed and notarized so users can install without Gatekeeper warnings
-**Depends on**: Phase 57 (benchmarks establish performance baselines before signing adds build overhead)
-**Requirements**: SIGN-01, SIGN-02
-**Success Criteria** (what must be TRUE):
-  1. Release pipeline signs macOS .dmg with Apple Developer ID certificate
-  2. Release pipeline notarizes macOS builds via App Store Connect API keys
-  3. A fresh macOS install from the signed .dmg opens without any Gatekeeper security warning
-**Plans**: TBD
+### ~~Phase 59: Code Signing~~ (REMOVED)
+**Removed:** Apple Developer Program fee ($99/yr) not justified for personal project. SIGN-01/SIGN-02 moved to Out of Scope. Current ad-hoc signing + `xattr -cr` Homebrew postflight is sufficient.
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
+Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -278,7 +271,7 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 | 56. Test Coverage & CI Reporting | 1/1 | Complete    | 2026-03-27 |
 | 57. Performance Benchmarks | 2/2 | Complete    | 2026-03-27 |
 | 58. E2E Test Harness | 2/2 | Complete    | 2026-03-27 |
-| 59. Code Signing | 0/TBD | Not started | - |
+| ~~59. Code Signing~~ | - | Removed | - |
 
 | Milestone | Phases | Plans | Status | Shipped |
 |-----------|--------|-------|--------|---------|
@@ -292,7 +285,7 @@ Phases execute in numeric order: 53 -> 54 -> 55 -> 56 -> 57 -> 58 -> 59
 | v0.8 Conflict & Rebase | 37-43 | 19/19 | Complete | 2026-03-23 |
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
-| v1.0 Infrastructure | 53-59 | 14/16+ | In progress | - |
+| v1.0 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
 
 ---
 *Roadmap created: 2026-03-13*

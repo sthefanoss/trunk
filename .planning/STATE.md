@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Infrastructure
 status: verifying
-stopped_at: Completed 58-02-PLAN.md
-last_updated: "2026-03-27T14:28:51.513Z"
+stopped_at: Phase 59 removed — code signing dropped from milestone
+last_updated: "2026-03-27T14:39:12.907Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 7
+  total_phases: 6
   completed_phases: 6
   total_plans: 16
   completed_plans: 16
@@ -84,7 +84,7 @@ Progress: [███░░░░░░░] 25%
 ## Session Continuity
 
 Last activity: 2026-03-26
-Last session: 2026-03-27T14:24:04.838Z
-Stopped at: Completed 58-02-PLAN.md
-Resume file: None
+Last session: 2026-03-27T14:39:12.902Z
+Stopped at: Phase 59 removed — code signing dropped from milestone
+Resume file: .planning/ROADMAP.md
 Next action: /gsd:execute-phase 53

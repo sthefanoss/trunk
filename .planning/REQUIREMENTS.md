@@ -43,10 +43,10 @@ Requirements for production-readiness infrastructure. Each maps to roadmap phase
 - [ ] **BENCH-04**: Application startup time measurement (launch to first meaningful paint)
 - [x] **BENCH-05**: CI pipeline detects performance regressions with threshold-based gates
 
-### Code Signing
+### ~~Code Signing~~ (Moved to Out of Scope)
 
-- [ ] **SIGN-01**: macOS builds are code-signed and notarized in CI release workflow
-- [ ] **SIGN-02**: Signed .dmg installs without Gatekeeper warnings on macOS
+- ~~**SIGN-01**: macOS builds are code-signed and notarized in CI release workflow~~
+- ~~**SIGN-02**: Signed .dmg installs without Gatekeeper warnings on macOS~~
 
 ## v1.x Requirements
 
@@ -73,6 +73,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
+| macOS code signing (SIGN-01, SIGN-02) | Apple Developer Program fee ($99/yr) not justified for personal project; ad-hoc signing + xattr -cr Homebrew postflight is sufficient |
 | Auto-updates | User chose to defer to v1.x -- code signing should be validated first |
 | Windows code signing | Cost ($200-400/yr) not justified for personal project; SmartScreen reputation builds over time |
 | Visual regression testing | Pixel-level diffs break on OS updates, DPI changes, font rendering -- enormous maintenance burden |
@@ -108,8 +109,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BENCH-03 | Phase 57 | Pending |
 | BENCH-04 | Phase 57 | Pending |
 | BENCH-05 | Phase 57 | Complete |
-| SIGN-01 | Phase 59 | Pending |
-| SIGN-02 | Phase 59 | Pending |
+| ~~SIGN-01~~ | ~~Phase 59~~ | Out of Scope |
+| ~~SIGN-02~~ | ~~Phase 59~~ | Out of Scope |
 
 **Coverage:**
 - v1.0 requirements: 23 total
