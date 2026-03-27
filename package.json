@@ -31,6 +31,7 @@
 		"@testing-library/jest-dom": "6.9.1",
 		"@testing-library/svelte": "5.3.1",
 		"@types/sortablejs": "^1.15.9",
+		"@vitest/coverage-v8": "^4.1.2",
 		"jsdom": "29.0.1",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
