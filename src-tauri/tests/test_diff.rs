@@ -375,6 +375,252 @@ fn diff_unstaged_show_full_file_returns_all_lines() {
 }
 
 #[test]
+fn word_span_basic_pair() {
+    let ctx = TestContext::builder()
+        .with_file("greet.txt", "hello world\n")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("greet.txt"), "hello mars\n").unwrap();
+
+    let file_diffs = ctx.diff_unstaged("greet.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    // Find Delete and Add lines
+    let del_line = hunk
+        .lines
+        .iter()
+        .find(|l| matches!(l.origin, trunk_lib::git::types::DiffOrigin::Delete))
+        .expect("expected a Delete line");
+    let add_line = hunk
+        .lines
+        .iter()
+        .find(|l| matches!(l.origin, trunk_lib::git::types::DiffOrigin::Add))
+        .expect("expected an Add line");
+
+    // Both should have non-empty word_spans
+    assert!(
+        !del_line.word_spans.is_empty(),
+        "Delete line should have non-empty word_spans"
+    );
+    assert!(
+        !add_line.word_spans.is_empty(),
+        "Add line should have non-empty word_spans"
+    );
+
+    // At least one span on the Delete line should be emphasized (covering "world")
+    assert!(
+        del_line.word_spans.iter().any(|s| s.emphasized),
+        "Delete line should have at least one emphasized span"
+    );
+    // At least one span on the Add line should be emphasized (covering "mars")
+    assert!(
+        add_line.word_spans.iter().any(|s| s.emphasized),
+        "Add line should have at least one emphasized span"
+    );
+
+    // Verify the emphasized span on Delete covers "world" in content "hello world\n"
+    let del_emph = del_line
+        .word_spans
+        .iter()
+        .find(|s| s.emphasized)
+        .expect("no emphasized span on Delete");
+    let del_text = &del_line.content[del_emph.start as usize..del_emph.end as usize];
+    assert!(
+        del_text.contains("world"),
+        "Delete emphasized span should cover 'world', got '{}'",
+        del_text
+    );
+
+    // Verify the emphasized span on Add covers "mars" in content "hello mars\n"
+    let add_emph = add_line
+        .word_spans
+        .iter()
+        .find(|s| s.emphasized)
+        .expect("no emphasized span on Add");
+    let add_text = &add_line.content[add_emph.start as usize..add_emph.end as usize];
+    assert!(
+        add_text.contains("mars"),
+        "Add emphasized span should cover 'mars', got '{}'",
+        add_text
+    );
+}
+
+#[test]
+fn word_span_unpaired_add_has_empty_spans() {
+    let ctx = TestContext::builder()
+        .with_file("lines.txt", "line1\n")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("lines.txt"), "line1\nline2\nline3\n").unwrap();
+
+    let file_diffs = ctx.diff_unstaged("lines.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    // This should be pure Add lines (no Deletes since "line1" is unchanged).
+    // All Add lines should have empty word_spans (no Delete to pair with).
+    let add_lines: Vec<_> = hunk
+        .lines
+        .iter()
+        .filter(|l| matches!(l.origin, trunk_lib::git::types::DiffOrigin::Add))
+        .collect();
+    assert!(!add_lines.is_empty(), "expected Add lines");
+
+    for add_line in &add_lines {
+        assert!(
+            add_line.word_spans.is_empty(),
+            "Unpaired Add line '{}' should have empty word_spans",
+            add_line.content.trim()
+        );
+    }
+}
+
+#[test]
+fn word_span_long_line_skipped() {
+    // Create a 600+ character line
+    let long_line = "a".repeat(600) + "\n";
+    let ctx = TestContext::builder()
+        .with_file("long.txt", &long_line)
+        .with_commit("Initial commit")
+        .build();
+
+    let modified = "b".repeat(600) + "\n";
+    std::fs::write(ctx.repo_path().join("long.txt"), &modified).unwrap();
+
+    let file_diffs = ctx.diff_unstaged("long.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    // Both Delete and Add lines should have empty word_spans (line > 500 chars)
+    for line in &hunk.lines {
+        if matches!(
+            line.origin,
+            trunk_lib::git::types::DiffOrigin::Delete | trunk_lib::git::types::DiffOrigin::Add
+        ) {
+            assert!(
+                line.word_spans.is_empty(),
+                "Line over 500 chars should have empty word_spans, origin={:?}, len={}",
+                line.origin,
+                line.content.len()
+            );
+        }
+    }
+}
+
+#[test]
+fn word_span_dissimilar_skipped() {
+    let ctx = TestContext::builder()
+        .with_file("dissimilar.txt", "aaa bbb ccc\n")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(
+        ctx.repo_path().join("dissimilar.txt"),
+        "xxx yyy zzz\n",
+    )
+    .unwrap();
+
+    let file_diffs = ctx.diff_unstaged("dissimilar.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    // Completely different content -- ratio < 0.4, so word_spans should be empty
+    for line in &hunk.lines {
+        if matches!(
+            line.origin,
+            trunk_lib::git::types::DiffOrigin::Delete | trunk_lib::git::types::DiffOrigin::Add
+        ) {
+            assert!(
+                line.word_spans.is_empty(),
+                "Dissimilar lines should have empty word_spans, origin={:?}",
+                line.origin
+            );
+        }
+    }
+}
+
+#[test]
+fn word_span_context_lines_have_empty_spans() {
+    let content: String = (1..=10).map(|i| format!("line {}\n", i)).collect();
+    let ctx = TestContext::builder()
+        .with_file("ctx.txt", &content)
+        .with_commit("Initial commit")
+        .build();
+
+    let modified: String = (1..=10)
+        .map(|i| {
+            if i == 5 {
+                "changed line 5\n".to_string()
+            } else {
+                format!("line {}\n", i)
+            }
+        })
+        .collect();
+    std::fs::write(ctx.repo_path().join("ctx.txt"), &modified).unwrap();
+
+    let file_diffs = ctx.diff_unstaged("ctx.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    let context_lines: Vec<_> = hunk
+        .lines
+        .iter()
+        .filter(|l| matches!(l.origin, trunk_lib::git::types::DiffOrigin::Context))
+        .collect();
+    assert!(!context_lines.is_empty(), "expected Context lines");
+
+    for ctx_line in &context_lines {
+        assert!(
+            ctx_line.word_spans.is_empty(),
+            "Context line '{}' should have empty word_spans",
+            ctx_line.content.trim()
+        );
+    }
+}
+
+#[test]
+fn word_span_covers_entire_content() {
+    let ctx = TestContext::builder()
+        .with_file("cover.txt", "hello world\n")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("cover.txt"), "hello mars\n").unwrap();
+
+    let file_diffs = ctx.diff_unstaged("cover.txt").expect("diff failed");
+    assert!(!file_diffs.is_empty(), "expected file diffs");
+    let hunk = &file_diffs[0].hunks[0];
+
+    // Find lines with non-empty word_spans
+    let lines_with_spans: Vec<_> = hunk
+        .lines
+        .iter()
+        .filter(|l| !l.word_spans.is_empty())
+        .collect();
+    assert!(
+        !lines_with_spans.is_empty(),
+        "expected at least one line with word_spans"
+    );
+
+    for line in &lines_with_spans {
+        let last_span = line.word_spans.last().expect("word_spans should not be empty");
+        // The last span's end should equal the content byte length
+        // (spans cover the entire content without the trailing newline from git2)
+        assert_eq!(
+            last_span.end as usize,
+            line.content.len(),
+            "Last span end ({}) should equal content byte length ({}) for line '{}'",
+            last_span.end,
+            line.content.len(),
+            line.content.trim()
+        );
+    }
+}
+
+#[test]
 fn diff_commit_respects_context_lines() {
     let content: String = (1..=20).map(|i| format!("line {}\n", i)).collect();
     let modified: String = (1..=20)
