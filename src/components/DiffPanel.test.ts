@@ -79,6 +79,45 @@ const binaryDiff: FileDiff = {
 	hunks: [],
 };
 
+const testDiffWithWordSpans: FileDiff = {
+	path: "src/main.ts",
+	status: "Modified",
+	is_binary: false,
+	hunks: [
+		{
+			header: "@@ -1,1 +1,1 @@",
+			old_start: 1,
+			old_lines: 1,
+			new_start: 1,
+			new_lines: 1,
+			lines: [
+				{
+					origin: "Delete",
+					content: "hello world",
+					old_lineno: 1,
+					new_lineno: null,
+					word_spans: [
+						{ start: 0, end: 6, emphasized: false },
+						{ start: 6, end: 11, emphasized: true },
+					],
+					syntax_tokens: [],
+				},
+				{
+					origin: "Add",
+					content: "hello mars",
+					old_lineno: null,
+					new_lineno: 1,
+					word_spans: [
+						{ start: 0, end: 6, emphasized: false },
+						{ start: 6, end: 10, emphasized: true },
+					],
+					syntax_tokens: [],
+				},
+			],
+		},
+	],
+};
+
 describe("DiffPanel", () => {
 	it("renders hunk header", () => {
 		render(DiffPanel, {
@@ -209,5 +248,61 @@ describe("DiffPanel", () => {
 		expect(screen.queryByText("Stage Hunk")).toBeNull();
 		expect(screen.queryByText("Unstage Hunk")).toBeNull();
 		expect(screen.queryByText("Discard Hunk")).toBeNull();
+	});
+
+	it("renders word-span highlights for emphasized segments", () => {
+		const { container } = render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiffWithWordSpans],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		const deleteSpans = container.querySelectorAll(".word-delete");
+		const addSpans = container.querySelectorAll(".word-add");
+		expect(deleteSpans.length).toBeGreaterThanOrEqual(1);
+		expect(addSpans.length).toBeGreaterThanOrEqual(1);
+		const deleteTexts = Array.from(deleteSpans).map((el) => el.textContent);
+		const addTexts = Array.from(addSpans).map((el) => el.textContent);
+		expect(deleteTexts).toContain("world");
+		expect(addTexts).toContain("mars");
+	});
+
+	it("renders non-emphasized spans without highlight class", () => {
+		const { container } = render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiffWithWordSpans],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		// "hello " text should not be inside a .word-add or .word-delete element
+		const highlightedEls = container.querySelectorAll(
+			".word-add, .word-delete",
+		);
+		const highlightedTexts = Array.from(highlightedEls).map(
+			(el) => el.textContent,
+		);
+		// None of the highlighted spans should contain "hello "
+		for (const text of highlightedTexts) {
+			expect(text).not.toContain("hello ");
+		}
+		// But the container should still have "hello " in the rendered text
+		expect(container.textContent).toContain("hello ");
+	});
+
+	it("falls back to plain rendering when word_spans is empty", () => {
+		const { container } = render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		// No word-span highlight elements should exist
+		expect(container.querySelectorAll(".word-add").length).toBe(0);
+		expect(container.querySelectorAll(".word-delete").length).toBe(0);
+		// Line content still renders with origin symbols
+		expect(container.textContent).toContain("+const x = 2;");
 	});
 });

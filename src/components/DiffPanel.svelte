@@ -609,7 +609,11 @@ function originSymbol(origin: string): string {
               "
               onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
               onclick={(e) => isSelectable && handleLineClick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
-            >{originSymbol(line.origin)}{line.content}</div>
+            >{#if line.word_spans.length > 0}<span>{originSymbol(line.origin)}</span>{#each line.word_spans as span}<span
+                class={span.emphasized
+                  ? (line.origin === 'Add' ? 'word-add' : 'word-delete')
+                  : ''}
+              >{line.content.slice(span.start, span.end)}</span>{/each}{:else}{originSymbol(line.origin)}{line.content}{/if}</div>
           {/each}
         {/each}
       {/if}
@@ -627,5 +631,13 @@ function originSymbol(origin: string): string {
   @keyframes hunk-flash {
     0% { background-color: var(--color-hunk-flash); }
     100% { background-color: transparent; }
+  }
+  .word-add {
+    background-color: var(--color-diff-word-add-bg);
+    border-radius: 2px;
+  }
+  .word-delete {
+    background-color: var(--color-diff-word-delete-bg);
+    border-radius: 2px;
   }
 </style>
