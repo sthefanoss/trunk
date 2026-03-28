@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v0.12
 milestone_name: Better Diffs
 status: in_progress
-stopped_at: Defining requirements
+stopped_at: Roadmap created, ready to plan Phase 59
 last_updated: "2026-03-28"
 last_activity: 2026-03-28
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,39 +21,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** v0.12 Better Diffs
+**Current focus:** v0.12 Better Diffs -- Phase 59 (Backend Data Model & Diff Options)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-28 — Milestone v0.12 started
+Phase: 59 of 64 (Backend Data Model & Diff Options)
+Plan: 0 of 0 in current phase (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-28 — Roadmap created for v0.12 Better Diffs (6 phases, 18 requirements)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-| Metric | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 | v0.6 | v0.7 | v0.8 | v0.9 | v0.10 |
-|--------|------|------|------|------|------|------|------|------|------|-------|
-| Phases | 6 | 4 | 4 | 3 | 7 | 5 | 5 | 7 | 6 | 3 |
-| Plans | 27 | 9 | 14 | 5 | 12 | 16 | 8 | 19 | 13 | 4 |
-| Days | 7 | 2 | 3 | 1 | 2 | 2 | 2 | 4 | 3 | 2 |
-| Phase 53 P02 | 7min | 2 tasks | 13 files |
-| Phase 53 P03 | 9min | 2 tasks | 14 files |
-| Phase 53 P04 | 15min | 2 tasks | 17 files |
-| Phase 54 P01 | 6min | 3 tasks | 14 files |
-| Phase 54 P02 | 12min | 2 tasks | 14 files |
-| Phase 54 P03 | 13min | 2 tasks | 7 files |
-| Phase 54 P04 | 14min | 2 tasks | 6 files |
-| Phase 55 P01 | 5min | 2 tasks | 2 files |
-| Phase 55 P02 | 6min | 2 tasks | 1 files |
-| Phase 55 P03 | 6min | 2 tasks | 4 files |
-| Phase 56 P01 | 4min | 2 tasks | 5 files |
-| Phase 57 P01 | 9min | 2 tasks | 3 files |
-| Phase 57 P02 | 2min | 2 tasks | 2 files |
-| Phase 58 P01 | 3min | 2 tasks | 12 files |
-| Phase 58 P02 | 2min | 2 tasks | 5 files |
+| Metric | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 | v0.6 | v0.7 | v0.8 | v0.9 | v0.10 | v0.11 |
+|--------|------|------|------|------|------|------|------|------|------|-------|-------|
+| Phases | 6 | 4 | 4 | 3 | 7 | 5 | 5 | 7 | 6 | 3 | 6 |
+| Plans | 27 | 9 | 14 | 5 | 12 | 16 | 8 | 19 | 13 | 4 | 16 |
+| Days | 7 | 2 | 3 | 1 | 2 | 2 | 2 | 4 | 3 | 2 | 2 |
 
 ## Accumulated Context
+
+### Decisions
+
+- syntect (Rust) chosen over Shiki (JS) for syntax highlighting -- CSS custom properties compliance, no inline styles
+- similar crate chosen for word-level diff -- runs on Rust thread pool, purpose-built iter_inline_changes() API
+- Whitespace-ignored diffs disable staging (GitHub Desktop pattern) -- never attempt hunk index remapping
 
 ### Pending Todos
 
@@ -79,8 +72,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-03-26
-Last session: 2026-03-27T14:39:12.902Z
-Stopped at: Phase 59 removed — code signing dropped from milestone
+Last activity: 2026-03-28
+Last session: 2026-03-28
+Stopped at: Roadmap created for v0.12 Better Diffs with 6 phases (59-64) covering 18 requirements
 Resume file: .planning/ROADMAP.md
-Next action: /gsd:execute-phase 53
+Next action: /gsd:plan-phase 59

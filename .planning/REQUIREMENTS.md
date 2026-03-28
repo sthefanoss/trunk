@@ -76,30 +76,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | — | Pending |
-| VIEW-02 | — | Pending |
-| VIEW-03 | — | Pending |
-| VIEW-04 | — | Pending |
-| VIEW-05 | — | Pending |
-| SYNT-01 | — | Pending |
-| SYNT-02 | — | Pending |
-| SYNT-03 | — | Pending |
-| WORD-01 | — | Pending |
-| WORD-02 | — | Pending |
-| WHSP-01 | — | Pending |
-| WHSP-02 | — | Pending |
-| WHSP-03 | — | Pending |
-| CTXL-01 | — | Pending |
-| CTXL-02 | — | Pending |
-| DISP-01 | — | Pending |
-| DISP-02 | — | Pending |
-| DISP-03 | — | Pending |
+| CTXL-01 | Phase 59 | Pending |
+| CTXL-02 | Phase 59 | Pending |
+| WHSP-01 | Phase 59 | Pending |
+| DISP-03 | Phase 59 | Pending |
+| WORD-01 | Phase 60 | Pending |
+| WORD-02 | Phase 60 | Pending |
+| SYNT-01 | Phase 61 | Pending |
+| SYNT-02 | Phase 61 | Pending |
+| SYNT-03 | Phase 61 | Pending |
+| DISP-01 | Phase 62 | Pending |
+| VIEW-01 | Phase 62 | Pending |
+| VIEW-04 | Phase 63 | Pending |
+| WHSP-02 | Phase 63 | Pending |
+| WHSP-03 | Phase 63 | Pending |
+| DISP-02 | Phase 63 | Pending |
+| VIEW-02 | Phase 64 | Pending |
+| VIEW-03 | Phase 64 | Pending |
+| VIEW-05 | Phase 64 | Pending |
 
 **Coverage:**
 - v0.12 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-28*
-*Last updated: 2026-03-28 after initial definition*
+*Last updated: 2026-03-28 after roadmap creation*
