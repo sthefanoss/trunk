@@ -262,7 +262,11 @@ async function handleCommitSelect(oid: string) {
 	try {
 		const commitDiffOptions = await buildDiffOptions();
 		const [files, detail] = await Promise.all([
-			safeInvoke<FileDiff[]>("diff_commit", { path: repoPath, oid, options: commitDiffOptions }),
+			safeInvoke<FileDiff[]>("diff_commit", {
+				path: repoPath,
+				oid,
+				options: commitDiffOptions,
+			}),
 			safeInvoke<CommitDetailType>("get_commit_detail", {
 				path: repoPath,
 				oid,
@@ -463,7 +467,11 @@ async function handleRebaseFocusChange(oid: string) {
 				path: repoPath,
 				oid,
 			}),
-			safeInvoke<FileDiff[]>("diff_commit", { path: repoPath, oid, options: rebaseDiffOptions }),
+			safeInvoke<FileDiff[]>("diff_commit", {
+				path: repoPath,
+				oid,
+				options: rebaseDiffOptions,
+			}),
 		]);
 		rebaseFocusedCommitDetail = detail;
 		rebaseFocusedFileDiffs = files;
