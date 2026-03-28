@@ -361,9 +361,7 @@ fn diff_unstaged_show_full_file_returns_all_lines() {
         show_full_file: true,
         ..Default::default()
     };
-    let result = ctx
-        .diff_unstaged_with_options("full.txt", &opts)
-        .unwrap();
+    let result = ctx.diff_unstaged_with_options("full.txt", &opts).unwrap();
     let total_lines: usize = result[0].hunks.iter().map(|h| h.lines.len()).sum();
 
     // Full file should have at least 50 lines (50 original context + 1 delete + 1 add = ~52)
@@ -517,11 +515,7 @@ fn word_span_dissimilar_skipped() {
         .with_commit("Initial commit")
         .build();
 
-    std::fs::write(
-        ctx.repo_path().join("dissimilar.txt"),
-        "xxx yyy zzz\n",
-    )
-    .unwrap();
+    std::fs::write(ctx.repo_path().join("dissimilar.txt"), "xxx yyy zzz\n").unwrap();
 
     let file_diffs = ctx.diff_unstaged("dissimilar.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
@@ -606,7 +600,10 @@ fn word_span_covers_entire_content() {
     );
 
     for line in &lines_with_spans {
-        let last_span = line.word_spans.last().expect("word_spans should not be empty");
+        let last_span = line
+            .word_spans
+            .last()
+            .expect("word_spans should not be empty");
         // The last span's end should equal the content byte length
         // (spans cover the entire content without the trailing newline from git2)
         assert_eq!(

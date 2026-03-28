@@ -849,7 +849,10 @@ fn diff_line_serializes_word_spans_and_syntax_tokens_as_empty_arrays() {
     let json = serde_json::to_value(&result).expect("serialization failed");
 
     let line = &json[0]["hunks"][0]["lines"][0];
-    assert!(line["word_spans"].is_array(), "word_spans should be an array");
+    assert!(
+        line["word_spans"].is_array(),
+        "word_spans should be an array"
+    );
     assert!(
         line["syntax_tokens"].is_array(),
         "syntax_tokens should be an array"

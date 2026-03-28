@@ -164,7 +164,13 @@ fn bench_diff_unstaged(c: &mut Criterion) {
 
     c.bench_function("diff_unstaged_inner", |b| {
         b.iter(|| {
-            trunk_lib::commands::diff::diff_unstaged_inner(&path, "README.md", &state_map, &trunk_lib::git::types::DiffRequestOptions::default()).unwrap();
+            trunk_lib::commands::diff::diff_unstaged_inner(
+                &path,
+                "README.md",
+                &state_map,
+                &trunk_lib::git::types::DiffRequestOptions::default(),
+            )
+            .unwrap();
         });
     });
 }

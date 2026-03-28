@@ -3,8 +3,10 @@
 use crate::error::TrunkError;
 use crate::git::types::{
     CommitDetail, DiffHunk, DiffLine, DiffOrigin, DiffRequestOptions, DiffStatus, FileDiff,
+    WordSpan,
 };
 use crate::state::RepoState;
+use similar::{ChangeTag, TextDiff};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::State;
@@ -34,6 +36,107 @@ fn apply_request_options(opts: &mut git2::DiffOptions, req: &DiffRequestOptions)
     };
     opts.context_lines(context);
     opts.ignore_whitespace_change(req.ignore_whitespace);
+}
+
+/// Compute word spans for a paired delete/add line.
+/// Returns (delete_spans, add_spans) with byte-offset ranges and emphasis flags.
+fn compute_word_spans_for_pair(
+    old_content: &str,
+    new_content: &str,
+) -> (Vec<WordSpan>, Vec<WordSpan>) {
+    // Normalize: ensure newline-terminated for from_lines (Pitfall 5)
+    let old = if old_content.ends_with('\n') {
+        old_content.to_string()
+    } else {
+        format!("{}\n", old_content)
+    };
+    let new = if new_content.ends_with('\n') {
+        new_content.to_string()
+    } else {
+        format!("{}\n", new_content)
+    };
+
+    let diff = TextDiff::from_lines(&old, &new);
+    let mut del_spans = Vec::new();
+    let mut add_spans = Vec::new();
+
+    for op in diff.ops() {
+        for change in diff.iter_inline_changes(op) {
+            let mut offset: u32 = 0;
+            let mut spans = Vec::new();
+            for (emphasized, value) in change.iter_strings_lossy() {
+                let len = value.len() as u32;
+                if len > 0 {
+                    spans.push(WordSpan {
+                        start: offset,
+                        end: offset + len,
+                        emphasized,
+                    });
+                }
+                offset += len;
+            }
+            match change.tag() {
+                ChangeTag::Delete => del_spans = spans,
+                ChangeTag::Insert => add_spans = spans,
+                ChangeTag::Equal => {}
+            }
+        }
+    }
+
+    (del_spans, add_spans)
+}
+
+/// Compute word spans for all paired Delete/Add lines within a hunk.
+/// Pairs consecutive Delete runs with following Add runs positionally (D-03, D-04).
+/// Skips lines over 500 chars (WORD-02) and dissimilar pairs with ratio < 0.4 (WORD-02).
+fn compute_word_spans_for_hunk(lines: &mut [DiffLine]) {
+    let mut i = 0;
+    while i < lines.len() {
+        // Find start of a Delete run
+        if !matches!(lines[i].origin, DiffOrigin::Delete) {
+            i += 1;
+            continue;
+        }
+
+        // Collect consecutive Deletes
+        let del_start = i;
+        while i < lines.len() && matches!(lines[i].origin, DiffOrigin::Delete) {
+            i += 1;
+        }
+        let del_end = i;
+
+        // Collect consecutive Adds following the Deletes
+        let add_start = i;
+        while i < lines.len() && matches!(lines[i].origin, DiffOrigin::Add) {
+            i += 1;
+        }
+        let add_end = i;
+
+        // Pair positionally
+        let pairs = (del_end - del_start).min(add_end - add_start);
+        for p in 0..pairs {
+            let del_idx = del_start + p;
+            let add_idx = add_start + p;
+
+            let del_content = &lines[del_idx].content;
+            let add_content = &lines[add_idx].content;
+
+            // Length threshold (WORD-02): skip lines over 500 chars
+            if del_content.len() > 500 || add_content.len() > 500 {
+                continue;
+            }
+
+            // Edit distance threshold (WORD-02): ratio < 0.4 means >60% different
+            let check_diff = TextDiff::from_chars(del_content, add_content);
+            if check_diff.ratio() < 0.4 {
+                continue;
+            }
+
+            let (del_spans, add_spans) = compute_word_spans_for_pair(del_content, add_content);
+            lines[del_idx].word_spans = del_spans;
+            lines[add_idx].word_spans = add_spans;
+        }
+    }
 }
 
 fn walk_diff_into_file_diffs(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, TrunkError> {
@@ -106,7 +209,16 @@ fn walk_diff_into_file_diffs(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Trun
     )
     .map_err(TrunkError::from)?;
 
-    Ok(file_diffs.into_inner())
+    let mut file_diffs = file_diffs.into_inner();
+
+    // Pass 2: word-level diff enrichment
+    for fd in &mut file_diffs {
+        for hunk in &mut fd.hunks {
+            compute_word_spans_for_hunk(&mut hunk.lines);
+        }
+    }
+
+    Ok(file_diffs)
 }
 
 pub fn diff_unstaged_inner(
@@ -205,9 +317,7 @@ pub async fn diff_unstaged(
         diff_unstaged_inner(&path, &file_path, &state_map, &options)
     })
     .await
-    .map_err(|e| {
-        serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
-    })?
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -223,9 +333,7 @@ pub async fn diff_staged(
         diff_staged_inner(&path, &file_path, &state_map, &options)
     })
     .await
-    .map_err(|e| {
-        serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
-    })?
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
@@ -241,9 +349,7 @@ pub async fn diff_commit(
         diff_commit_inner(&path, &oid, &state_map, &options)
     })
     .await
-    .map_err(|e| {
-        serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
-    })?
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
     .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
