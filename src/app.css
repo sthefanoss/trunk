@@ -20,6 +20,10 @@
 	--color-diff-add-bg-selected: rgba(74, 222, 128, 0.25);
 	--color-diff-delete-bg-selected: rgba(248, 113, 113, 0.25);
 
+	/* Word-level diff highlights (Phase 60) */
+	--color-diff-word-add-bg: rgba(74, 222, 128, 0.35);
+	--color-diff-word-delete-bg: rgba(248, 113, 113, 0.35);
+
 	/* Semantic status colors */
 	--color-success: #4ade80;
 	--color-success-bg: rgba(74, 222, 128, 0.15);
