@@ -1,710 +1,506 @@
-# Architecture Research: E2E Tests, Performance Benchmarks, Code Signing, and Auto-Updates
+# Architecture Research: Better Diffs (v0.12)
 
-**Domain:** Production-readiness infrastructure for Tauri 2 desktop Git GUI
-**Researched:** 2026-03-26
+**Domain:** Diff viewer enhancements for desktop Git GUI
+**Researched:** 2026-03-28
 **Confidence:** HIGH
 
-## System Overview
+## System Overview: Current vs. Target
+
+### Current Data Flow
 
 ```
-                         Existing Architecture
-                               |
-     +-------------------------+-------------------------+
-     |                         |                         |
-  Svelte 5 Frontend      Tauri IPC Layer          Rust Backend
-  (TypeScript)          (invoke/listen)          (git2, state)
-     |                         |                         |
-     +-------------------------+-------------------------+
-                               |
-              +----------------+----------------+
-              |                |                |
-         GitHub CI        Release Pipeline   Homebrew Tap
-         (ci.yml)         (release.yml)      (update-tap)
-              |                |
-              v                v
-     +--------+--------+   +--+------------------+
-     | NEW: E2E tests  |   | NEW: Code signing   |
-     | NEW: Benchmarks |   | NEW: Updater JSON   |
-     +--+-----------+--+   | NEW: Signing keys   |
-        |           |       +---------------------+
-        v           v
-    CI Gate 3    CI Gate 3      +-------------------+
-    (E2E)        (Bench)        | NEW: Auto-updater |
-                                | (plugin + UI)     |
-                                +-------------------+
-```
-
-### Integration Summary: What Is New vs Modified
-
-| Component | Status | Description |
-|-----------|--------|-------------|
-| `src-tauri/benches/` | **NEW** | Criterion benchmark suite for Rust backend |
-| `tests/e2e/` | **NEW** | WebdriverIO E2E test suite |
-| `src-tauri/Cargo.toml` | **MODIFIED** | Add criterion, tauri-plugin-updater deps |
-| `src-tauri/src/lib.rs` | **MODIFIED** | Register updater plugin |
-| `src-tauri/tauri.conf.json` | **MODIFIED** | Add updater config, signing identity, entitlements |
-| `src-tauri/capabilities/default.json` | **MODIFIED** | Add updater permissions |
-| `.github/workflows/ci.yml` | **MODIFIED** | Add E2E test gate, benchmark gate |
-| `.github/workflows/release.yml` | **MODIFIED** | Add signing env vars, updater JSON, signing keys |
-| `src/lib/UpdateChecker.svelte` | **NEW** | Frontend update notification UI |
-| `package.json` | **MODIFIED** | Add @tauri-apps/plugin-updater, @tauri-apps/plugin-process, wdio deps |
-| `wdio.conf.ts` | **NEW** | WebdriverIO configuration |
-| `src-tauri/Entitlements.plist` | **NEW** | macOS entitlements for notarization |
-
-## Component Architecture
-
-### 1. E2E Test Harness
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    E2E Test Layer                         │
-├─────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ WebdriverIO  │  │ Test Specs   │  │ tauri-driver  │  │
-│  │ (test runner)│  │ (.test.ts)   │  │ (WebDriver    │  │
-│  │              │  │              │  │  proxy)       │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
-│         │                 │                  │          │
-│         └─────────────────┴──────────────────┘          │
-│                           │                             │
-│                    WebDriver Protocol                    │
-│                           │                             │
-│              ┌────────────┴─────────────┐               │
-│              │  Platform WebDriver      │               │
-│              │  Linux: WebKitWebDriver  │               │
-│              │  Windows: msedgedriver   │               │
-│              │  macOS: NOT SUPPORTED    │               │
-│              └────────────┬─────────────┘               │
-│                           │                             │
-│              ┌────────────┴─────────────┐               │
-│              │  Trunk App (debug build) │               │
-│              │  --debug --no-bundle     │               │
-│              └──────────────────────────┘               │
-└─────────────────────────────────────────────────────────┘
-```
-
-**How it integrates with existing architecture:**
-
-- Tests interact with the Svelte frontend via WebDriver selectors (CSS selectors, text content)
-- The app is built with `--debug --no-bundle` for fast iteration (no packaging step)
-- `tauri-driver` acts as a proxy between WebdriverIO and the platform's native WebDriver
-- Tests exercise the full stack: click a button in Svelte -> invoke fires -> Rust processes -> events emit -> UI updates
-- A test git repository is created in a temp directory before each test suite (using `git init` + scripted commits)
-
-**Platform constraint:** Official `tauri-driver` does NOT support macOS. Apple provides no WKWebView WebDriver. E2E tests run on Linux in CI. The third-party `tauri-webdriver` project (February 2026) exists for macOS but is experimental. Recommendation: run E2E on Linux only in CI; use local manual testing on macOS.
-
-**Component responsibilities:**
-
-| Component | Responsibility | Location |
-|-----------|----------------|----------|
-| `wdio.conf.ts` | Test runner config: binary path, tauri-driver spawn, timeout | Project root |
-| `tests/e2e/*.test.ts` | Test specs: open repo, stage file, commit, etc. | `tests/e2e/` |
-| `tests/e2e/fixtures/` | Helper scripts to create test git repos | `tests/e2e/fixtures/` |
-| `tauri-driver` | WebDriver proxy (cargo-installed binary) | CI PATH |
-
-### 2. Performance Benchmarks
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Benchmark Layer                         │
-├─────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌──────────────────────────┐     │
-│  │ Criterion.rs     │  │ Benchmark Suites         │     │
-│  │ (harness)        │  │                          │     │
-│  └────────┬─────────┘  │ graph_bench.rs           │     │
-│           │            │   walk_commits (10/100/  │     │
-│           │            │   1k/10k commits)        │     │
-│           │            │                          │     │
-│           │            │ diff_bench.rs            │     │
-│           │            │   diff computation       │     │
-│           │            │                          │     │
-│           │            │ search_bench.rs          │     │
-│           │            │   commit search          │     │
-│           │            └──────────────────────────┘     │
-│           │                                             │
-│      cargo bench                                        │
-│           │                                             │
-│  ┌────────┴─────────────────────────────────────────┐   │
-│  │  Existing Rust Backend (no changes needed)       │   │
-│  │  git/graph.rs  walk_commits_inner()              │   │
-│  │  git/repository.rs  diff/search functions        │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-**How it integrates with existing architecture:**
-
-- Benchmarks call the `_inner` functions directly (the established inner-fn pattern for testable Tauri commands)
-- No Tauri runtime needed -- pure Rust functions operating on `git2::Repository`
-- Test repositories are created programmatically using `git2` (not CLI) for reproducibility
-- Criterion produces HTML reports and statistical comparison against previous runs
-- The existing `walk_commits_inner()` in `git/graph.rs` is the primary benchmark target (~5ms for 10k commits per PROJECT.md)
-
-**Key benchmark targets (by existing codebase):**
-
-| Function | File | Why Benchmark |
-|----------|------|---------------|
-| `walk_commits_inner()` | `git/graph.rs` | Core algorithm, O(n), regression detection |
-| `diff_unstaged_inner()` | `commands/diff.rs` | Large repos can have many changed files |
-| `search_commits_inner()` | `commands/history.rs` | Full-text search over commit graph |
-| `stage_hunk_inner()` | `commands/staging.rs` | Patch application performance |
-| `list_refs_inner()` | `commands/branches.rs` | Branch listing with ahead/behind |
-
-**Cargo.toml additions:**
-
-```toml
-[dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-
-[[bench]]
-name = "graph_bench"
-harness = false
-
-[[bench]]
-name = "diff_bench"
-harness = false
-```
-
-### 3. Code Signing
-
-```
-┌─────────────────────────────────────────────────────────┐
-│               Code Signing Layer                         │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────── macOS ────────────┐                       │
-│  │ Developer ID Application     │                       │
-│  │ Certificate (.p12)           │                       │
-│  │           │                  │                       │
-│  │  APPLE_CERTIFICATE (base64)  │                       │
-│  │  APPLE_CERTIFICATE_PASSWORD  │                       │
-│  │  APPLE_SIGNING_IDENTITY      │                       │
-│  │           │                  │                       │
-│  │  tauri-action imports cert   │                       │
-│  │  into temp keychain          │                       │
-│  │           │                  │                       │
-│  │  codesign + Entitlements     │                       │
-│  │           │                  │                       │
-│  │  xcrun notarytool submit     │                       │
-│  │  (APPLE_ID + APPLE_PASSWORD  │                       │
-│  │   + APPLE_TEAM_ID)           │                       │
-│  │           │                  │                       │
-│  │  xcrun stapler staple .dmg   │                       │
-│  └──────────────────────────────┘                       │
-│                                                         │
-│  ┌─────────── Windows ──────────┐                       │
-│  │ OV/EV cert (Azure Key Vault  │                       │
-│  │ or local PFX)                │                       │
-│  │           │                  │                       │
-│  │  signtool sign /f cert.pfx   │                       │
-│  │  (tauri handles via env vars)│                       │
-│  └──────────────────────────────┘                       │
-│                                                         │
-│  ┌─────────── Linux ────────────┐                       │
-│  │ No code signing standard.    │                       │
-│  │ AppImage is distributed      │                       │
-│  │ unsigned.                    │                       │
-│  └──────────────────────────────┘                       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
-**How it integrates with existing architecture:**
-
-- `tauri-action@v0` (already used in `release.yml`) handles ALL signing/notarization when env vars are present
-- Zero code changes in the Rust or Svelte source -- this is purely CI/CD configuration
-- The `tauri.conf.json` gets a `macOS.signingIdentity` field and `Entitlements.plist` reference
-- GitHub Secrets provide credentials; `release.yml` passes them as env vars to tauri-action
-- Notarization is automatic: tauri-action submits to Apple, polls for completion, staples the ticket to the .dmg
-
-**GitHub Secrets required:**
-
-| Secret | Platform | Purpose |
-|--------|----------|---------|
-| `APPLE_CERTIFICATE` | macOS | Base64-encoded .p12 certificate |
-| `APPLE_CERTIFICATE_PASSWORD` | macOS | .p12 export password |
-| `APPLE_SIGNING_IDENTITY` | macOS | "Developer ID Application: Name (TEAMID)" |
-| `APPLE_ID` | macOS | Apple account email for notarization |
-| `APPLE_PASSWORD` | macOS | App-specific password for notarization |
-| `APPLE_TEAM_ID` | macOS | 10-character team identifier |
-
-**Windows signing** requires an OV/EV certificate. Since June 2023, new code signing certificates must use HSMs (Azure Key Vault is the most accessible option). This is optional for initial release -- Windows SmartScreen warnings are annoying but not blocking for a personal-use tool. Can be added later.
-
-### 4. Auto-Updates
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                Auto-Update Layer                         │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌────── Build Time ──────────────────────────────┐     │
-│  │                                                │     │
-│  │  TAURI_SIGNING_PRIVATE_KEY (env var)            │     │
-│  │           │                                    │     │
-│  │  tauri build produces:                         │     │
-│  │    trunk_0.2.0_aarch64.dmg                     │     │
-│  │    trunk_0.2.0_aarch64.dmg.sig  <-- signature  │     │
-│  │           │                                    │     │
-│  │  tauri-action generates:                       │     │
-│  │    latest.json  (version, platforms, sigs)     │     │
-│  │           │                                    │     │
-│  │  All uploaded to GitHub Release                │     │
-│  └────────────────────────────────────────────────┘     │
-│                                                         │
-│  ┌────── Runtime ─────────────────────────────────┐     │
-│  │                                                │     │
-│  │  Rust: tauri-plugin-updater registered         │     │
-│  │           │                                    │     │
-│  │  Frontend:                                     │     │
-│  │    check() -> fetches latest.json from GitHub  │     │
-│  │           │                                    │     │
-│  │    update.version > current_version?           │     │
-│  │           │                                    │     │
-│  │    YES -> show toast/banner with "Update       │     │
-│  │           available: v0.3.0"                   │     │
-│  │           │                                    │     │
-│  │    User clicks "Update" ->                     │     │
-│  │      downloadAndInstall(progressCallback)      │     │
-│  │           │                                    │     │
-│  │    relaunch() via @tauri-apps/plugin-process   │     │
-│  │                                                │     │
-│  └────────────────────────────────────────────────┘     │
-│                                                         │
-│  ┌────── Endpoint ────────────────────────────────┐     │
-│  │                                                │     │
-│  │  https://github.com/joaofnds/trunk/releases/   │     │
-│  │    latest/download/latest.json                 │     │
-│  │                                                │     │
-│  │  Static file served by GitHub Releases.        │     │
-│  │  No custom server needed.                      │     │
-│  │  tauri-action@v0 with uploadUpdaterJson: true  │     │
-│  │  generates and uploads this automatically.     │     │
-│  └────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────┘
-```
-
-**How it integrates with existing architecture:**
-
-- **Rust backend (`lib.rs`):** One line added -- register `tauri_plugin_updater::Builder::new().build()` in the plugin chain (same pattern as existing dialog, store, clipboard plugins)
-- **Frontend:** New `UpdateChecker.svelte` component imported in `App.svelte`. Uses `@tauri-apps/plugin-updater` to check on app launch, shows toast notification via existing toast system
-- **Capabilities:** Add `"updater:default"` to `default.json` permissions array
-- **Release workflow:** Add `TAURI_SIGNING_PRIVATE_KEY` env var and `uploadUpdaterJson: true` to tauri-action
-- **Config:** `tauri.conf.json` gets `plugins.updater` block with public key and GitHub endpoint
-
-**Signing key relationship:** The updater signing key is SEPARATE from the macOS code signing certificate. The updater key is a Tauri-specific Ed25519 keypair that signs the update binary so the client can verify integrity. The macOS certificate signs the .app bundle so macOS trusts it. Both are needed for a fully signed + auto-updating release.
-
-## Data Flow
-
-### E2E Test Flow
-
-```
-Test Runner (WebdriverIO)
+StagingPanel (file click)
     |
-    | WebDriver Protocol (HTTP)
+RepoView.svelte (orchestrator)
+    |  invoke("diff_unstaged" | "diff_staged" | "diff_commit")
     v
-tauri-driver (proxy)
+Rust diff.rs  -->  git2::DiffOptions (defaults)  -->  walk_diff_into_file_diffs()
     |
-    | Platform WebDriver Protocol
-    v
-WebKitWebDriver (Linux) / msedgedriver (Windows)
-    |
-    | DOM Interaction
-    v
-Trunk App (Svelte frontend)
-    |
-    | invoke("open_repo", { path })
-    v
-Rust Backend (RepoState, CommitCache)
-    |
-    | emit("repo-changed")
-    v
-Trunk App (event listener updates UI)
-    |
-    | WebDriver reads updated DOM
-    v
-Test Assertion (expect text/element)
+    v  IPC: Vec<FileDiff>
+DiffPanel.svelte (hunk view, line selection, staging actions)
 ```
 
-### Auto-Update Flow
+### Target Data Flow (v0.12)
 
 ```
-App Launch
-    |
+DiffToolbar.svelte (view mode, whitespace, context, display toggles)
+    |  user settings
     v
-check() -> GET https://github.com/joaofnds/trunk/releases/latest/download/latest.json
-    |
+RepoView.svelte (orchestrator, passes DiffOptions to backend)
+    |  invoke("diff_unstaged", { ..., contextLines, ignoreWhitespace })
     v
-Compare latest.json.version with tauri.conf.json version
+Rust diff.rs  -->  git2::DiffOptions (whitespace flags, context_lines)
+    |                -->  walk_diff_into_file_diffs()
+    |                -->  similar::TextDiff (word-level inline diff per changed line pair)
+    |                -->  syntect::HighlightLines (syntax tokens per line)
+    v  IPC: Vec<FileDiff> (enriched with word spans + syntax tokens)
     |
-    +-- No update -> silent, do nothing
-    |
-    +-- Update available ->
-            |
-            v
-        Show toast: "Update v0.3.0 available"
-            |
-            +-- User ignores -> dismiss after timeout
-            |
-            +-- User clicks "Update" ->
-                    |
-                    v
-                downloadAndInstall(progress callback)
-                    |
-                    v
-                Show download progress in toast/bar
-                    |
-                    v
-                relaunch() via plugin-process
+DiffViewer.svelte (dispatcher)
+    |--- HunkView.svelte       (existing, enhanced with line numbers + word highlights)
+    |--- FullFileView.svelte   (new: all lines with diff decorations)
+    |--- SplitView.svelte      (new: two synced scroll panels)
 ```
 
-### Benchmark Flow
+## Component Responsibilities
 
-```
-cargo bench --manifest-path src-tauri/Cargo.toml
-    |
-    v
-Criterion harness
-    |
-    v
-Setup: create temp git repo with N commits (git2 API)
-    |
-    v
-Run: walk_commits_inner(&repo_path) x 100 iterations
-    |
-    v
-Measure: mean, std dev, confidence interval
-    |
-    v
-Compare: against saved baseline (target/criterion/)
-    |
-    v
-Output: HTML report + terminal summary
-    |
-    v
-CI: fail if regression > 10% (criterion threshold)
-```
+### New Components
 
-### Code Signing Flow (CI)
+| Component | Responsibility | Why New |
+|-----------|----------------|---------|
+| `DiffToolbar.svelte` | View mode selector, whitespace toggle, context lines slider, word wrap toggle, line numbers toggle | Centralizes all diff display controls; too much to bolt onto DiffPanel toolbar |
+| `DiffViewer.svelte` | Dispatches to HunkView/FullFileView/SplitView based on mode | Replaces current DiffPanel as the diff rendering surface; DiffPanel remains as the outer shell (toolbar + file list + close button) |
+| `FullFileView.svelte` | Renders complete file with diff decorations (add/delete/context lines marked) | New view mode; uses high context_lines to get full file from diff |
+| `SplitView.svelte` | Two synchronized scroll panels showing old (left) and new (right) | New view mode with synced scroll |
+| `DiffLine.svelte` | Single diff line renderer: gutter (line numbers) + syntax-highlighted content + word-level diff spans | Extracts rendering logic from DiffPanel's inline `{#each}` into a reusable component |
 
-```
-Tag push (v*)
-    |
-    v
-release.yml triggers
-    |
-    v
-tauri-action@v0
-    |
-    +-- macOS runner:
-    |       Import APPLE_CERTIFICATE into temp keychain
-    |       Build aarch64 / x86_64 targets
-    |       codesign with APPLE_SIGNING_IDENTITY + Entitlements.plist
-    |       xcrun notarytool submit (APPLE_ID + APPLE_PASSWORD + APPLE_TEAM_ID)
-    |       Poll notarization status (2-5 minutes)
-    |       xcrun stapler staple .dmg
-    |       Generate .dmg.sig (TAURI_SIGNING_PRIVATE_KEY)
-    |       Upload to GitHub Release
-    |
-    +-- Windows runner:
-    |       (Optional) Import certificate
-    |       Build x86_64
-    |       signtool sign (if cert available)
-    |       Generate .msi.sig
-    |       Upload to GitHub Release
-    |
-    +-- Linux runner:
-    |       Build x86_64
-    |       Generate .AppImage.sig
-    |       Upload to GitHub Release
-    |
-    +-- After all builds:
-            Generate latest.json (merges all platform sigs + URLs)
-            Upload latest.json to GitHub Release
-```
+### Modified Components
 
-## Recommended Project Structure Changes
+| Component | Change | Why |
+|-----------|--------|-----|
+| `DiffPanel.svelte` | Becomes a shell: toolbar + `DiffViewer` child; moves line rendering out | Current 632-line monolith mixes toolbar, hunk iteration, line rendering, and staging logic |
+| `RepoView.svelte` | Passes diff options (contextLines, ignoreWhitespace) to invoke calls | Backend needs options to generate different diffs |
+| `src/lib/types.ts` | Add `DiffOptions`, `WordSpan`, `SyntaxToken` types; extend `DiffLine` | New data needs TS type coverage |
+| `src-tauri/src/git/types.rs` | Add `WordSpan`, `SyntaxToken` to DiffLine; add `DiffRequestOptions` | Rust side of the enriched data model |
+| `src-tauri/src/commands/diff.rs` | Accept options param; apply whitespace/context flags; run word-diff and syntax highlighting | Core backend changes |
+| `src/app.css` | Add `--color-diff-word-add-bg`, `--color-diff-word-delete-bg`, syntax theme variables | New visual treatments need CSS custom properties |
 
-```
-trunk/
-├── src-tauri/
-│   ├── benches/                    # NEW: Criterion benchmarks
-│   │   ├── graph_bench.rs          # walk_commits performance
-│   │   └── diff_bench.rs           # diff computation performance
-│   ├── src/
-│   │   └── lib.rs                  # MODIFIED: add updater plugin
-│   ├── Cargo.toml                  # MODIFIED: add criterion, tauri-plugin-updater
-│   ├── tauri.conf.json             # MODIFIED: updater config, signing identity
-│   ├── capabilities/
-│   │   └── default.json            # MODIFIED: add updater:default permission
-│   └── Entitlements.plist          # NEW: macOS entitlements for notarization
-├── tests/
-│   └── e2e/
-│       ├── specs/                  # NEW: E2E test specs
-│       │   ├── open-repo.test.ts   # Open repo and verify graph loads
-│       │   ├── staging.test.ts     # Stage/unstage/commit flow
-│       │   └── navigation.test.ts  # Branch checkout, search, etc.
-│       └── fixtures/
-│           └── create-test-repo.sh # Script to generate test git repos
-├── src/
-│   └── lib/
-│       └── UpdateChecker.svelte    # NEW: update notification component
-├── wdio.conf.ts                    # NEW: WebdriverIO configuration
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                  # MODIFIED: add E2E + benchmark gates
-│       └── release.yml             # MODIFIED: add signing + updater JSON
-└── package.json                    # MODIFIED: add wdio + updater deps
-```
+### Unchanged Components
 
-### Structure Rationale
+Staging operations (`stage_hunk`, `unstage_hunk`, `stage_lines`, etc.) remain unchanged in their Rust implementation. They operate on git2's own diff with default options regardless of display options -- this is critical because staging must always use the real diff, not a whitespace-ignored or context-adjusted view.
 
-- **`src-tauri/benches/`:** Standard Rust convention; Criterion requires `[[bench]]` entries in `Cargo.toml` pointing to files in `benches/`
-- **`tests/e2e/`:** Separates E2E from unit tests (`src/lib/*.test.ts`); WebdriverIO expects a dedicated spec directory
-- **`Entitlements.plist` in `src-tauri/`:** Tauri expects it relative to the Tauri project root
-- **`UpdateChecker.svelte` in `src/lib/`:** Follows existing component pattern; imported by `App.svelte`
+## Architectural Decisions
 
-## Architectural Patterns
+### Decision 1: Syntax Highlighting in Rust (syntect)
 
-### Pattern 1: Plugin Registration Chain
+**Recommendation:** Use `syntect` in the Rust backend, not Shiki/Prism in the frontend.
 
-**What:** Tauri 2 plugins are registered as a builder chain in `lib.rs`. The updater follows the same pattern as existing plugins (dialog, store, clipboard, window-state).
+**Rationale:**
 
-**When to use:** Adding any new Tauri capability.
+| Factor | syntect (Rust) | Shiki (TypeScript) |
+|--------|----------------|-------------------|
+| IPC payload | Tokens serialized with line data -- one round-trip | Raw lines sent, then JS processes -- same round-trip but adds ~200KB WASM load |
+| Performance | ~16,000 lines/sec, runs on Rust thread pool | Comparable speed but blocks JS main thread or needs Web Worker |
+| Language coverage | Sublime Text syntax definitions (~200 languages) | TextMate grammars (~200 languages, same VS Code set) |
+| Bundle impact | Compiled into Rust binary, zero frontend cost | ~200KB+ per language/theme loaded, adds to webview memory |
+| Theme integration | Returns `(Style, &str)` tuples -- convert to CSS class tokens | Returns inline-styled HTML -- conflicts with CSS custom properties rule |
+| Caching | SyntaxSet is Send+Sync, can be cached in Tauri managed state | Per-highlighter instance in JS, no cross-tab sharing |
+| Incremental | HighlightLines supports line-by-line with state caching | Full re-highlight on change |
 
-**Example (existing + new):**
+**Critical factor:** The project rule "never inline colors -- always use CSS custom properties" makes Shiki's inline-style output a poor fit. Syntect can output scope-based tokens that map to CSS classes, keeping color control in `app.css`.
+
+**Implementation:** syntect returns `Vec<SyntaxToken>` per line where each token has `(start_byte, end_byte, scope_name)`. Frontend maps scope names to CSS classes. A single `SyntaxSet` + `ThemeSet` lives in Tauri managed state, loaded once at startup (~50ms), shared across all tabs.
+
+**Confidence:** HIGH -- syntect is the standard choice for Rust syntax highlighting. Used by bat, delta, xi-editor, helix.
+
+### Decision 2: Word-Level Diffing in Rust (similar crate)
+
+**Recommendation:** Use `similar` crate with the `inline` feature in Rust, not a JavaScript diff library.
+
+**Rationale:**
+
+The word-level diff runs per changed line pair (adjacent delete+add). For a typical file diff with 50 changed lines, that is 25 word-diff operations. Running this in Rust avoids:
+1. Sending raw line text to JS, diffing there, then mapping back to line indices for staging
+2. Re-running word diff on every Svelte reactivity cycle
+3. Duplicating diff logic across Rust (for staging) and JS (for display)
+
+`similar` crate with `features = ["inline", "unicode"]`:
+- `TextDiff::from_words(old_line, new_line)` produces word-level ops
+- `iter_inline_changes()` yields `InlineChange` items with `(emphasized: bool, value: &str)` spans
+- Hardcoded 500ms deadline prevents pathological cases from blocking
+
+**IPC payload impact:** Each `DiffLine` gains a `Vec<WordSpan>` field where `WordSpan { start: u32, end: u32, kind: "equal" | "insert" | "delete" }`. For a typical line of 80 chars with 3 word changes, this adds ~5 spans x 12 bytes = 60 bytes per changed line. Negligible compared to the line content itself.
+
+**Confidence:** HIGH -- `similar` is the most-used Rust diffing library, authored by mitsuhiko (Flask/Sentry creator). The `inline` feature is specifically designed for this use case.
+
+### Decision 3: Whitespace and Context Lines via git2 DiffOptions (Native)
+
+**Recommendation:** Pass whitespace and context line settings directly to `git2::DiffOptions`. No custom implementation needed.
+
+**git2::DiffOptions natively supports:**
+
+| Method | Maps to git flag | Purpose |
+|--------|-----------------|---------|
+| `ignore_whitespace(true)` | `-w` | Ignore all whitespace |
+| `ignore_whitespace_change(true)` | `-b` | Ignore whitespace amount changes |
+| `ignore_whitespace_eol(true)` | `--ignore-space-at-eol` | Ignore trailing whitespace |
+| `context_lines(n)` | `-U<n>` | Number of context lines (default 3) |
+
+**Implementation:** Add a `DiffRequestOptions` struct passed from frontend:
 
 ```rust
-tauri::Builder::default()
-    .plugin(tauri_plugin_dialog::init())
-    .plugin(tauri_plugin_store::Builder::default().build())
-    .plugin(tauri_plugin_window_state::Builder::new().build())
-    .plugin(tauri_plugin_clipboard_manager::init())
-    // NEW: updater plugin (desktop only)
-    .setup(|app| {
-        #[cfg(desktop)]
-        app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
-        Ok(())
-    })
-```
-
-**Trade-offs:** The updater must be registered in `.setup()` (not `.plugin()`) because it needs the app handle. This is the official pattern from Tauri docs. The `#[cfg(desktop)]` guard prevents compilation issues on mobile targets.
-
-### Pattern 2: Inner-fn Benchmarking
-
-**What:** The existing inner-fn pattern (`walk_commits_inner`, `diff_unstaged_inner`, etc.) separates pure Rust logic from Tauri state extraction. Benchmarks call these inner functions directly.
-
-**When to use:** Writing benchmarks for any Tauri command.
-
-**Example:**
-
-```rust
-// In benches/graph_bench.rs
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
-use trunk_lib::git::graph::walk_commits_inner;
-
-fn bench_walk_commits(c: &mut Criterion) {
-    let repo_path = setup_test_repo(1000); // helper creates temp repo
-    c.bench_with_input(
-        BenchmarkId::new("walk_commits", "1000_commits"),
-        &repo_path,
-        |b, path| b.iter(|| walk_commits_inner(path)),
-    );
+#[derive(Debug, Deserialize)]
+pub struct DiffRequestOptions {
+    pub context_lines: Option<u32>,          // default 3
+    pub ignore_whitespace: Option<String>,   // "none" | "all" | "change" | "eol"
 }
 ```
 
-**Trade-offs:** Requires inner functions to be `pub` (they already are for unit testing). The benchmark measures pure algorithm time without IPC overhead, which is what matters for regression detection.
+Apply these to `git2::DiffOptions` before generating the diff. The existing `walk_diff_into_file_diffs` function needs zero changes -- it already processes whatever diff git2 produces.
 
-### Pattern 3: Static Update Endpoint
+**Critical subtlety:** Staging operations MUST NOT use display options. The user sees a whitespace-ignored diff but stages against the real diff. This means:
+- `diff_unstaged`/`diff_staged`/`diff_commit` accept `DiffRequestOptions` for display
+- `stage_hunk`/`unstage_hunk`/`stage_lines`/etc. continue using default `DiffOptions`
+- When whitespace ignore is active, hunk indices from the display diff will NOT match the real diff. **Hunk staging must be disabled or re-mapped when whitespace ignore is on.**
 
-**What:** The updater endpoint is a static `latest.json` file hosted on GitHub Releases, not a dynamic server. `tauri-action` generates it automatically.
+**Confidence:** HIGH -- verified from git2 0.19 docs.rs documentation.
 
-**When to use:** Projects distributed via GitHub Releases (which Trunk already does).
+### Decision 4: Split View Architecture -- Two Synced Scroll Panels
 
-**Example config:**
+**Recommendation:** Two separate scroll containers with synchronized scroll positions via `scrollTop` event listeners.
 
-```json
-{
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ...",
-      "endpoints": [
-        "https://github.com/joaofnds/trunk/releases/latest/download/latest.json"
-      ]
-    }
-  }
+**Why not a single merged render:**
+- A merged table with left/right columns forces both sides to share row heights, which breaks when lines wrap differently
+- Line selection for staging maps to one side only (you stage from the "new" side or unstage from the "old" side) -- separate panels make click targets unambiguous
+- Delete-only and add-only lines create gaps on the opposite side. With two panels, gaps are filled with empty placeholder rows. With a merged render, you need complex rowspan logic.
+
+**Implementation pattern:**
+
+```svelte
+<!-- SplitView.svelte -->
+<div class="split-container">
+  <div class="split-left" bind:this={leftPanel} onscroll={syncScroll}>
+    {#each alignedLines as line}
+      <!-- old line or empty placeholder -->
+    {/each}
+  </div>
+  <div class="split-right" bind:this={rightPanel} onscroll={syncScroll}>
+    {#each alignedLines as line}
+      <!-- new line or empty placeholder -->
+    {/each}
+  </div>
+</div>
+```
+
+The key data structure is an `AlignedLine[]` array computed from the diff hunks:
+- Context line: both sides show the same content
+- Delete line: left shows content, right shows empty placeholder
+- Add line: left shows empty placeholder, right shows content
+- Replaced line pair: left shows old, right shows new (word-diff highlights both)
+
+Scroll sync: on `scroll` event from either panel, set the other panel's `scrollTop` to match. Use a `syncing` flag to prevent infinite loops.
+
+**Confidence:** HIGH -- this is the standard approach used by GitHub, GitKraken, and VS Code's diff editor.
+
+### Decision 5: Full-File View via Expanded Context
+
+**Recommendation:** Request the diff with `context_lines` set to `u32::MAX` (or a large number like 999999), not by fetching and merging separate file content.
+
+**Why:** git2 with `context_lines(999999)` returns the entire file content as context lines around the diff hunks. This means:
+- The existing `DiffHunk` data model works unchanged
+- Line numbers are already computed by git2
+- No separate "get file content" command needed
+- Diff decorations (add/delete/context) are already classified
+
+The full-file view renderer is then simply the hunk view but with all hunks rendered contiguously (no hunk separators) and context lines styled normally instead of dimmed.
+
+**Confidence:** HIGH -- this is how `git diff -U999999` works and git2 supports it natively.
+
+### Decision 6: Staging in Non-Default View Modes
+
+**Hunk view (default):** Staging works exactly as today. No changes.
+
+**Full-file view:** Staging still works because hunks are preserved in the data model. The UI just renders them contiguously. Hunk action buttons appear in the gutter or as floating controls when hovering a hunk boundary. Line selection works identically -- the `hunkIndex` and `lineIndex` are still available.
+
+**Split view:** Staging maps to the right panel (new side) for stage operations and left panel (old side) for unstage operations. When the user selects lines in the right panel, `stage_lines` is called. When selecting in the left panel, `unstage_lines` is called. Hunk boundaries are marked in both panels.
+
+**Whitespace-ignored mode:** Staging MUST be disabled. The hunk indices from a whitespace-ignored diff do not correspond to the real diff hunks. Display a tooltip: "Staging disabled while whitespace changes are hidden." This is the same approach GitHub uses.
+
+**Confidence:** HIGH for hunk/full-file/split. MEDIUM for whitespace-ignored staging disable (could alternatively re-map indices, but the complexity is not worth it for v0.12).
+
+## Data Model Changes
+
+### Rust Types (src-tauri/src/git/types.rs)
+
+```rust
+// NEW: Request options from frontend
+#[derive(Debug, Deserialize, Default)]
+pub struct DiffRequestOptions {
+    pub context_lines: Option<u32>,
+    pub ignore_whitespace: Option<String>,  // "none" | "all" | "change" | "eol"
+}
+
+// NEW: Word-level diff span within a line
+#[derive(Debug, Serialize, Clone)]
+pub struct WordSpan {
+    pub start: u32,        // byte offset in line content
+    pub end: u32,          // byte offset end (exclusive)
+    pub kind: WordSpanKind,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub enum WordSpanKind {
+    Equal,
+    Insert,
+    Delete,
+}
+
+// NEW: Syntax highlighting token
+#[derive(Debug, Serialize, Clone)]
+pub struct SyntaxToken {
+    pub start: u32,        // byte offset
+    pub end: u32,          // byte offset end (exclusive)
+    pub scope: String,     // e.g., "keyword.control", "string.quoted"
+}
+
+// MODIFIED: DiffLine gains optional enrichment fields
+pub struct DiffLine {
+    pub origin: DiffOrigin,
+    pub content: String,
+    pub old_lineno: Option<u32>,
+    pub new_lineno: Option<u32>,
+    pub word_spans: Vec<WordSpan>,         // NEW: empty for context lines
+    pub syntax_tokens: Vec<SyntaxToken>,   // NEW: empty if highlighting disabled/failed
 }
 ```
 
-**Trade-offs:** No server to maintain. GitHub Releases has high availability. The downside is no usage analytics or staged rollouts -- but those are overkill for a personal-use tool.
-
-### Pattern 4: Toast-Based Update Notification
-
-**What:** Reuse the existing toast notification system to show update availability. No new UI paradigm needed.
-
-**When to use:** Non-intrusive update notifications.
-
-**Example flow:**
+### TypeScript Types (src/lib/types.ts)
 
 ```typescript
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { addToast } from '$lib/toast.svelte';
+// NEW
+export interface DiffRequestOptions {
+    contextLines?: number;
+    ignoreWhitespace?: "none" | "all" | "change" | "eol";
+}
 
-const update = await check();
-if (update) {
-    addToast({
-        kind: 'info',
-        message: `Update ${update.version} available`,
-        action: {
-            label: 'Update',
-            onClick: async () => {
-                await update.downloadAndInstall();
-                await relaunch();
-            }
-        }
-    });
+export type WordSpanKind = "Equal" | "Insert" | "Delete";
+
+export interface WordSpan {
+    start: number;
+    end: number;
+    kind: WordSpanKind;
+}
+
+export interface SyntaxToken {
+    start: number;
+    end: number;
+    scope: string;
+}
+
+// MODIFIED: DiffLine gains enrichment
+export interface DiffLine {
+    origin: DiffOrigin;
+    content: string;
+    old_lineno: number | null;
+    new_lineno: number | null;
+    word_spans: WordSpan[];        // NEW
+    syntax_tokens: SyntaxToken[];  // NEW
 }
 ```
 
-**Trade-offs:** Simple and consistent with existing UX. However, the existing toast system may need a minor extension to support an action button (currently toasts are display-only with auto-dismiss). This is a small addition, not a rewrite.
+### IPC Payload Size Analysis
 
-## CI/CD Integration
+For a typical 500-line diff with 100 changed lines:
+- **Current:** ~50KB (line content + hunk headers)
+- **With word spans:** ~56KB (+6KB for ~500 spans on changed lines)
+- **With syntax tokens:** ~80KB (+24KB for ~2000 tokens across all lines)
+- **Total:** ~80KB -- well within IPC comfort zone (Tauri handles megabytes without issue)
 
-### Modified CI Pipeline (ci.yml)
+For pathological case (10,000-line diff, entire file changed):
+- **With all enrichment:** ~1.5MB -- still fine for IPC, but should consider lazy loading syntax tokens (only for visible lines) if this becomes a real bottleneck.
 
-```
-Gate 1 (fast, ~10-30s):          Gate 2 (heavy, needs Gate 1):
-  biome                            cargo-clippy
-  cargo-fmt                        cargo-test
-  svelte-check                     vitest
+## Patterns to Follow
 
-                                 Gate 3 (NEW, needs Gate 2):
-                                   e2e-tests (Linux only)
-                                   benchmarks (Linux only)
-```
+### Pattern 1: Display Options as Separate Concern from Staging
 
-**E2E tests as Gate 3:** They require a full debug build (~2-3 minutes) plus test execution (~1-2 minutes). Placing them after Gate 2 ensures we don't waste CI time on E2E if basic checks fail. Running on Linux only because macOS WebDriver is unsupported.
+**What:** Diff display options (whitespace, context, view mode) affect only the *display* diff, never the staging diff.
 
-**Benchmarks as Gate 3:** `cargo bench` compiles in release mode (slower than debug). Running after Gate 2 gates prevents wasted compute. The benchmark job reports results but does NOT fail the build initially -- establish baselines first, then add regression thresholds.
+**Why:** Staging hunk/line indices must correspond to the actual diff. If the user hides whitespace changes, hunk 3 in the display diff might be hunk 5 in the real diff.
 
-### Modified Release Pipeline (release.yml)
+**Implementation:**
+```typescript
+// RepoView.svelte
+const displayOptions: DiffRequestOptions = $state({
+    contextLines: 3,
+    ignoreWhitespace: "none",
+});
 
-The existing `release.yml` needs these additions to the `build` job's `tauri-apps/tauri-action@v0` step:
+// Display diff uses options
+const displayDiff = await safeInvoke<FileDiff[]>("diff_unstaged", {
+    path: repoPath,
+    filePath: path,
+    options: displayOptions,
+});
 
-```yaml
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  # NEW: macOS code signing
-  APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-  APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-  APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-  APPLE_ID: ${{ secrets.APPLE_ID }}
-  APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-  # NEW: updater signing
-  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-with:
-  tagName: ${{ github.ref_name }}
-  releaseName: ${{ github.ref_name }}
-  releaseDraft: true
-  prerelease: ${{ contains(github.ref_name, '-') }}
-  args: ${{ matrix.args }}
-  tauriScript: bunx tauri
-  # NEW: generate latest.json for auto-updater
-  uploadUpdaterJson: true
+// Staging always uses defaults (no options param)
+await safeInvoke("stage_hunk", { path: repoPath, filePath, hunkIndex });
 ```
 
-`tauri-action` automatically:
-1. Detects macOS env vars and runs codesign + notarytool
-2. Generates `.sig` files for each platform bundle using `TAURI_SIGNING_PRIVATE_KEY`
-3. Creates `latest.json` with all platform signatures and download URLs
-4. Uploads everything to the GitHub Release
+### Pattern 2: SyntaxSet as Managed Tauri State
 
-## Anti-Patterns
+**What:** Load syntect's `SyntaxSet` and theme once, store in Tauri managed state, share across all commands.
 
-### Anti-Pattern 1: Testing E2E on macOS CI
+**Why:** Loading syntax definitions takes ~50ms. Doing this per-diff-request would add noticeable latency.
 
-**What people do:** Try to run `tauri-driver` E2E tests on macOS GitHub Actions runners.
-**Why it's wrong:** macOS has no WKWebView WebDriver. Tests will hang or crash. The official docs explicitly state "macOS does not provide a desktop WebDriver client."
-**Do this instead:** Run E2E on Linux (ubuntu-22.04) only. Use manual testing for macOS-specific issues. Consider the experimental `tauri-webdriver` project only if macOS-specific E2E becomes critical.
+```rust
+pub struct SyntaxState {
+    pub syntax_set: SyntaxSet,
+    pub theme: Theme,
+}
 
-### Anti-Pattern 2: Storing Signing Keys in Config Files
-
-**What people do:** Put the updater private key or Apple certificate in `tauri.conf.json` or commit them to git.
-**Why it's wrong:** Private keys in version control are a security breach.
-**Do this instead:** Store in GitHub Secrets. The public key goes in `tauri.conf.json` (that's safe). The private key is only available via `TAURI_SIGNING_PRIVATE_KEY` env var at build time.
-
-### Anti-Pattern 3: Benchmarking Through Tauri IPC
-
-**What people do:** Write benchmarks that invoke Tauri commands through the full IPC pipeline.
-**Why it's wrong:** Measures IPC serialization overhead, not algorithm performance. Results are noisy and non-reproducible.
-**Do this instead:** Benchmark the `_inner` functions directly. The inner-fn pattern exists precisely for this purpose.
-
-### Anti-Pattern 4: Blocking UI During Update Download
-
-**What people do:** Show a modal dialog during update download, blocking the user.
-**Why it's wrong:** Users are in the middle of git work. Blocking them loses their context.
-**Do this instead:** Non-blocking toast notification. User clicks "Update" only when ready. Download happens in background. Relaunch only after download completes.
-
-### Anti-Pattern 5: Running Benchmarks on Every Push
-
-**What people do:** Add `cargo bench` to the fast CI gate.
-**Why it's wrong:** Benchmarks compile in release mode (~3-5 minutes). Running on every push wastes CI time and money.
-**Do this instead:** Run benchmarks in Gate 3 (after all fast checks pass) or only on `main` branch pushes.
-
-## Build Order (Dependency-Driven)
-
-Based on dependencies between the four features:
-
+// In main.rs setup:
+let ss = SyntaxSet::load_defaults_newlines();
+let ts = ThemeSet::load_defaults();
+let theme = ts.themes["base16-ocean.dark"].clone();
+app.manage(SyntaxState { syntax_set: ss, theme });
 ```
-Phase 1: Performance Benchmarks
-    ├── No external dependencies (pure Rust, Criterion only)
-    ├── No CI changes needed initially (run locally first)
-    ├── Validates inner-fn pattern works for benchmarking
-    └── Creates baseline metrics before adding signing overhead
 
-Phase 2: E2E Test Harness
-    ├── Depends on: nothing (independent of benchmarks)
-    ├── Requires: tauri-driver install, WebdriverIO setup
-    ├── Modifies: ci.yml (adds Gate 3)
-    └── Creates test infrastructure for validating future features
+### Pattern 3: Aligned Line Array for Split View
 
-Phase 3: Code Signing
-    ├── Depends on: Apple Developer Account ($99/year)
-    ├── Requires: certificate generation, GitHub Secrets setup
-    ├── Modifies: release.yml, tauri.conf.json
-    ├── Can be validated by: E2E tests (from Phase 2) + manual testing
-    └── Required BEFORE auto-updates (updates must be signed)
+**What:** Transform `DiffHunk[]` into a flat `AlignedLine[]` where each entry has an old-side and new-side, either of which may be null (placeholder).
 
-Phase 4: Auto-Updates
-    ├── Depends on: Code signing (Phase 3) -- updates MUST be signed
-    ├── Depends on: TAURI_SIGNING_PRIVATE_KEY (generated in Phase 3)
-    ├── Modifies: lib.rs, tauri.conf.json, capabilities, release.yml
-    ├── Adds: UpdateChecker.svelte, @tauri-apps/plugin-updater
-    └── Can be validated by: E2E tests (from Phase 2)
+**Why:** Split view needs both panels to have the same number of rows for scroll sync.
+
+```typescript
+interface AlignedLine {
+    left: DiffLine | null;    // old content (or null for add-only lines)
+    right: DiffLine | null;   // new content (or null for delete-only lines)
+    type: "context" | "add" | "delete" | "modify";
+    hunkIndex: number;        // for staging operations
+    lineIndex: number;        // within the hunk, for line staging
+}
 ```
+
+This transformation happens purely in TypeScript from the existing `FileDiff` data. No backend changes needed.
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Frontend Word Diffing
+
+**What people do:** Send raw lines to frontend, run a JS diff library (diff-match-patch, jsdiff) per line pair.
+**Why it's wrong:** Duplicates diff logic. Must re-run on every Svelte reactivity cycle. Adds ~50KB to frontend bundle.
+**Do this instead:** Compute word spans in Rust alongside the line diff. Send once via IPC. Frontend only renders.
+
+### Anti-Pattern 2: Separate "Get File Content" Command for Full-File View
+
+**What people do:** Fetch full file content separately, then overlay diff decorations by matching line numbers.
+**Why it's wrong:** Requires a new backend command, complex line-number alignment between file content and diff output, and breaks for files that don't exist on one side (added/deleted files).
+**Do this instead:** Use `context_lines(999999)` to get the full file as diff output. All lines already have origin markers and line numbers.
+
+### Anti-Pattern 3: Inline Color Styles for Syntax Highlighting
+
+**What people do:** Use Shiki or syntect's HTML output which produces `<span style="color: #ff0000">`.
+**Why it's wrong:** Violates project rule "never inline colors." Makes theme switching impossible without re-highlighting.
+**Do this instead:** Map syntect scopes to CSS classes (`scope-keyword`, `scope-string`, etc.) defined in `app.css` with CSS custom properties.
+
+### Anti-Pattern 4: Re-running Display Diff for Staging Operations
+
+**What people do:** After user changes display options, use the display diff's hunk indices for staging.
+**Why it's wrong:** Whitespace ignore changes hunk boundaries. Context line count changes hunk count (hunks may merge or split). Staging with wrong indices corrupts the index.
+**Do this instead:** Always stage against the default diff. Disable staging when whitespace ignore is active.
+
+## Integration Points
+
+### Backend Changes
+
+| File | Change | Dependency |
+|------|--------|------------|
+| `Cargo.toml` | Add `syntect = "5"`, `similar = { version = "2", features = ["inline", "unicode"] }` | None |
+| `src-tauri/src/state.rs` | Add `SyntaxState` to managed state | syntect dependency |
+| `src-tauri/src/git/types.rs` | Add `WordSpan`, `SyntaxToken`, `DiffRequestOptions`; extend `DiffLine` | None |
+| `src-tauri/src/commands/diff.rs` | Accept `DiffRequestOptions`; apply to `git2::DiffOptions`; run word-diff + syntax highlighting in `walk_diff_into_file_diffs` | syntect + similar deps, types changes |
+| `src-tauri/src/main.rs` | Register `SyntaxState` in managed state | state.rs changes |
+
+### Frontend Changes
+
+| File | Change | Dependency |
+|------|--------|------------|
+| `src/lib/types.ts` | Add `DiffRequestOptions`, `WordSpan`, `SyntaxToken`; extend `DiffLine` | None |
+| `src/app.css` | Add `--color-diff-word-add-bg`, `--color-diff-word-delete-bg`, syntax scope color variables | None |
+| `src/components/DiffPanel.svelte` | Extract line rendering; add toolbar controls; dispatch to view components | New components |
+| `src/components/DiffToolbar.svelte` (new) | View mode selector, all toggle controls | types.ts |
+| `src/components/DiffViewer.svelte` (new) | View mode dispatcher | DiffToolbar, HunkView, FullFileView, SplitView |
+| `src/components/FullFileView.svelte` (new) | Full file rendering with diff decorations | DiffLine.svelte |
+| `src/components/SplitView.svelte` (new) | Two-panel synced scroll split view | DiffLine.svelte, aligned-lines.ts |
+| `src/lib/aligned-lines.ts` (new) | Transform FileDiff hunks into AlignedLine[] for split view | types.ts |
+| `src/components/DiffLine.svelte` (new) | Line renderer with gutter, syntax, word-diff | types.ts, CSS |
+| `src/components/RepoView.svelte` | Pass DiffRequestOptions to diff invoke calls; manage display state | types.ts |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Display options state | `$state` rune in RepoView, passed as props to DiffToolbar and diff invoke | Consider a `diff-options.svelte.ts` shared state module if other components need it |
+| DiffPanel <-> View modes | Props: `fileDiffs`, `viewMode`, `displayOptions` | DiffPanel remains outer shell, inner view is swapped |
+| Staging <-> Display diff | Completely separate paths | Display options NEVER affect staging commands |
+| SyntaxState <-> diff commands | Tauri managed state `State<'_, SyntaxState>` | Loaded once in main.rs, shared across commands |
+
+## Suggested Build Order
+
+Dependencies flow bottom-up. Build in this order:
+
+### Phase 1: Backend Options + Data Model Extension
+1. Add `similar` and `syntect` to `Cargo.toml`
+2. Add new types to `types.rs` (both Rust and TypeScript)
+3. Extend `DiffLine` with empty `word_spans` and `syntax_tokens` vecs (backward compatible -- existing UI ignores them)
+4. Add `DiffRequestOptions` parameter to diff commands
+5. Wire `context_lines` and `ignore_whitespace` flags into `git2::DiffOptions`
+6. **Tests:** Verify whitespace flags and context lines work via existing GOOS test harness
+
+### Phase 2: Word-Level Diff
+1. Implement word-diff in `walk_diff_into_file_diffs`: for adjacent delete+add line pairs, run `similar::TextDiff::from_words` and populate `word_spans`
+2. **Frontend:** Render `word_spans` as inline `<span>` with word-diff background colors
+3. Add CSS variables `--color-diff-word-add-bg`, `--color-diff-word-delete-bg`
+4. **Tests:** Rust tests for word span generation; frontend component tests for rendering
+
+### Phase 3: Syntax Highlighting
+1. Add `SyntaxState` managed state with `SyntaxSet::load_defaults_newlines()`
+2. In diff commands, detect language from file extension via `SyntaxSet::find_syntax_for_file`
+3. Run `HighlightLines::highlight_line` per line, convert to `SyntaxToken` vec
+4. **Frontend:** Apply syntax tokens as CSS classes on `<span>` elements within each line
+5. Add syntax theme CSS variables to `app.css`
+6. **Tests:** Rust tests for token generation; visual verification
+
+### Phase 4: UI Refactor + View Modes
+1. Extract `DiffLine.svelte` from DiffPanel's inline rendering
+2. Create `DiffToolbar.svelte` with view mode toggle (hunk/full/split)
+3. Create `DiffViewer.svelte` as dispatcher
+4. Refactor DiffPanel to use DiffViewer
+5. **Tests:** Verify existing hunk view still works after refactor
+
+### Phase 5: Full-File View
+1. Implement `FullFileView.svelte` -- renders all hunks contiguously with context lines styled normally
+2. When user switches to full-file mode, re-request diff with `context_lines: 999999`
+3. Support hunk/line staging in full-file mode (hunk boundaries are still in the data)
+4. **Tests:** Component tests for full-file rendering
+
+### Phase 6: Split View
+1. Implement `aligned-lines.ts` transformation
+2. Implement `SplitView.svelte` with two scroll containers
+3. Add scroll sync logic
+4. Map line clicks in left panel to unstage, right panel to stage
+5. **Tests:** Unit tests for aligned-lines; component tests for split view
+
+### Phase 7: Display Options
+1. Whitespace toggle in toolbar (triggers re-fetch with whitespace flag)
+2. Context lines control (dropdown or slider, triggers re-fetch)
+3. Show invisible characters toggle (CSS `white-space: pre` + visible whitespace rendering)
+4. Word wrap toggle (CSS `white-space: pre-wrap` vs `pre`)
+5. Line numbers in gutter (already available from `old_lineno`/`new_lineno`)
+6. Disable staging controls when whitespace ignore is active
+7. **Tests:** Verify staging disabled when whitespace ignored; verify context line changes
+
+### Phase 8: Scrollbar Minimap (Stretch)
+1. Canvas-based minimap rendering alongside scrollbar
+2. Color-coded change regions (green add, red delete)
+3. Click-to-navigate
+4. **Tests:** Visual verification only -- minimap is cosmetic
 
 **Rationale for ordering:**
-1. **Benchmarks first** because they have zero external dependencies and establish performance baselines
-2. **E2E second** because they create validation infrastructure for Phases 3 and 4
-3. **Code signing third** because auto-updates require signed binaries (Tauri updater REQUIRES a signature -- this cannot be disabled)
-4. **Auto-updates last** because they depend on both code signing (for the update signature) AND the updater signing key (generated as part of signing setup)
+- Phases 1-3 are backend-heavy with minimal UI risk. They extend the data model in backward-compatible ways.
+- Phase 4 (refactor) happens before new view modes so the new code goes into the new component structure from the start.
+- Phases 5-6 depend on Phase 4's component structure.
+- Phase 7 (display options) depends on Phase 1's backend options and Phase 4's toolbar component.
+- Phase 8 (minimap) is independent and lowest priority.
 
 ## Sources
 
-- [Tauri 2 WebDriver Testing](https://v2.tauri.app/develop/tests/webdriver/) - Official docs, HIGH confidence
-- [Tauri 2 WebdriverIO Example](https://v2.tauri.app/develop/tests/webdriver/example/webdriverio/) - Official example, HIGH confidence
-- [Tauri 2 Updater Plugin](https://v2.tauri.app/plugin/updater/) - Official docs, HIGH confidence
-- [Tauri 2 macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/) - Official docs, HIGH confidence
-- [Tauri 2 Windows Code Signing](https://v2.tauri.app/distribute/sign/windows/) - Official docs, HIGH confidence
-- [Tauri 2 GitHub Pipelines](https://v2.tauri.app/distribute/pipelines/github/) - Official docs, HIGH confidence
-- [tauri-apps/tauri-action](https://github.com/tauri-apps/tauri-action) - Official action, HIGH confidence
-- [CrabNebula Tauri E2E Tests](https://docs.crabnebula.dev/plugins/tauri-e2e-tests/) - Third-party (paid for macOS), MEDIUM confidence
-- [tauri-webdriver (macOS)](https://github.com/danielraffel/tauri-webdriver) - Third-party, experimental, LOW confidence
-- [Criterion.rs](https://bheisler.github.io/criterion.rs/book/getting_started.html) - Standard Rust benchmarking, HIGH confidence
-- [Shipping Tauri with Code Signing](https://dev.to/0xmassi/shipping-a-production-macos-app-with-tauri-20-code-signing-notarization-and-homebrew-mc3) - Practical guide, MEDIUM confidence
+- [git2::DiffOptions docs](https://docs.rs/git2/latest/git2/struct.DiffOptions.html) -- whitespace flags and context_lines confirmed (HIGH confidence)
+- [syntect crate](https://crates.io/crates/syntect) -- HighlightLines API returns `Vec<(Style, &str)>` (HIGH confidence)
+- [syntect HighlightLines docs](https://docs.rs/syntect/latest/syntect/easy/struct.HighlightLines.html) -- line-by-line API (HIGH confidence)
+- [similar crate](https://github.com/mitsuhiko/similar) -- inline feature for word-level diffs (HIGH confidence)
+- [similar TextDiff docs](https://docs.rs/similar/latest/similar/struct.TextDiff.html) -- iter_inline_changes method (HIGH confidence)
+- [Zed split diffs blog post](https://zed.dev/blog/split-diffs) -- two-panel synced scroll approach (MEDIUM confidence, Zed's architecture differs)
 
 ---
-*Architecture research for: E2E tests, benchmarks, code signing, auto-updates in Tauri 2 desktop app*
-*Researched: 2026-03-26*
+*Architecture research for: v0.12 Better Diffs*
+*Researched: 2026-03-28*

@@ -1,233 +1,156 @@
-# Stack Research: E2E Testing, Performance Benchmarks, Code Signing & Auto-Updates
+# Stack Research: Better Diffs
 
-**Domain:** Desktop app production infrastructure (Tauri 2 + Svelte 5 + Rust)
-**Researched:** 2026-03-26
-**Confidence:** HIGH (E2E testing MEDIUM due to macOS WebDriver ecosystem immaturity)
+**Domain:** Git GUI diff viewer enhancements (syntax highlighting, word-level diff, whitespace options, view modes)
+**Researched:** 2026-03-28
+**Confidence:** HIGH (all libraries verified via official docs and npm/crates.io)
 
 ## Existing Stack (DO NOT RE-ADD)
 
-Already validated in v0.10: Tauri 2, Svelte 5, Vite 6, TypeScript 5.6, Tailwind CSS 4, Rust (git2 0.19, notify 7, tokio 1), Vitest, CI/CD with GitHub Actions (quality gates + cross-platform release builds), Homebrew cask distribution.
+Already validated: Tauri 2, Svelte 5, Vite 6, TypeScript 5.6, Tailwind CSS 4, Rust (git2 0.19, notify 7, tokio 1), Vitest, vendored VirtualList, LazyStore for UI persistence.
 
 ---
 
 ## Recommended Stack Additions
 
-### 1. E2E Test Harness
+### 1. Syntax Highlighting: Shiki (Frontend, Fine-Grained Bundle)
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `@wdio/cli` | ^9.19 | WebdriverIO test runner CLI | Official Tauri-recommended E2E framework. W3C WebDriver protocol support. Tauri docs provide step-by-step setup with `wdio.conf.ts` examples. |
-| `@wdio/local-runner` | ^9.19 | Local test runner for WebdriverIO | Executes tests on the local machine against the built Tauri app binary. |
-| `@wdio/mocha-framework` | ^9.19 | Mocha test framework adapter | Standard choice from Tauri docs. Familiar describe/it syntax. 60s default timeout handles app startup latency. |
-| `@wdio/spec-reporter` | ^9.19 | Console test output | Clear pass/fail output in terminal and CI logs. |
-| `tauri-driver` | latest (cargo install) | WebDriver-to-Tauri bridge | Translates WebDriver protocol to platform-native webview driver. Required glue layer. Linux uses WebKitWebDriver, Windows uses Edge WebDriver. |
+| `shiki` | `^4.0.2` | Syntax highlighting for diff lines | VS Code-quality TextMate grammar output; fine-grained bundling eliminates WASM dependency; lazy-loads only needed languages |
 
-**Platform support matrix:**
+**Why Shiki over alternatives:**
 
-| Platform | WebDriver Backend | CI Support | Status |
-|----------|-------------------|------------|--------|
-| Linux | WebKitWebDriver (webkit2gtk-driver) | Yes (xvfb-run) | Fully supported |
-| Windows | Microsoft Edge WebDriver (msedgedriver) | Yes | Fully supported |
-| macOS | None (Apple provides no WKWebView driver) | No | NOT SUPPORTED by official tooling |
+- **vs Prism.js (11.7 KB gzip):** Prism is smaller and faster (1400-2000 ops/s vs 200-280 for Shiki), but Shiki produces VS Code-quality highlighting that matches what developers expect from a professional Git GUI. Prism's grammar accuracy is noticeably worse for complex languages (TypeScript generics, JSX, Rust lifetimes). A diff viewer highlights one file at a time, so 3-5ms per highlight call is invisible to the user.
+- **vs highlight.js (15.6 KB gzip):** Similar quality to Prism but larger. Auto-detection is useful but unnecessary since we already know the file extension from `FileDiff.path`. No advantage over Shiki.
+- **vs CodeMirror (GitButler's approach):** CodeMirror is a full editor framework. GitButler uses it because their diff viewer supports inline editing. Trunk's diff viewer is read-only (except the merge editor, which already has its own approach). Importing `@codemirror/lang-*` packages purely for read-only highlighting is significant overkill.
+- **vs syntect on Rust side (v5.3.0, 13M downloads):** Could generate HTML via `ClassedHTMLGenerator` on the Rust side, avoiding frontend JS entirely. However: (1) it would serialize pre-rendered HTML strings over IPC for every diff line, bloating payloads; (2) theme changes would require re-invoking Rust commands; (3) the frontend already owns rendering and can cache highlighted tokens across re-renders. Keeping highlighting in the frontend is the right separation of concerns for a Tauri app.
+- **vs tree-sitter (Rust crate):** Immature highlight query ecosystem; inconsistent grammar quality across languages (Rust grammar worse than C for variable identification); painful upgrade path when adding grammars. Better suited for editors needing incremental AST parsing, not read-only highlighting.
 
-**macOS E2E gap:** The official `tauri-driver` does not work on macOS because Apple does not provide a WebDriver for WKWebView. Three alternatives exist, none production-ready:
+**Fine-grained bundle strategy (no WASM):**
 
-1. **tauri-plugin-webdriver-automation** (danielraffel) -- Open-source, 12 GitHub stars, 27 commits. Embeds Axum HTTP server in debug builds, translates WebDriver commands via JavaScript injection. macOS-only focus. Too immature for production use.
-2. **CrabNebula tauri-driver fork** (`@crabnebula/tauri-driver`) -- Requires paid subscription. Not viable for a personal/open-source project.
-3. **tauri-plugin-webdriver** (third-party) -- Claims cross-platform support but 404s on GitHub. Unverifiable.
+The key to making Shiki lightweight is using the JavaScript regex engine instead of the default Oniguruma WASM engine. This eliminates the 231 KB WASM blob entirely.
 
-**Recommendation:** Run E2E tests on Linux in CI (primary) and Windows (secondary). Accept macOS E2E gap for now. The existing unit test coverage (vitest + cargo test) combined with Linux E2E provides sufficient confidence. macOS-specific rendering bugs are rare in Tauri since WebKit behavior is consistent across the same engine version.
+```typescript
+import { createHighlighterCore } from 'shiki/core';
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 
-### 2. Performance Benchmarks
+// Import only needed languages (each ~2-17 KB gzip)
+import langTypescript from '@shikijs/langs/typescript';
+import langRust from '@shikijs/langs/rust';
+// ... lazy-load others on demand based on file extension
+
+// Import only one theme (~3 KB gzip)
+import themeDarkPlus from '@shikijs/themes/dark-plus';
+```
+
+Baseline cost: ~28 KB (core) + ~3 KB (theme) = **~31 KB gzip**. Each language grammar adds 2-17 KB and can be lazy-loaded on demand. This is comparable to highlight.js in practice.
+
+As of Shiki 3.9+, **all built-in languages are supported** by the JavaScript engine. The JS engine uses native `RegExp` with the `v` flag (ES2024), which is available in all Tauri 2 webviews (WKWebView on macOS 14+, WebView2 on Chromium 112+).
+
+Shiki v4.0.0 requires Node.js 20+ and only removed deprecated typo-fix APIs -- no functional breaking changes from v3.
+
+**Integration approach:**
+- Create a `highlightLine(code: string, lang: string)` utility using `codeToTokens()` API (not `codeToHtml()`) for maximum rendering control
+- Shiki returns `ThemedToken[][]` with color info; render as `<span>` elements in diff lines
+- Cache the highlighter instance (singleton pattern matching existing LazyStore pattern)
+- Detect language from file extension (already available in `FileDiff.path`)
+- Lazy-load language grammars on first use per extension
+
+### 2. Word-Level Diff: jsdiff
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `criterion` | 0.5.1 | Rust micro-benchmark harness | De facto standard for Rust benchmarking. Statistics-driven with automatic regression detection. Produces HTML reports. Measures wall-clock time with statistical significance testing. Use 0.5.1 (last stable in the 0.5.x line) rather than 0.8.x which requires Rust 1.88+ and is a major API change. |
-| `vitest bench` | (bundled with vitest ^4.1) | TypeScript benchmark runner | Already have vitest. Built-in `bench()` function uses Tinybench underneath. Experimental but sufficient for comparing TypeScript transformation performance. No new dependency needed. |
+| `diff` | `^8.0.4` | Word/character-level intra-line diff highlighting | Myers O(ND) algorithm; native `diffWords` and `diffWordsWithSpace` APIs; ships TypeScript types since v8; ~500 KB unpacked (tree-shakeable); O(n^2) worst case (improved from O(n^3) in v7) |
 
-**What to benchmark (Rust, criterion):**
+**Key APIs for our use case:**
 
-| Benchmark Target | Why | Expected Baseline |
-|------------------|-----|-------------------|
-| `walk_commits` (lane algorithm) | Core graph computation, O(n). Regression here breaks UX. | ~5ms for 10k commits |
-| `list_refs_inner` | Called on every sidebar refresh. Includes ahead/behind computation. | <10ms for typical repo |
-| `diff_file` / `diff_stat` | Diff computation for staging panel. Large files can regress. | <50ms for 1MB file |
-| Serde serialization of `GraphResponse` | IPC bottleneck for large commit histories. | <5ms for 500 commits |
+| Method | Purpose | Token Boundary |
+|--------|---------|----------------|
+| `diffWords(old, new)` | Word-level diff (whitespace ignored in comparison but preserved in output) | Words + punctuation |
+| `diffWordsWithSpace(old, new)` | Word-level diff where whitespace differences are meaningful | Words + punctuation + whitespace |
+| `diffChars(old, new)` | Character-level diff for very similar lines | Individual characters |
 
-**What to benchmark (TypeScript, vitest bench):**
+**Why jsdiff over alternatives:**
 
-| Benchmark Target | Why | Expected Baseline |
-|------------------|-----|-------------------|
-| Active Lanes transformation | O(lanes + merge_edges), called on every graph render. | <2ms for 10k commits |
-| Trie flat-to-tree conversion | Called when staging panel refreshes. | <1ms for 500 files |
+- **vs diff-match-patch:** Google's library works at character level only. Word-level diff requires a pre-processing hack (encode words as single characters, diff, decode). jsdiff has native `diffWords()` that handles this cleanly. diff-match-patch also targets text synchronization (patch/match), which we don't need.
+- **vs custom implementation:** Myers diff is well-understood but tricky to implement correctly for word boundaries, especially with punctuation and whitespace edge cases. jsdiff is battle-tested (used by Mocha, Jest, and virtually every JS diff tool).
+- **vs Rust-side word diffing (similar crate):** Word-level diff needs to run AFTER syntax highlighting to highlight within changed words. If we diff on the Rust side, we'd need to serialize word boundaries over IPC, then correlate them with frontend-side syntax tokens. Much simpler to diff the text in TypeScript and layer syntax highlighting on top.
 
-### 3. Code Signing
+**v8 improvements relevant to us:**
+- Ships own TypeScript types (no need for `@types/diff`)
+- Inner-loop array copy eliminated: worst-case O(n^2) instead of O(n^3)
+- Class-based `Diff` API for potential custom word boundary definitions
 
-| Technology | Config/Tool | Purpose | Why Recommended |
-|------------|-------------|---------|-----------------|
-| Apple Developer ID certificate | Developer ID Application | macOS code signing + notarization | Required to distribute outside App Store without Gatekeeper warnings. Costs $99/year (Apple Developer Program). `tauri-action` handles signing + notarization automatically when environment variables are set. |
-| Azure Trusted Signing | `trusted-signing-cli` (cargo install) | Windows code signing | Eliminates SmartScreen "unknown publisher" warning. Azure Trusted Signing is the modern approach (replaces deprecated OV certificates). Requires Azure account. |
+**Integration approach:**
+```typescript
+import { diffWords } from 'diff';
 
-**macOS signing -- environment variables for CI:**
-
-| Variable | Purpose | How to Obtain |
-|----------|---------|---------------|
-| `APPLE_CERTIFICATE` | Base64-encoded .p12 certificate file | Export from Keychain Access, base64 encode |
-| `APPLE_CERTIFICATE_PASSWORD` | Password for .p12 file | Set during export |
-| `APPLE_SIGNING_IDENTITY` | Certificate common name (e.g., "Developer ID Application: Name (TEAMID)") | `security find-identity -v -p codesigning` |
-| `APPLE_API_ISSUER` | App Store Connect API issuer ID | App Store Connect > Users and Access > Integrations > Keys |
-| `APPLE_API_KEY` | API key ID | Same location as issuer |
-| `APPLE_API_KEY_PATH` | Path to .p8 private key file | Downloaded once when key is created |
-
-**Windows signing -- environment variables for CI:**
-
-| Variable | Purpose |
-|----------|---------|
-| `AZURE_CLIENT_ID` | Azure App Registration client ID |
-| `AZURE_CLIENT_SECRET` | App Registration secret |
-| `AZURE_TENANT_ID` | Azure directory tenant ID |
-
-**tauri.conf.json additions for signing:**
-
-```json
-{
-  "bundle": {
-    "macOS": {
-      "signingIdentity": null
-    },
-    "windows": {
-      "signCommand": "trusted-signing-cli -e https://wus2.codesigning.azure.net -a <Account> -c <Profile> %1"
-    }
-  }
-}
+// For each pair of corresponding Add/Delete lines in a changed hunk:
+const changes = diffWords(oldLineText, newLineText);
+// changes = [{ value: "const ", added: false, removed: false },
+//            { value: "foo", removed: true },
+//            { value: "bar", added: true },
+//            { value: " = 1;", added: false, removed: false }]
 ```
 
-Note: `signingIdentity` is set to `null` in config because the `APPLE_SIGNING_IDENTITY` environment variable takes precedence. This keeps secrets out of the config file.
+Pair corresponding Add/Delete lines within a hunk, run `diffWords()`, then render with additional background highlight on the changed word spans (overlaid on syntax highlighting colors).
 
-**Integration with existing release workflow:** The current `release.yml` already uses `tauri-apps/tauri-action@v0`. Adding signing requires only setting the environment variables as GitHub Actions secrets -- tauri-action detects them automatically and applies signing + notarization. No YAML changes needed beyond `env:` blocks.
-
-### 4. Auto-Updates
+### 3. Whitespace Options and Context Lines: git2 DiffOptions (Already Available)
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `tauri-plugin-updater` | 2 | Rust plugin for update checking, downloading, and installing | Official Tauri 2 updater plugin. Handles signature verification, platform-aware downloads, and atomic replacement. Works with static JSON endpoint (GitHub Releases) or dynamic server. |
-| `@tauri-apps/plugin-updater` | ^2 | JavaScript API for update checking and UI | Frontend API: `check()` returns update metadata, `downloadAndInstall()` handles the download. Pairs with plugin-process for relaunch. |
-| `@tauri-apps/plugin-process` | ^2 | App relaunch after update | Provides `relaunch()` to restart the app after update installation. Required companion for the updater plugin. |
-| `tauri-plugin-process` | 2 | Rust side of process plugin | Backend for the relaunch capability. |
+| `git2` | `0.19` (existing) | Whitespace ignore + configurable context in diff generation | Already in Cargo.toml; DiffOptions has all 4 whitespace methods + context_lines + algorithm selection; zero new dependencies |
 
-**Update signing (separate from code signing):**
+**No new Rust dependencies needed.** The existing `git2 = "0.19"` provides everything:
 
-The updater requires its own keypair for verifying update integrity. This is NOT the Apple/Windows code signing certificate -- it's Tauri's own Ed25519 signature system.
+| Method | Maps to Git Flag | Purpose |
+|--------|-----------------|---------|
+| `ignore_whitespace(true)` | `-w` / `--ignore-all-space` | Ignore ALL whitespace differences |
+| `ignore_whitespace_change(true)` | `-b` / `--ignore-space-change` | Ignore changes in amount of whitespace |
+| `ignore_whitespace_eol(true)` | `--ignore-space-at-eol` | Ignore trailing whitespace only |
+| `ignore_blank_lines(true)` | `--ignore-blank-lines` | Ignore blank line insertions/deletions |
+| `context_lines(n)` | `-U<n>` | Set context lines around changes (default: 3) |
+| `interhunk_lines(n)` | (libgit2 feature) | Merge nearby hunks within N unchanged lines |
+| `patience(true)` | `--patience` | Patience diff algorithm (better for some files) |
+| `indent_heuristic(true)` | `--indent-heuristic` | Smarter hunk boundaries respecting indentation |
+| `minimal(true)` | `--minimal` | Smallest possible diff (slower but cleaner output) |
 
-```bash
-# Generate once, store securely
-bun run tauri signer generate -- -w ~/.tauri/trunk.key
-```
+**Integration approach:**
+- Add optional parameters to existing `diff_unstaged`, `diff_staged`, and `diff_commit` Tauri commands: `ignore_whitespace: Option<String>` (enum: "all", "change", "eol"), `ignore_blank_lines: Option<bool>`, `context_lines: Option<u32>`
+- Frontend passes these as `invoke` arguments based on toolbar toggle state
+- Persist toggle states via existing LazyStore pattern
+- Default behavior unchanged (no parameters = current behavior)
 
-This produces a public key (goes in `tauri.conf.json`) and a private key (goes in CI secrets as `TAURI_SIGNING_PRIVATE_KEY`).
+### Supporting Libraries
 
-**tauri.conf.json additions for updater:**
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `@shikijs/langs/*` | `^4.0.2` | Individual language grammars for Shiki | Lazy-load per file extension. Start with ~16 common languages: typescript, javascript, rust, python, go, json, css, html, svelte, markdown, bash, yaml, toml, sql, java, c, cpp, ruby |
+| `@shikijs/themes/dark-plus` | `^4.0.2` | VS Code Dark+ theme for syntax colors | Single theme matching Trunk's forced dark UI. Token colors can be overridden via CSS custom properties if needed |
 
-```json
-{
-  "bundle": {
-    "createUpdaterArtifacts": true
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "<GENERATED_PUBLIC_KEY>",
-      "endpoints": [
-        "https://github.com/joaofnds/trunk/releases/latest/download/latest.json"
-      ]
-    }
-  }
-}
-```
+### No New Development Tools Required
 
-**How it works with GitHub Releases:**
-
-1. During build, `tauri-action` creates platform bundles + `.sig` signature files + `latest.json` manifest
-2. `latest.json` is uploaded to the GitHub Release alongside binaries
-3. App calls `check()` which fetches `latest.json` from the endpoint
-4. If a newer version exists, `downloadAndInstall()` downloads the binary, verifies the signature, and replaces the running app
-5. `relaunch()` restarts the app
-
-**Capabilities (permissions) to add:**
-
-```json
-// src-tauri/capabilities/default.json
-{
-  "permissions": [
-    "updater:default",
-    "process:default"
-  ]
-}
-```
-
-**Build-time environment variables (CI):**
-
-| Variable | Purpose |
-|----------|---------|
-| `TAURI_SIGNING_PRIVATE_KEY` | Ed25519 private key content or path -- signs update bundles |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password for the private key (can be empty) |
+The existing toolchain (Vite 6, vitest, biome, svelte-check, cargo clippy/fmt/test) handles all new code without additions.
 
 ---
 
 ## Installation
 
-### Rust dependencies (src-tauri/Cargo.toml)
+```bash
+# Syntax highlighting (frontend)
+bun add shiki
+
+# Word-level diff (frontend)
+bun add diff
+```
 
 ```toml
-[dependencies]
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
-
-[dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+# Cargo.toml -- NO CHANGES NEEDED
+# git2 = "0.19" already has all whitespace/context methods
 ```
 
-### Benchmark harness setup (src-tauri/Cargo.toml)
-
-```toml
-[[bench]]
-name = "graph"
-harness = false
-
-[[bench]]
-name = "diff"
-harness = false
-```
-
-### JavaScript dependencies
-
-```bash
-# Auto-update plugins
-bun add @tauri-apps/plugin-updater @tauri-apps/plugin-process
-
-# E2E test harness (dev only)
-bun add -D @wdio/cli @wdio/local-runner @wdio/mocha-framework @wdio/spec-reporter
-```
-
-### CLI tools (CI)
-
-```bash
-# WebDriver bridge for E2E tests
-cargo install tauri-driver --locked
-
-# Windows code signing (Windows CI only)
-cargo install trusted-signing-cli
-```
-
-### New files to create
-
-```
-e2e/wdio.conf.ts                           # WebdriverIO configuration
-e2e/specs/*.ts                              # E2E test specs
-src-tauri/benches/graph.rs                  # Criterion benchmarks for graph algorithm
-src-tauri/benches/diff.rs                   # Criterion benchmarks for diff operations
-.github/workflows/e2e.yml                   # E2E test workflow (Linux + Windows)
-src-tauri/capabilities/default.json         # Add updater + process permissions
-```
+**Total new frontend dependencies: 2 packages.**
+**Total new Rust dependencies: 0.**
 
 ---
 
@@ -235,98 +158,114 @@ src-tauri/capabilities/default.json         # Add updater + process permissions
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| WebdriverIO (via `@wdio/cli`) | Selenium | If you need Java ecosystem integration. WebdriverIO is JavaScript-native, matches the project's toolchain, and has first-class Tauri examples in official docs. |
-| WebdriverIO | Playwright | Not viable for Tauri. Playwright requires Chromium/Firefox/WebKit via its own browser engine, not WKWebView/WebView2. It cannot drive Tauri's native webview. |
-| `tauri-driver` (official) | `tauri-plugin-webdriver-automation` | If macOS E2E is critical and you accept using an immature (12-star) project. For now, Linux-only E2E with `tauri-driver` is the safer choice. |
-| `criterion` 0.5.1 | `criterion` 0.8.x | If your minimum Rust version is 1.88+. 0.8.x has breaking API changes (renamed macros, new group API). 0.5.1 is proven stable and widely used. |
-| `criterion` | `divan` | If you want simpler syntax (`#[divan::bench]` attribute macros). divan is newer, less ecosystem tooling (no CI regression detection out of box). criterion's statistical analysis and HTML reports are more mature. |
-| `criterion` | Rust nightly `#[bench]` | Never. Unstable, nightly-only, no statistics, no regression detection. |
-| `vitest bench` | Dedicated JS benchmark lib (e.g., `benny`) | If vitest bench is too experimental. In practice, we only need relative comparisons for TS transforms, not publication-grade benchmarks. vitest bench is sufficient and adds zero dependencies. |
-| GitHub Releases static JSON | CrabNebula Cloud | If you need a managed update server with analytics, staged rollouts, and CDN. Overkill and paid for a personal project. GitHub Releases is free and sufficient. |
-| GitHub Releases static JSON | Self-hosted update server | If you need conditional updates (A/B testing, staged rollout). Adds operational burden. Not needed for a personal desktop app. |
-| Apple Developer ID + Azure Trusted Signing | Skip signing entirely | Acceptable during development. Users get Gatekeeper/SmartScreen warnings but app still works. However, auto-updates REQUIRE code signing (macOS will reject unsigned updates). |
-| App Store Connect API (notarization) | Apple ID + password | If you don't want to create API keys. Apple ID auth is simpler but less secure (requires app-specific password in CI secrets). API key approach is recommended by Apple. |
+| Shiki (frontend JS) | syntect (Rust-side) | If diff lines were rendered as raw HTML from Rust (static site generator pattern); not appropriate for a reactive Svelte UI |
+| Shiki (frontend JS) | Prism.js | If bundle size were the overriding concern and highlighting quality were acceptable at a lower level; Prism at 11.7 KB is smaller than Shiki core+JS engine (~31 KB), but highlighting quality is noticeably worse for TypeScript/Rust |
+| Shiki (frontend JS) | CodeMirror | If the diff viewer needed inline editing capability (GitButler's use case); Trunk's diff is read-only |
+| Shiki JS engine (no WASM) | Shiki WASM engine | If running custom grammars that need Oniguruma features the JS engine can't handle; as of Shiki 3.9+ all built-in languages work with the JS engine |
+| jsdiff `diffWords` | diff-match-patch | If you needed patch application or fuzzy text matching; we only need word-level visual diff |
+| jsdiff (frontend) | `similar` crate (Rust) | If word diff needed to happen before IPC serialization; we need it after syntax highlighting in the frontend, so frontend is the correct layer |
+| git2 whitespace flags | CLI `git diff -w` | Never; project rule is all git ops through git2, no shelling out |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Playwright for Tauri E2E | Cannot drive native WKWebView/WebView2. Playwright bundles its own browser engines. | WebdriverIO + tauri-driver |
-| Cypress for Tauri E2E | Same issue as Playwright -- runs in Electron, cannot interact with native webview. | WebdriverIO + tauri-driver |
-| `criterion` 0.8.x | Requires Rust 1.88+; major breaking API changes from 0.5.x. Project doesn't need the new features. | `criterion` 0.5.1 |
-| `tauri-plugin-webdriver-automation` (danielraffel) in production | 12 stars, 27 commits, documented as "code written with Claude Code". Not production-ready. | Official `tauri-driver` on Linux/Windows |
-| CrabNebula Cloud for updates | Paid service. GitHub Releases provides the same static JSON approach for free. | `tauri-plugin-updater` + GitHub Releases |
-| `APPLE_ID` + `APPLE_PASSWORD` for notarization | Less secure than API key approach. Apple may deprecate password-based auth. | App Store Connect API (`APPLE_API_ISSUER` + `APPLE_API_KEY` + `APPLE_API_KEY_PATH`) |
-| Manual `.sig` file management | Error-prone. `tauri-action` + `createUpdaterArtifacts: true` generates signatures automatically. | Let tauri-action handle it |
-| `tauri signer generate` with no password | Private key at rest should be encrypted. Even if password is simple, it adds a layer of protection if key leaks. | Always set a password, store in `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
+| `prismjs` | Lower quality highlighting for complex syntax (TS generics, Rust lifetimes, JSX); maintenance has slowed significantly | Shiki with JS engine |
+| `highlight.js` | No advantage over Shiki in this context; auto-detect unnecessary when we have file paths; larger than Prism with similar quality | Shiki with JS engine |
+| `@types/diff` | jsdiff v8 ships its own TypeScript types; `@types/diff` would conflict | Just `diff` package |
+| `shiki` full/web bundle imports | Full: 1.2 MB gzip, Web: 695 KB gzip -- both include Oniguruma WASM (231 KB) and bundle all languages; wasteful for a desktop app loading one file at a time | Fine-grained: `shiki/core` + `shiki/engine/javascript` + individual `@shikijs/langs/*` |
+| `syntect` (Rust crate) | Would serialize pre-rendered HTML over IPC, can't interact with frontend theme system, theme changes require Rust round-trip | Shiki in frontend |
+| `tree-sitter` / `tree-sitter-highlight` (Rust crate) | Immature highlight query ecosystem; inconsistent grammar quality; painful multi-grammar maintenance; overkill for read-only highlighting | Shiki in frontend |
+| `@codemirror/lang-*` | Full editor framework; massive dependency graph for read-only syntax highlighting | Shiki |
+| `monaco-editor` | Full VS Code editor; 10+ MB; extreme overkill for read-only diff display | Shiki |
+| Any npm virtual-scroll library for diff panels | Diff views rarely exceed 1,000 lines per file; virtual scrolling adds complexity that conflicts with line selection, hunk staging, and synchronized scrolling | Native `overflow-y: auto` with `scrollTop` sync (see below) |
+
+---
+
+## Virtual Scrolling: Not Needed for Diff Views
+
+**Key insight: diff panels do NOT need virtual scrolling.** This is different from the commit graph.
+
+The commit graph uses virtual scrolling because it can have 10,000+ rows (one per commit). Diff views are fundamentally different:
+
+- A single file diff rarely exceeds 1,000 lines even in full-file view
+- Side-by-side view doubles the horizontal space but NOT the row count (same lines, two columns)
+- Syntax highlighting creates ~5-15 `<span>` elements per line; at 1,000 lines = 5,000-15,000 DOM nodes, well within browser limits
+- Hunk staging interactions (click-to-select lines, shift-click ranges) rely on stable DOM references that virtual scrolling would complicate significantly
+- The existing `selectedLineIndices`, `selectedHunkKey`, and `hunkElements` patterns in DiffPanel assume stable DOM
+
+**Synchronized scrolling for split (side-by-side) view:**
+
+Two `<div>` containers with `overflow-y: auto`, synced via `scrollTop`. No third-party library needed -- approximately 20 lines of code:
+
+```typescript
+let isSyncing = false;
+function syncScroll(source: HTMLElement, target: HTMLElement) {
+  if (isSyncing) return;
+  isSyncing = true;
+  target.scrollTop = source.scrollTop;
+  requestAnimationFrame(() => { isSyncing = false; });
+}
+```
+
+Both panels render the same number of rows. Deleted lines appear as blank placeholders in the "new" side; added lines appear as blank placeholders in the "old" side. This keeps line counts equal and scroll positions aligned.
+
+**If performance degrades with very large full-file views (5,000+ lines):**
+
+1. First measure: is the bottleneck rendering or highlighting?
+2. If rendering: use CSS `content-visibility: auto` on hunk/section containers (native browser virtualization, zero JS)
+3. If highlighting: chunk the work with `requestIdleCallback` (highlight visible lines first, rest in idle frames)
+4. Only as a last resort consider adapting the vendored VirtualList for diff content
+
+---
+
+## Architecture Decision: Where Each Feature Lives
+
+| Feature | Frontend or Backend | Rationale |
+|---------|-------------------|-----------|
+| Syntax highlighting | Frontend (Shiki) | Theme integration, token-level rendering control, no IPC payload bloat |
+| Word-level diff | Frontend (jsdiff) | Must layer on top of syntax tokens; needs old+new line content already available from existing diff data |
+| Whitespace toggle | Backend (git2 DiffOptions) | git2 flags control diff generation at the source; frontend just passes toggle state as invoke params |
+| Context lines slider | Backend (git2 DiffOptions) | `context_lines(n)` changes hunk boundaries at generation time |
+| Show invisible chars | Frontend (render) | Replace `\t` with visible arrow, trailing spaces with middle dots; pure rendering |
+| Word wrap toggle | Frontend (CSS) | `white-space: pre-wrap` vs `white-space: pre` toggle |
+| Line numbers in gutter | Frontend (render) | `old_lineno`/`new_lineno` already exist in `DiffLine` from Rust |
+| View mode toggle (hunk/full/split) | Frontend (layout) | Same diff data, different rendering layout |
+| Scrollbar minimap | Frontend (Canvas) | Render miniature color-coded overview of the diff; pure UI component |
+
+**The only backend changes are:** adding optional parameters to the three existing diff commands (`diff_unstaged`, `diff_staged`, `diff_commit`) for whitespace ignore options and context lines. No new Rust crates, no new commands.
+
+---
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `tauri-plugin-updater = "2"` | `tauri = "2"` | Must match major version. Plugin follows Tauri's release cadence. |
-| `@tauri-apps/plugin-updater@^2` | `@tauri-apps/api@^2` | Frontend plugins must match the Tauri API major version. |
-| `tauri-plugin-process = "2"` | `tauri-plugin-updater = "2"` | Process plugin provides `relaunch()` needed after update installation. Both are v2 plugins. |
-| `criterion = "0.5"` | Rust stable 1.70+ | 0.5.x works on current stable. Only in `[dev-dependencies]`, no production impact. |
-| `@wdio/*@^9.19` | Node 18+ / Bun | WebdriverIO 9.x is the current major. All @wdio packages must be same major version. |
-| `tauri-driver` (cargo install) | `tauri = "2"` | tauri-driver from the tauri-apps org. Install latest via `cargo install tauri-driver --locked`. |
-| `createUpdaterArtifacts: true` | `tauri-apps/tauri-action@v0` | tauri-action reads this config flag and generates `latest.json` + `.sig` files automatically. |
-| Code signing env vars | `tauri-apps/tauri-action@v0` | tauri-action detects `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, etc. and applies signing during bundle step. No extra YAML needed. |
-| `TAURI_SIGNING_PRIVATE_KEY` | `createUpdaterArtifacts: true` | Build fails if `createUpdaterArtifacts` is true but signing key is not set. Both must be configured together. |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `shiki@^4.0.2` | Svelte 5, Vite 6, Tauri 2 webview | ESM-only; fine-grained imports work with Vite's tree-shaking; JS engine uses RegExp `v` flag (Safari 17+ via WKWebView, Chromium 112+ via WebView2) |
+| `diff@^8.0.4` | Any JS runtime | Zero dependencies; pure algorithm; ESM + CJS dual export; ships own TypeScript types |
+| `git2 = "0.19"` | Existing Cargo.toml | No version bump needed; all whitespace methods verified present in 0.19 docs |
+| Shiki JS engine RegExp `v` flag | macOS 14+ (Tauri 2 minimum), Windows 10+ (WebView2/Chromium 112+) | Tauri 2 requires macOS 14+ which ships Safari 17; RegExp `v` flag fully supported |
 
-## Integration with Existing CI
-
-### Current release.yml changes needed
-
-The existing `release.yml` needs these additions:
-
-1. **Signing environment variables** -- Add `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_KEY_PATH` as secrets to the tauri-action step's `env:` block.
-2. **Updater signing** -- Add `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` to the same `env:` block.
-3. **Windows signing** -- Add `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` for Windows matrix entries.
-4. **No structural YAML changes** -- tauri-action reads all config from `tauri.conf.json` and environment variables.
-
-### New e2e.yml workflow
-
-Separate workflow from CI. E2E tests are slow (app build + WebDriver + test execution) and should not block fast lint/test feedback.
-
-```
-Trigger: push to main, pull_request
-Platforms: ubuntu-22.04 (primary), windows-latest (secondary)
-Steps:
-  1. Checkout
-  2. Install system deps (Linux: webkit2gtk-driver, xvfb)
-  3. Setup Bun + Rust
-  4. Build debug app: bun run tauri build --debug --no-bundle
-  5. Install tauri-driver
-  6. Run WebdriverIO: xvfb-run bun run wdio (Linux), bun run wdio (Windows)
-```
-
-### Benchmark workflow (optional, CI integration)
-
-Criterion benchmarks can run in CI to detect regressions. Two approaches:
-
-1. **Manual:** Run `cargo bench` locally, review HTML reports in `target/criterion/`.
-2. **CI gate:** Use `bencher.dev` or `github-action-benchmark` to track benchmark results across commits and fail CI on regressions exceeding a threshold.
-
-Recommendation: Start with local-only benchmarks. Add CI integration later if regression detection becomes necessary.
+---
 
 ## Sources
 
-- [Tauri 2 WebDriver docs](https://v2.tauri.app/develop/tests/webdriver/) -- Official E2E testing guide (HIGH confidence)
-- [Tauri 2 WebdriverIO example](https://v2.tauri.app/develop/tests/webdriver/example/webdriverio/) -- Step-by-step setup (HIGH confidence)
-- [Tauri 2 CI WebDriver workflow](https://v2.tauri.app/develop/tests/webdriver/ci/) -- GitHub Actions example (HIGH confidence)
-- [Tauri 2 Updater plugin](https://v2.tauri.app/plugin/updater/) -- Full configuration guide (HIGH confidence)
-- [@tauri-apps/plugin-updater npm](https://www.npmjs.com/package/@tauri-apps/plugin-updater) -- v2.10.0, published February 2026 (HIGH confidence)
-- [tauri-plugin-updater docs.rs](https://docs.rs/crate/tauri-plugin-updater/latest) -- Rust API reference (HIGH confidence)
-- [Tauri 2 macOS code signing](https://v2.tauri.app/distribute/sign/macos/) -- Certificate and notarization setup (HIGH confidence)
-- [Tauri 2 Windows code signing](https://v2.tauri.app/distribute/sign/windows/) -- Azure Trusted Signing setup (HIGH confidence)
-- [criterion.rs repository](https://github.com/bheisler/criterion.rs) -- v0.5.1 stable (HIGH confidence)
-- [criterion docs.rs](https://docs.rs/crate/criterion/latest) -- v0.8.1 latest, v0.5.1 last stable 0.5.x (MEDIUM confidence -- version pinned from training data)
-- [Tauri auto-updater with GitHub Releases guide](https://thatgurjot.com/til/tauri-auto-updater/) -- Practical setup walkthrough (MEDIUM confidence)
-- [danielraffel/tauri-webdriver](https://github.com/danielraffel/tauri-webdriver) -- macOS WebDriver alternative, evaluated and rejected (HIGH confidence)
-- [CrabNebula tauri-driver docs](https://docs.crabnebula.dev/plugins/tauri-e2e-tests/) -- Paid macOS E2E solution, evaluated and rejected (HIGH confidence)
-- [Vitest benchmarking](https://vitest.dev/guide/features) -- Experimental bench() feature (MEDIUM confidence)
+- [Shiki best performance guide](https://shiki.style/guide/best-performance) -- fine-grained bundling, JS engine recommendation (HIGH confidence)
+- [Shiki bundles reference](https://shiki.style/guide/bundles) -- full: 6.4MB/1.2MB gz, web: 3.8MB/695KB gz (HIGH confidence)
+- [Shiki regex engines](https://shiki.style/guide/regex-engines) -- JS engine: all built-in languages supported, no WASM needed (HIGH confidence)
+- [Shiki v4 release blog](https://shiki.style/blog/v4) -- Node 20+ requirement, typo-fix breaking changes only (HIGH confidence)
+- [Code highlighter benchmark (chsm.dev, Jan 2025)](https://chsm.dev/blog/2025/01/08/comparing-web-code-highlighters) -- Prism 11.7KB/Shiki 279.8KB (full bundle), Prism 0.5ms/Shiki 3.5ms per highlight (MEDIUM confidence, independent benchmark)
+- [git2 0.19 DiffOptions docs](https://docs.rs/git2/0.19.0/git2/struct.DiffOptions.html) -- all 4 whitespace methods + context_lines + patience + indent_heuristic confirmed (HIGH confidence)
+- [git2 latest DiffOptions docs](https://docs.rs/git2/latest/git2/struct.DiffOptions.html) -- full method list reference (HIGH confidence)
+- [jsdiff GitHub repository](https://github.com/kpdecker/jsdiff) -- Myers O(ND) algorithm, diffWords/diffChars/diffWordsWithSpace APIs (HIGH confidence)
+- [jsdiff v8 release notes](https://github.com/kpdecker/jsdiff/blob/master/release-notes.md) -- O(n^2) fix, built-in TypeScript types, class-based API (HIGH confidence)
+- [npm: shiki@4.0.2](https://www.npmjs.com/package/shiki) -- verified current version (HIGH confidence)
+- [npm: diff@8.0.4](https://www.npmjs.com/package/diff) -- verified current version, ~500KB unpacked (HIGH confidence)
+- [crates.io: syntect@5.3.0](https://crates.io/crates/syntect) -- 13M downloads, evaluated and rejected for frontend highlighting (HIGH confidence)
+- [crates.io: git2@0.20.4](https://crates.io/crates/git2) -- latest available, but staying on 0.19 per project constraint (HIGH confidence)
+- [GitButler PR #7915](https://github.com/gitbutlerapp/gitbutler/pull/7915) -- uses CodeMirror for syntax highlighting in Tauri+Svelte Git GUI (MEDIUM confidence, prior art)
+- [syntect HTML module docs](https://docs.rs/syntect/latest/syntect/html/index.html) -- ClassedHTMLGenerator for HTML output (HIGH confidence)
 
 ---
-*Stack research for: E2E Testing, Performance Benchmarks, Code Signing & Auto-Updates (Trunk v1.0)*
-*Researched: 2026-03-26*
+*Stack research for: Trunk v0.12 Better Diffs*
+*Researched: 2026-03-28*

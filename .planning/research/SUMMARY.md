@@ -1,186 +1,184 @@
 # Project Research Summary
 
-**Project:** Trunk — Desktop Git GUI (Tauri 2 + Svelte 5 + Rust)
-**Domain:** Production infrastructure for an existing desktop application
-**Researched:** 2026-03-26
-**Confidence:** HIGH (E2E macOS tooling MEDIUM due to ecosystem immaturity)
+**Project:** Trunk v0.12 — Better Diffs
+**Domain:** Git GUI diff viewer enhancements (syntax highlighting, word-level diff, view modes, whitespace options, context lines, display options)
+**Researched:** 2026-03-28
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Trunk v1.0 is not a greenfield product build — it is a production-readiness upgrade to an already-shipping desktop Git GUI. v0.10 delivered the full release pipeline (4-platform matrix builds, Homebrew distribution, GitHub Actions CI with quality gates). What v1.0 adds is: code signing so macOS Gatekeeper doesn't block the app, auto-updates so users don't manually download every release, performance benchmarks so the lane algorithm doesn't regress silently, and E2E tests so IPC-layer regressions surface before users do.
+Trunk v0.12 upgrades the diff viewer from a plain hunk display to a professional-grade experience matching GitKraken, Sublime Merge, and VS Code. The six table-stakes features — syntax highlighting, split view, word-level diff, whitespace toggle, configurable context lines, and line number gutters — are all achievable with the existing stack plus two minimal additions (`syntect` and `similar` Rust crates). The architecture research and pitfalls research agree on one decisive point: syntax highlighting and word-level diffing belong in Rust, not JavaScript, because the project rule against inline colors makes Shiki's output a poor fit, and frontend diffing blocks the main thread without solving the caching problem. STACK.md independently arrived at the opposite conclusion (Shiki in the frontend), but ARCHITECTURE.md and PITFALLS.md are recommended here because they respect the CSS custom properties rule and are safer for large files.
 
-The recommended implementation sequence is strict and dependency-driven. Benchmarks first because they have zero external dependencies and establish performance baselines. E2E tests second because they create validation infrastructure needed for the subsequent phases. Code signing third because it requires Apple Developer enrollment ($99/year) and must precede auto-updates — macOS Gatekeeper blocks unsigned update artifacts, making the auto-update flow untestable without prior signing. Auto-updates last because they depend on both the code-signing infrastructure and a separately generated Ed25519 updater keypair. Attempting a different order reliably produces dead ends.
+The most dangerous risk in this milestone is a data-integrity pitfall, not a performance one: whitespace-ignored diffs produce different hunk indices than real diffs, and staging against a whitespace-ignored view silently corrupts the staging area. The correct mitigation is to disable hunk and line staging when whitespace ignore is active — the approach GitHub Desktop uses — not to attempt index remapping. A second structural risk is split view scroll sync, which has a known-good pattern already implemented in the existing `MergeEditor.svelte` (guard flag + `requestAnimationFrame`). That component's `flattenAligned()` spacer row pattern also solves split view line alignment, making these risks largely pre-solved by existing codebase patterns.
 
-The primary risks are: (1) conflating the three independent signing systems (Tauri Ed25519 updater key, Apple Developer ID certificate, Apple notarization) — treat each as a distinct task; (2) expecting Criterion to work as a CI regression gate — it measures wall-clock time which is too noisy on shared runners, so `iai-callgrind` (instruction counts, deterministic) must be used instead; (3) the macOS E2E gap — Apple provides no WKWebView WebDriver, so E2E runs on Linux CI only and macOS testing remains manual pre-release. These risks are well-understood and avoidable with the right tooling decisions made upfront.
+The suggested build order (backend data model, word-level diff, syntax highlighting, UI refactor, full-file view + display options, split view) respects all feature dependencies. Each phase is backward compatible — the enriched `DiffLine` fields are optional vecs, so existing rendering continues to work throughout the build.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (Tauri 2, Svelte 5, Vite 6, TypeScript 5.6, Tailwind CSS 4, Rust with git2/notify/tokio, Vitest, GitHub Actions) needs no replacement — v1.0 adds targeted new pieces. The additions are: `tauri-plugin-updater` + `tauri-plugin-process` (Rust + JS) for auto-updates; `criterion 0.5.1` (dev-only) for local benchmarking with HTML reports; `iai-callgrind` for deterministic CI benchmark gates; `@wdio/cli` + `@wdio/local-runner` + `@wdio/mocha-framework` + `@wdio/spec-reporter` (all ^9.19) for E2E; and `tauri-driver` (cargo install) as the WebDriver bridge. Code signing requires no new software dependencies — `tauri-action@v0` (already in use) handles everything when the correct CI secrets are present.
+The existing stack needs two Rust crates and zero new frontend dependencies for the core milestone: `syntect = "5"` for syntax highlighting and `similar = { version = "2", features = ["inline", "unicode"] }` for word-level diff. Both are compiled into the binary with no webview bundle impact. All whitespace and context-line behavior is already available in `git2 = "0.19"` (currently in Cargo.toml) via `DiffOptions` — no version bump needed.
+
+The STACK.md researcher recommended Shiki (frontend JS) because it avoids IPC payload bloat and matches the frontend ownership pattern. ARCHITECTURE.md and PITFALLS.md both recommend `syntect` (Rust backend) because: (1) Shiki outputs inline styles which violates the project's CSS custom properties rule; (2) `syntect` tokens can be emitted as scope-named spans mapped to CSS classes in `app.css`; (3) the `SyntaxSet` can be loaded once into Tauri managed state and shared across all commands (~50ms startup cost, amortized). The `syntect` path is the correct choice.
 
 **Core technologies:**
-- `tauri-plugin-updater@2` + `@tauri-apps/plugin-updater@^2`: auto-update runtime — official Tauri 2 plugin, integrates with GitHub Releases static JSON, no custom server needed
-- `criterion 0.5.1`: local Rust benchmarks — de facto standard, statistical analysis, HTML reports; pin to 0.5.x not 0.8.x (breaking API changes in 0.8.x require Rust 1.88+)
-- `iai-callgrind`: CI benchmark gates — counts CPU instructions via Valgrind, deterministic across VM restarts, Linux-only (matches CI platform)
-- `@wdio/cli@^9.19`: E2E test runner — official Tauri-recommended WebDriver framework, JavaScript-native, matches project toolchain
-- `tauri-driver` (cargo install): WebDriver bridge — translates W3C WebDriver protocol to platform-native WebKit/Edge driver; Linux and Windows only
+- `syntect = "5"`: Syntax highlighting — Sublime Text grammars, used by bat/delta/helix, runs on Rust thread pool, outputs scope tokens not inline styles, zero frontend bundle impact
+- `similar = { version = "2", features = ["inline", "unicode"] }`: Word-level diff — authored by mitsuhiko, `iter_inline_changes()` is purpose-built for intra-line diffing, prevents main-thread blocking
+- `git2 = "0.19"` (existing): Whitespace and context options — `ignore_whitespace_change()`, `context_lines(n)`, `interhunk_lines(n)` all present; no version bump needed
+- `diff = "^8.0.4"` (npm): Word-level diff frontend library — only needed if word-level diff moves to the frontend; not recommended for v0.12 core but available if the approach changes
 
 ### Expected Features
 
-**Must have (table stakes — v1.0):**
-- macOS code signing + notarization — Gatekeeper blocks unsigned apps on macOS Sequoia entirely; required for any distributed build
-- Update signing keypair — Tauri updater enforces signatures; the plugin refuses to function without a valid Ed25519 keypair
-- Auto-updater (check + download + install + relaunch) — all major desktop Git GUIs (GitKraken, Fork, Tower, Sublime Merge) auto-update; users expect it
-- Criterion benchmarks for critical Rust operations — `walk_commits_inner`, `list_refs_inner`, `diff_inner`; regressions in these are invisible without baselines
-- E2E smoke tests on Linux CI — unit tests cover logic but not the IPC bridge; staging + commit flow must be validated end-to-end
-- Update notification UI with download progress — non-blocking toast leveraging the existing toast system; silent restarts are unacceptable
+**Must have (table stakes — defines "better diffs"):**
+- Syntax highlighting — every competitor ships this; absence makes the GUI feel like a terminal
+- Split (side-by-side) view — expected by developers reviewing large changes; requires alignment algorithm and phantom line insertion
+- Word-level (intra-line) diff — highlights specific changed words within add/delete lines; reduces cognitive load dramatically
+- Whitespace toggle — essential when reviewing reformatted code; must disable staging when active
+- Configurable context lines (global dropdown: 3/5/10/25/All) — "All" is full-file view via `context_lines(999999)`
+- Line numbers in gutter — data already present in `DiffLine.old_lineno` / `DiffLine.new_lineno`; trivial to render
 
-**Should have (v1.x — add after baseline is stable):**
-- Windows code signing — SmartScreen warnings are unprofessional; requires Azure Trusted Signing or OV cert ($200-400/year)
-- CI benchmark regression gates (iai-callgrind) — once baseline data from multiple releases exists, add automated failure thresholds
-- macOS E2E tests — blocked on `tauri-plugin-webdriver-automation` maturing (February 2026, experimental)
+**Should have (add during polish pass):**
+- Word wrap toggle — low complexity; interacts with split view row heights, so add after split view is stable
+- Show invisible characters — renders tabs/trailing spaces as visible symbols; off by default; niche but valued
+- Per-hunk context expand buttons — better UX than global slider, but more complex; defer within v0.12 if time is tight
 
-**Defer (v2+):**
-- Windows E2E tests in CI — msedgedriver version matching is historically flaky
-- Startup time tracking in CI — meaningful only with consistent self-hosted runners
-- CrabNebula DevTools — useful debugging tool, not blocking
+**Defer to v0.13+:**
+- Scrollbar minimap — high complexity (Canvas rendering); genuine differentiator but not essential for launch
+- Image diff — separate feature domain entirely
+- Blame integration in diff view — belongs in its own dedicated view
 
 ### Architecture Approach
 
-All four features integrate cleanly into the existing architecture without restructuring it. The Svelte/Tauri IPC/Rust layer remains unchanged at the logical level. Benchmarks exploit the established inner-fn pattern (all Tauri commands already have `_inner` functions separated from Tauri state) — criterion calls them directly with no Tauri runtime. The updater registers as a standard Tauri plugin in `lib.rs` using the same builder-chain pattern as existing plugins (dialog, store, clipboard, window-state). Code signing is purely CI configuration: `tauri-action@v0` detects signing environment variables automatically. E2E tests launch a debug build (`--debug --no-bundle`) and drive it through the WebDriver protocol layer.
+The architecture cleanly extends the existing data model: `DiffLine` gains two optional vec fields (`word_spans: Vec<WordSpan>` and `syntax_tokens: Vec<SyntaxToken>`), which are empty for context lines or when highlighting is disabled. A new `DiffRequestOptions` struct flows from the frontend toolbar through `invoke()` into `git2::DiffOptions` parameters — but critically, staging commands never receive these options and always use the default diff. The `DiffPanel.svelte` monolith (currently 632 lines) gets refactored into `DiffPanel` (outer shell) → `DiffToolbar` → `DiffViewer` (dispatcher) → `HunkView` / `FullFileView` / `SplitView`, each using a new `DiffLine.svelte` component. IPC payload grows from ~50 KB to ~80 KB for a typical 500-line diff with enrichment — well within Tauri's comfort zone.
 
 **Major components:**
-1. `src-tauri/benches/` — Criterion benchmark suite calling `walk_commits_inner`, `diff_unstaged_inner`, `list_refs_inner` directly; NEW directory
-2. `tests/e2e/` — WebdriverIO specs + fixture helpers; creates ephemeral test repos per suite; NEW directory
-3. `src/lib/UpdateChecker.svelte` — non-modal update notification component reusing existing toast system; NEW component
-4. Modified `release.yml` — adds signing env vars, `uploadUpdaterJson: true`; no structural changes to existing workflow
-5. Modified `ci.yml` — adds Gate 3: E2E (Linux) and benchmarks after existing fast/heavy gates
+1. `DiffToolbar.svelte` (new) — view mode selector, whitespace toggle, context lines dropdown, word wrap / show invisibles toggles
+2. `DiffViewer.svelte` (new) — dispatches to HunkView / FullFileView / SplitView based on active mode
+3. `DiffLine.svelte` (new) — single line renderer with gutter (line numbers), syntax token spans, word-diff background overlays
+4. `SplitView.svelte` (new) — two scroll containers synced via guard flag + rAF (port from MergeEditor pattern); uses `AlignedLine[]` transformation
+5. `FullFileView.svelte` (new) — all hunks rendered contiguously; achieved by requesting `context_lines: 999999` from backend
+6. `SyntaxState` (new Tauri managed state) — `SyntaxSet` + theme loaded once at startup, shared across all diff commands
+7. `diff.rs` (modified) — accepts `DiffRequestOptions`; runs `syntect` for tokens and `similar` for word spans inside `walk_diff_into_file_diffs()`
 
 ### Critical Pitfalls
 
-1. **Building auto-updates before code signing** — unsigned macOS apps get Gatekeeper-blocked on every update install, making the update flow untestable; phase ordering is a hard constraint: code signing must complete first
+1. **Whitespace-ignored diff corrupts staging** — When `ignore_whitespace` is active, hunk indices in the display diff do not correspond to the same hunks in the real diff. Staging with wrong indices silently corrupts the staging area. Mitigation: disable hunk and line staging when any whitespace option is active; show tooltip "Staging disabled while whitespace changes are hidden." Never attempt to remap indices.
 
-2. **Using Criterion as a CI regression gate** — GitHub Actions shared runners have 10-30% timing noise; Criterion benchmarks produce phantom regressions on every PR and get ignored; use `iai-callgrind` (instruction counts, deterministic) for CI gates, reserve Criterion for local development
+2. **Syntax highlighting + diff background colors = unreadable visual soup** — Three color layers (line background tint, syntax foreground, word-diff background highlight) conflict unless designed together. Mitigation: syntax tokens provide foreground colors only; word-diff provides semi-transparent backgrounds via CSS custom properties; define `--color-diff-word-add-bg` and `--color-diff-word-delete-bg` before implementing either feature; desaturate syntax colors on add/delete lines by 30-40%.
 
-3. **E2E tests that cannot run on macOS** — Apple provides no WKWebView WebDriver; the macOS E2E strategy (Linux-only CI vs. experimental plugin-based) must be decided before writing any test infrastructure
+3. **Split view scroll sync infinite loop or desync** — The naive `onscroll` handler creates feedback loops; differing scroll heights between the two panels causes permanent desync. Mitigation: port the `MergeEditor.svelte` guard flag + `requestAnimationFrame` pattern; use spacer rows (phantom lines) to equalize both panels' total height, making `scrollTop` mirroring trivially correct.
 
-4. **Losing the updater Ed25519 private key** — recovery is impossible; every installed copy embeds the public key and will permanently reject updates signed with a different key; store in at least two durable locations outside GitHub before writing any updater code
+4. **Context line change silently invalidates hunk indices** — Expanding context merges previously separate hunks; any cached selection or keyboard navigation index becomes stale. Mitigation: clear all selection state (`selectedHunkKey`, `selectedLineIndices`, `focusedHunkIndex`) when context lines change. Treat a context re-fetch as equivalent to switching to a new file.
 
-5. **Apple notarization hanging in CI** — `notarytool` occasionally queues for 2+ hours; configure explicit step timeouts (15-20 min), use App Store Connect API keys (not Apple ID password), have a local signing fallback documented
+5. **Word-level diff quadratic blowup on long or rewritten lines** — Myers diff at character level is O(N^2) worst case. Long minified lines or completely rewritten lines can freeze the backend for seconds. Mitigation: skip word-level diff for lines over 500 chars; skip when edit distance exceeds 60% of line length; cap at 50 word-diffed line pairs per hunk. Implement thresholds in the initial Rust code, not as a later optimization.
 
 ## Implications for Roadmap
 
-Based on research, the dependency graph dictates a strict 4-phase sequence with no reordering.
+Based on research, the build order from ARCHITECTURE.md is the right structure. Dependencies flow bottom-up; the data model must be extended before any UI can consume the new fields. Each phase is backward compatible.
 
-### Phase 1: Performance Benchmarks
+### Phase 1: Backend Data Model and Options
 
-**Rationale:** Zero external dependencies — no accounts, no certificates, no new CI secrets. Can start immediately with the existing codebase. The inner-fn pattern is already in place; this phase adds benchmark harnesses that call those functions directly. Establishes performance baselines before any signing or updater overhead is added to builds.
+**Rationale:** All subsequent phases depend on the enriched `DiffLine` type and the ability to pass `DiffRequestOptions` to diff commands. This phase has zero frontend risk and establishes the foundation. Adding empty vecs to `DiffLine` is backward compatible — existing UI ignores them.
+**Delivers:** Extended `DiffLine` (with `word_spans`, `syntax_tokens` fields), `DiffRequestOptions` accepted by all three diff commands, `context_lines` and `ignore_whitespace` flags wired into `git2::DiffOptions`, Rust and TypeScript types in sync.
+**Addresses:** Context lines and whitespace toggle backend foundations (FEATURES.md table stakes).
+**Avoids:** Context-line-invalidates-hunk-indices pitfall — verify selection state clears on context change from day one.
 
-**Delivers:** Criterion benchmark suite for `walk_commits_inner` (lane algorithm), `diff_unstaged_inner`, `list_refs_inner` at multiple repo scales (100, 1k, 10k commits); baseline HTML reports locally; optional iai-callgrind setup for future CI gates.
+### Phase 2: Word-Level Diff
 
-**Addresses:** Criterion benchmarks for critical Rust operations (P1 feature); foundation for CI regression gates (P2 feature).
+**Rationale:** Depends only on Phase 1's extended `DiffLine`. No new Rust crates beyond `similar`. Frontend rendering is simple (background spans). Verifiable in isolation before syntax highlighting is added.
+**Delivers:** `WordSpan` vecs populated by `similar::TextDiff` in `walk_diff_into_file_diffs()`; frontend renders word-diff background highlights via CSS custom properties `--color-diff-word-add-bg` / `--color-diff-word-delete-bg`; line-length and edit-distance thresholds implemented from the start.
+**Addresses:** Word-level diff (FEATURES.md table stakes).
+**Avoids:** Quadratic blowup pitfall (thresholds required at initial implementation); begins the color layering system that Phase 3 builds on.
 
-**Avoids:** Benchmarking tiny repos — use 100/1k/10k/100k fixtures; benchmarking through Tauri IPC — use `_inner` functions directly; Criterion in CI — reserve for local use.
+### Phase 3: Syntax Highlighting
 
-**Research flag:** Standard patterns — Criterion is well-documented, inner-fn pattern already in place. Skip `/gsd:research-phase` unless iai-callgrind CI integration needs scoping.
+**Rationale:** Depends on Phase 1's `SyntaxToken` in `DiffLine`. Introduces `syntect` crate and `SyntaxState` managed state. Must coordinate with Phase 2's color system — both phases define CSS custom properties that interact. Technology choice (syntect) is the single most consequential decision in this milestone and must be locked in here.
+**Delivers:** `SyntaxToken` vecs computed by `syntect::HighlightLines` in `walk_diff_into_file_diffs()`; `SyntaxState` (SyntaxSet + theme) loaded at startup in Tauri managed state; frontend maps scope names to CSS classes; syntax theme variables in `app.css`; desaturated syntax colors on add/delete lines.
+**Addresses:** Syntax highlighting (FEATURES.md highest user-value item).
+**Avoids:** Inline color pitfall (scope tokens → CSS classes, never inline styles); DOM explosion pitfall (Rust-side computation, no WASM, no JS bundle bloat); color layering pitfall (designed together with Phase 2).
 
-### Phase 2: E2E Test Harness
+### Phase 4: UI Refactor and Component Structure
 
-**Rationale:** Creates validation infrastructure needed for Phases 3 and 4. When code signing and auto-updates are implemented, E2E tests provide automated verification that those changes didn't break core workflows. Independent of all external account requirements.
+**Rationale:** Refactor before building new view modes. New view mode code should go into the new component structure from the start, not bolted onto the 632-line monolith. This phase delivers no new user-facing features but creates the structural foundation for Phases 5 and 6.
+**Delivers:** `DiffLine.svelte` extracted from DiffPanel; `DiffToolbar.svelte` with view mode toggle (Hunk/Full/Split); `DiffViewer.svelte` as dispatcher; `DiffPanel.svelte` reduced to outer shell; existing hunk view works identically after refactor.
+**Addresses:** Sets up architecture for Full File View, Split View, and all display toggles.
+**Avoids:** Accumulating tech debt from building view modes into the monolith.
 
-**Delivers:** WebdriverIO + tauri-driver setup on Linux CI; E2E specs for open-repo, stage-file, commit, verify-graph workflows; fixture library using `git2` for reproducible ephemeral repos; Gate 3 in `ci.yml`.
+### Phase 5: Full File View and Display Options
 
-**Addresses:** E2E smoke tests (P1 feature).
+**Rationale:** Full file view is simply `context_lines: 999999` — no new backend logic. Display options (whitespace toggle, context lines dropdown, word wrap, show invisibles, line numbers) all connect to the `DiffToolbar` and `DiffRequestOptions` already built in Phases 1 and 4. The staging-disabled-on-whitespace-ignore logic belongs here.
+**Delivers:** `FullFileView.svelte`; `DiffToolbar.svelte` fully wired (whitespace toggle with staging disabled, context dropdown, word wrap toggle, show invisibles toggle); line numbers rendered in gutter; LazyStore persistence for all toggle state.
+**Addresses:** Full file view (FEATURES.md differentiator), whitespace toggle (table stakes), context lines (table stakes), line numbers (table stakes), word wrap (P2), show invisibles (P2).
+**Avoids:** Whitespace-corrupts-staging pitfall — staging explicitly disabled when whitespace option is non-default.
 
-**Avoids:** Shared mutable test repos (create ephemeral repos per suite); assertions on SHA values (assert on structural properties); hardcoded sleeps (use `waitFor` polling); testing against `tauri dev` hot-reload mode (use built binary).
+### Phase 6: Split View
 
-**Research flag:** Needs `/gsd:research-phase` to decide the macOS E2E strategy. The Linux-only WebDriver approach is well-documented, but whether to add `tauri-plugin-webdriver-automation` for macOS support requires evaluating that plugin's maturity (Feb 2026, experimental). This decision affects test infrastructure design before the first line of test code is written.
-
-### Phase 3: Code Signing
-
-**Rationale:** Required before auto-updates. macOS Gatekeeper blocks unsigned update artifacts from installing; auto-update integration cannot be meaningfully tested without a signed base build. May have an external waiting period while Apple processes Developer Program enrollment ($99/year).
-
-**Delivers:** macOS code signing + notarization in `release.yml` (Apple Developer ID certificate, Entitlements.plist, notarization via App Store Connect API keys); `TAURI_SIGNING_PRIVATE_KEY` Ed25519 keypair generated and backed up; `tauri.conf.json` signing config; CI step timeouts and local fallback procedure documented.
-
-**Addresses:** macOS code signing + notarization (P1 feature); update signing keypair generation (P1 feature — logically belongs here as prerequisite for Phase 4).
-
-**Avoids:** Apple ID password in CI — use App Store Connect API keys; signing secrets in config files — use GitHub Secrets only; no timeout on notarization step — Apple servers queue unpredictably; updater private key only in GitHub secrets — back up to password manager before proceeding.
-
-**Research flag:** Largely standard patterns from official Tauri docs. However, the interaction between the existing draft-release workflow (build → publish → update Homebrew tap) and `uploadUpdaterJson: true` needs validation. Recommend a test pre-release in CI before the main implementation to verify `latest.json` appears correctly.
-
-### Phase 4: Auto-Updates
-
-**Rationale:** Last because it depends on Phase 3 (signed builds + updater keypair). All meaningful auto-update testing requires the signing chain to be in place. This phase is primarily frontend and configuration work once signing is done.
-
-**Delivers:** `tauri-plugin-updater` + `tauri-plugin-process` integrated; `UpdateChecker.svelte` component with non-blocking toast notification; download progress feedback; user-controlled restart; `latest.json` generation in release pipeline with all 4 platform entries; `createUpdaterArtifacts: true` in `tauri.conf.json`.
-
-**Addresses:** Auto-updater check + download + install (P1 feature); update notification UI (P1 feature); silent background update check (P1 feature).
-
-**Avoids:** Auto-install without user consent — always show notification, let user control restart; blocking UI during download — non-modal toast; missing platforms in `latest.json` — verify all 4 targets (darwin-aarch64, darwin-x86_64, linux-x86_64, windows-x86_64) after first release; `+` characters in version strings — breaks updater endpoint URL interpolation.
-
-**Research flag:** Standard patterns — official Tauri docs cover the full flow. No deep research needed unless the existing draft-release workflow requires custom `latest.json` handling.
+**Rationale:** The most complex feature. Depends on Phase 4's component structure and Phase 1's `AlignedLine` data. Building last among core features ensures the component architecture is stable before adding the alignment and scroll sync complexity.
+**Delivers:** `aligned-lines.ts` transformation (`DiffHunk[]` → `AlignedLine[]` with phantom rows); `SplitView.svelte` with two scroll containers; scroll sync ported from `MergeEditor.svelte` (guard flag + rAF); line click → stage (right panel) / unstage (left panel) mapping; horizontal scroll independent per pane.
+**Addresses:** Split view (FEATURES.md highest-priority differentiator alongside syntax highlighting).
+**Avoids:** Scroll sync infinite loop (MergeEditor pattern); line number alignment drift (spacer rows equalize heights; fixed line height; word wrap disabled in split mode).
 
 ### Phase Ordering Rationale
 
-- **Benchmarks before everything** — self-contained, zero external dependencies, establishes baselines before infrastructure changes affect build characteristics
-- **E2E before signing** — E2E tests become the automated validation layer for signing and updater changes; investing in the test infrastructure first makes subsequent phases safer to implement and verify
-- **Code signing before auto-updates** — hard dependency; the Tauri updater requires signed artifacts to function on macOS; this ordering is not optional
-- **All four phases in v1.0** — the features form a coherent production-readiness package; shipping code signing without auto-updates, or auto-updates without benchmarks, leaves the project incomplete in ways that degrade over time
+- **Data model first:** All features consume `WordSpan` and `SyntaxToken` from IPC; types must be defined and tested before any UI builds on them.
+- **Rust-heavy phases before UI phases:** Phases 1-3 are pure backend additions with backward-compatible IPC. Frontend risk is deferred until the data is reliable.
+- **Refactor before new view modes:** Phase 4 ensures Phases 5 and 6 build into a clean structure rather than extending a monolith.
+- **Full file view before split view:** Full file view is simple (context=MAX) and validates the `DiffToolbar` + `DiffViewer` dispatcher pattern before the complex split view is built.
+- **Color system designed across Phases 2 and 3:** Word-diff CSS vars (Phase 2) and syntax token CSS vars (Phase 3) must be designed together to prevent the three-layer color conflict pitfall.
 
 ### Research Flags
 
-**Needs `/gsd:research-phase` during planning:**
-- **Phase 2 (E2E):** macOS E2E strategy decision — evaluate `tauri-plugin-webdriver-automation` maturity vs. Linux-only approach; architecture differs significantly between the two paths and must be decided before infrastructure design
+Phases likely needing deeper research during planning:
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Benchmarks):** Criterion + inner-fn pattern is fully documented; iai-callgrind setup is straightforward with official docs
-- **Phase 3 (Code Signing):** Official Tauri docs cover the complete flow; recommend a test release to validate CI interaction with existing workflow before full implementation
-- **Phase 4 (Auto-Updates):** Official Tauri docs cover the complete flow; plugin registration follows established patterns already in the codebase
+- **Phase 3 (Syntax Highlighting):** The exact `syntect` API to use (`ClassedHTMLGenerator` vs `HighlightLines`), the scope-to-CSS-class mapping strategy, and the CSS variable naming scheme all need a focused spike. ARCHITECTURE.md is detailed but this is the first time `syntect` is used in this codebase.
+- **Phase 6 (Split View):** The `AlignedLine` pairing algorithm for unequal add/delete runs (e.g., 3 deletions paired with 5 additions — which lines get word-diff, which are shown as pure add/delete) needs explicit design before implementation. PITFALLS.md and ARCHITECTURE.md describe the approach but leave pairing heuristics open.
+
+Phases with standard, well-documented patterns (research-phase can be skipped):
+
+- **Phase 1 (Data Model):** All types and git2 APIs are verified and documented. Standard Rust/Tauri patterns throughout.
+- **Phase 2 (Word-Level Diff):** The `similar` crate's `iter_inline_changes()` API is purpose-built for this use case. No unknowns.
+- **Phase 4 (UI Refactor):** Pure Svelte 5 component extraction — established patterns in the codebase.
+- **Phase 5 (Display Options):** All backend options verified via git2 docs. LazyStore persistence is an existing pattern.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All additions sourced from official Tauri 2 docs; version pins validated against existing Rust toolchain; explicit "do not use" list backed by specific bugs and deprecation records |
-| Features | HIGH | Feature set derived from official Tauri capabilities, competitor analysis, and existing codebase state; no speculation; defer decisions backed by cost/complexity rationale |
-| Architecture | HIGH | All patterns follow established Tauri conventions; inner-fn pattern already in project; all integration points are additive not structural |
-| Pitfalls | HIGH | Top pitfalls sourced from official Tauri docs, numbered GitHub issues with root-cause analysis, practitioner post-mortems, and specific failure modes from the existing CI pipeline |
+| Stack | HIGH | All library APIs verified against official docs and crates.io; only disagreement is Shiki vs. syntect — ARCHITECTURE.md position is recommended |
+| Features | HIGH | Feature landscape verified against GitKraken, Fork, Sublime Merge, VS Code, GitHub Desktop documentation; competitor analysis is thorough |
+| Architecture | HIGH | Data model types, IPC payload estimates, component boundaries, and build order are all specified in detail; MergeEditor precedent in codebase validates key patterns |
+| Pitfalls | HIGH | Pitfalls verified against real bugs (GitHub Desktop issue #17776, GitLab issue #450248, VS Code issue #113357) and existing codebase analysis; not speculative |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **macOS E2E tooling:** `tauri-plugin-webdriver-automation` is from February 2026 with limited production track record; the Phase 2 plan must make a final decision before test infrastructure is designed. Linux-only E2E is the safe fallback if the plugin is too immature.
-
-- **Apple notarization timing:** Notarization SLA is unpredictable (30 seconds to 2+ hours per recent GitHub issue reports). The local signing fallback procedure must be documented in Phase 3 before relying on CI-only notarization for releases.
-
-- **`criterion` 0.5.x current patch version:** The pin to 0.5.1 is from training data. Verify the current 0.5.x latest on crates.io before `cargo add` — this is low risk, just confirm before Phase 1 begins.
-
-- **`tauri-action` flag names:** Research notes both `uploadUpdaterJson: true` (workflow YAML input) and `createUpdaterArtifacts: true` (tauri.conf.json field) as distinct configuration. Validate exact field names against `tauri-action@v0` release notes during Phase 3 planning to avoid silent misconfiguration.
+- **Shiki vs. syntect decision:** STACK.md and ARCHITECTURE.md reached opposite conclusions. This must be resolved in Phase 3 planning before any implementation begins. Recommendation is `syntect` (CSS custom properties compliance, no WASM, Tauri managed state pattern). If the team has strong reasons to prefer Shiki, Phase 3 planning should include a spike on the fine-grained bundle approach.
+- **AlignedLine pairing heuristic:** How to pair N deletions with M additions when N ≠ M is described qualitatively but not algorithmically. Phase 6 planning must define the exact pairing rule before writing split view code.
+- **syntect scope-to-CSS-class mapping:** The set of scope names syntect emits and the CSS custom properties to map them to need to be enumerated during Phase 3 planning. The approach is clear but the mapping table does not yet exist.
+- **Full-file view virtualization:** PITFALLS.md flags that full-file view must use virtual scrolling for large files, citing the MergeEditor pattern. ARCHITECTURE.md does not include virtualization in `FullFileView.svelte`. Phase 5 planning should decide whether to include virtual scrolling from the start or add it reactively if performance issues arise on real-world files.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Tauri 2 WebDriver docs](https://v2.tauri.app/develop/tests/webdriver/) — E2E platform support matrix, tauri-driver setup, macOS gap documentation
-- [Tauri 2 WebdriverIO Example](https://v2.tauri.app/develop/tests/webdriver/example/webdriverio/) — step-by-step wdio.conf.ts setup
-- [Tauri 2 Updater Plugin](https://v2.tauri.app/plugin/updater/) — full configuration, signing, endpoints, createUpdaterArtifacts
-- [Tauri 2 macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/) — certificate types, notarization, App Store Connect API keys
-- [Tauri 2 Windows Code Signing](https://v2.tauri.app/distribute/sign/windows/) — Azure Trusted Signing setup
-- [Tauri 2 GitHub Pipelines](https://v2.tauri.app/distribute/pipelines/github/) — tauri-action workflow, latest.json generation
-- [criterion.rs docs](https://bheisler.github.io/criterion.rs/book/getting_started.html) — Rust benchmark harness, v0.5.x API, CI noise warning
-- [iai-callgrind GitHub](https://github.com/iai-callgrind/iai-callgrind) — deterministic CI benchmarking via instruction counts
-- [tauri-apps/tauri-action](https://github.com/tauri-apps/tauri-action) — includeUpdaterJson, signing integration
+- [git2 0.19 DiffOptions docs](https://docs.rs/git2/0.19.0/git2/struct.DiffOptions.html) — all whitespace flags and `context_lines()` verified
+- [syntect crate docs](https://docs.rs/syntect/latest/syntect/) — `HighlightLines`, `SyntaxSet`, `ClassedHTMLGenerator` APIs
+- [similar crate docs](https://docs.rs/similar/latest/similar/) — `TextDiff`, `iter_inline_changes()`, inline feature
+- [Shiki best performance guide](https://shiki.style/guide/best-performance) — fine-grained bundling, JS engine, singleton pattern (evaluated; syntect chosen instead)
+- [jsdiff v8 release notes](https://github.com/kpdecker/jsdiff/blob/master/release-notes.md) — built-in TypeScript types, O(n^2) fix (evaluated; similar crate chosen instead)
+- Existing codebase: DiffPanel.svelte, MergeEditor.svelte, diff.rs, staging.rs — patterns and constraints confirmed
 
 ### Secondary (MEDIUM confidence)
-- [Ship Tauri v2 Like a Pro: Code Signing](https://dev.to/tomtomdu73/ship-your-tauri-v2-app-like-a-pro-code-signing-for-macos-and-windows-part-12-3o9n) — practitioner certificate export walkthrough
-- [Tauri auto-updater with GitHub Releases](https://thatgurjot.com/til/tauri-auto-updater/) — practical GitHub Releases updater setup
-- [Shipping a Production macOS App with Tauri 2.0](https://dev.to/0xmassi/shipping-a-production-macos-app-with-tauri-20-code-signing-notarization-and-homebrew-mc3) — end-to-end notarization walkthrough
+- [Zed split diffs blog](https://zed.dev/blog/split-diffs) — spacer row alignment, block map architecture, scroll sync lessons
+- [GitHub Desktop syntax highlighting docs](https://github.com/desktop/desktop/blob/development/docs/technical/syntax-highlighting.md) — tokenize both file versions, stitch onto diff lines pattern
+- [Code highlighter benchmark (chsm.dev, Jan 2025)](https://chsm.dev/blog/2025/01/08/comparing-web-code-highlighters) — Prism vs. Shiki performance comparison
+- [GitButler PR #7915](https://github.com/gitbutlerapp/gitbutler/pull/7915) — CodeMirror for syntax highlighting in Tauri+Svelte (evaluated; rejected for Trunk)
 
-### Tertiary (LOW confidence — needs validation)
-- [tauri-webdriver (danielraffel)](https://github.com/danielraffel/tauri-webdriver) — macOS WKWebView WebDriver alternative; 12 stars, Feb 2026, experimental; evaluate during Phase 2 planning before committing to this path
-- [CrabNebula E2E Tests](https://docs.crabnebula.dev/plugins/tauri-e2e-tests/) — cross-platform tauri-driver with macOS support; commercial, rejected for personal project
+### Tertiary (reference)
+- [GitHub Desktop diff scroll jumping issue #17776](https://github.com/desktop/desktop/issues/17776) — real-world sync scroll bugs
+- [GitLab split view alignment bug #450248](https://gitlab.com/gitlab-org/gitlab/-/issues/450248) — alignment failure patterns
+- [VS Code minimap implementation](https://github.com/microsoft/vscode/blob/main/src/vs/editor/browser/viewParts/minimap/minimap.ts) — Canvas-based minimap reference for future P3 work
 
 ---
-*Research completed: 2026-03-26*
+*Research completed: 2026-03-28*
 *Ready for roadmap: yes*
