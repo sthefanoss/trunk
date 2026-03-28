@@ -164,7 +164,7 @@ Full details: [milestones/v0.11-ROADMAP.md](milestones/v0.11-ROADMAP.md)
 
 </details>
 
-### 🚧 v0.12 Better Diffs (In Progress)
+### v0.12 Better Diffs (In Progress)
 
 **Milestone Goal:** Overhaul the diff viewer with professional-grade display and interaction options matching GitHub/GitKraken — syntax highlighting, word-level diff, split view, whitespace toggle, configurable context, and display options.
 
@@ -187,7 +187,10 @@ Full details: [milestones/v0.11-ROADMAP.md](milestones/v0.11-ROADMAP.md)
   3. Selecting "All" context lines returns a diff containing the entire file contents with changed lines highlighted
   4. DiffLine type includes word_spans and syntax_tokens fields (empty vecs for now) that serialize cleanly over IPC
   5. All diff display preferences (context lines, whitespace ignore) round-trip through LazyStore persistence
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 59-01-PLAN.md — Rust backend: types, DiffRequestOptions, thread through commands, tests
+- [ ] 59-02-PLAN.md — Frontend: TS type mirrors, LazyStore persistence, wire RepoView call sites
 
 ### Phase 60: Word-Level Diff
 **Goal**: Changed words and characters within modified lines are visually distinguished with background highlighting, so users can instantly see what changed within a line
@@ -254,7 +257,7 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 59. Backend Data Model & Diff Options | 0/0 | Not started | - |
+| 59. Backend Data Model & Diff Options | 0/2 | Planning complete | - |
 | 60. Word-Level Diff | 0/0 | Not started | - |
 | 61. Syntax Highlighting | 0/0 | Not started | - |
 | 62. UI Refactor & Component Structure | 0/0 | Not started | - |
@@ -274,8 +277,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
-| v0.12 Better Diffs | 59-64 | 0/0 | In progress | - |
+| v0.12 Better Diffs | 59-64 | 0/2 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-28 — v0.12 Better Diffs roadmap created*
+*Last updated: 2026-03-28 — Phase 59 planned (2 plans)*
