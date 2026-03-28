@@ -4,7 +4,7 @@ milestone: v0.12
 milestone_name: Better Diffs
 status: verifying
 stopped_at: Completed 60-02-PLAN.md
-last_updated: "2026-03-28T23:08:35.231Z"
+last_updated: "2026-03-28T23:14:39.548Z"
 last_activity: 2026-03-28
 progress:
   total_phases: 6
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 
 ## Current Position
 
-Phase: 60 (word-level-diff) — EXECUTING
-Plan: 2 of 2
+Phase: 61
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-03-28
 
