@@ -17,6 +17,18 @@ export type FileStatusType =
 	| "Conflicted";
 export type DiffOrigin = "Context" | "Add" | "Delete";
 
+export interface WordSpan {
+	start: number;
+	end: number;
+	emphasized: boolean;
+}
+
+export interface SyntaxToken {
+	start: number;
+	end: number;
+	scope: string;
+}
+
 export interface GraphEdge {
 	from_column: number;
 	to_column: number;
@@ -128,6 +140,8 @@ export interface DiffLine {
 	content: string;
 	old_lineno: number | null;
 	new_lineno: number | null;
+	word_spans: WordSpan[];
+	syntax_tokens: SyntaxToken[];
 }
 
 export interface DiffHunk {
@@ -153,6 +167,12 @@ export interface FileDiff {
 	status: DiffStatus;
 	is_binary: boolean;
 	hunks: DiffHunk[];
+}
+
+export interface DiffRequestOptions {
+	contextLines: number;
+	ignoreWhitespace: boolean;
+	showFullFile: boolean;
 }
 
 export interface HeadCommitMessage {

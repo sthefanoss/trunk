@@ -252,3 +252,35 @@ export async function setTreeViewEnabled(enabled: boolean): Promise<void> {
 	await store.set(TREE_VIEW_KEY, enabled);
 	await store.save();
 }
+
+// Diff display preferences (global, shared across tabs — per D-06)
+const DIFF_CONTEXT_LINES_KEY = "diff_context_lines";
+const DIFF_IGNORE_WHITESPACE_KEY = "diff_ignore_whitespace";
+const DIFF_SHOW_FULL_FILE_KEY = "diff_show_full_file";
+
+export async function getDiffContextLines(): Promise<number> {
+	return (await store.get<number>(DIFF_CONTEXT_LINES_KEY)) ?? 3;
+}
+
+export async function setDiffContextLines(lines: number): Promise<void> {
+	await store.set(DIFF_CONTEXT_LINES_KEY, lines);
+	await store.save();
+}
+
+export async function getDiffIgnoreWhitespace(): Promise<boolean> {
+	return (await store.get<boolean>(DIFF_IGNORE_WHITESPACE_KEY)) ?? false;
+}
+
+export async function setDiffIgnoreWhitespace(ignore: boolean): Promise<void> {
+	await store.set(DIFF_IGNORE_WHITESPACE_KEY, ignore);
+	await store.save();
+}
+
+export async function getDiffShowFullFile(): Promise<boolean> {
+	return (await store.get<boolean>(DIFF_SHOW_FULL_FILE_KEY)) ?? false;
+}
+
+export async function setDiffShowFullFile(show: boolean): Promise<void> {
+	await store.set(DIFF_SHOW_FULL_FILE_KEY, show);
+	await store.save();
+}
