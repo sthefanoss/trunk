@@ -200,7 +200,10 @@ Plans:
   1. When a line is modified, the specific changed words/characters are highlighted with a distinct background color on both the old (deleted) and new (added) versions
   2. Word-level highlighting is skipped for lines over 500 characters or with >60% edit distance, showing only the line-level add/delete coloring instead
   3. Word-diff background colors are defined as CSS custom properties and remain readable against both add and delete line backgrounds
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 60-01-PLAN.md — Rust backend: similar crate, word-span computation, post-processing pass, integration tests
+- [ ] 60-02-PLAN.md — Frontend: DiffPanel word-span rendering, CSS custom properties, frontend tests
 
 ### Phase 61: Syntax Highlighting
 **Goal**: Diff lines display language-aware syntax coloring that auto-detects language from the file extension, making code diffs as readable as an editor
@@ -258,7 +261,7 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 59. Backend Data Model & Diff Options | 2/2 | Complete    | 2026-03-28 |
-| 60. Word-Level Diff | 0/0 | Not started | - |
+| 60. Word-Level Diff | 0/2 | Not started | - |
 | 61. Syntax Highlighting | 0/0 | Not started | - |
 | 62. UI Refactor & Component Structure | 0/0 | Not started | - |
 | 63. Full File View & Display Options | 0/0 | Not started | - |
@@ -277,8 +280,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
-| v0.12 Better Diffs | 59-64 | 0/2 | In progress | - |
+| v0.12 Better Diffs | 59-64 | 2/4 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-28 — Phase 59 planned (2 plans)*
+*Last updated: 2026-03-28 — Phase 60 planned (2 plans)*
