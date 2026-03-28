@@ -834,6 +834,38 @@ fn graph_response_serializes_correctly() {
     );
 }
 
+// ── DiffLine enrichment fields ──────────────────────────────────────────────
+
+#[test]
+fn diff_line_serializes_word_spans_and_syntax_tokens_as_empty_arrays() {
+    let ctx = TestContext::builder()
+        .with_file("README.md", "line1\nline2\n")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("README.md"), "line1\nchanged\n").unwrap();
+
+    let result = ctx.diff_unstaged("README.md").unwrap();
+    let json = serde_json::to_value(&result).expect("serialization failed");
+
+    let line = &json[0]["hunks"][0]["lines"][0];
+    assert!(line["word_spans"].is_array(), "word_spans should be an array");
+    assert!(
+        line["syntax_tokens"].is_array(),
+        "syntax_tokens should be an array"
+    );
+    assert_eq!(
+        line["word_spans"].as_array().unwrap().len(),
+        0,
+        "word_spans should be empty"
+    );
+    assert_eq!(
+        line["syntax_tokens"].as_array().unwrap().len(),
+        0,
+        "syntax_tokens should be empty"
+    );
+}
+
 // NOTE: MergeSides and Vec<RebaseTodoItem> are not tested here because they
 // require the repo to be in an active merge/rebase conflict state. They share
 // the same serde patterns as the tested types (structs with String and

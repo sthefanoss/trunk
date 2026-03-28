@@ -1,6 +1,7 @@
 mod common;
 
 use common::context::TestContext;
+use trunk_lib::git::types::DiffRequestOptions;
 
 // -- diff_unstaged tests --
 
@@ -243,5 +244,178 @@ fn commit_detail_includes_committer_fields() {
     assert!(
         detail.committer_timestamp > 0,
         "expected committer_timestamp > 0"
+    );
+}
+
+// -- DiffRequestOptions tests --
+
+#[test]
+fn diff_unstaged_respects_context_lines() {
+    let content: String = (1..=20).map(|i| format!("line {}\n", i)).collect();
+    let ctx = TestContext::builder()
+        .with_file("big.txt", &content)
+        .with_commit("Initial commit")
+        .build();
+
+    let modified: String = (1..=20)
+        .map(|i| {
+            if i == 10 {
+                "changed line 10\n".to_string()
+            } else {
+                format!("line {}\n", i)
+            }
+        })
+        .collect();
+    std::fs::write(ctx.repo_path().join("big.txt"), &modified).unwrap();
+
+    let opts_1 = DiffRequestOptions {
+        context_lines: 1,
+        ..Default::default()
+    };
+    let result_1 = ctx.diff_unstaged_with_options("big.txt", &opts_1).unwrap();
+    let lines_1: usize = result_1[0].hunks.iter().map(|h| h.lines.len()).sum();
+
+    let opts_5 = DiffRequestOptions {
+        context_lines: 5,
+        ..Default::default()
+    };
+    let result_5 = ctx.diff_unstaged_with_options("big.txt", &opts_5).unwrap();
+    let lines_5: usize = result_5[0].hunks.iter().map(|h| h.lines.len()).sum();
+
+    assert!(
+        lines_5 > lines_1,
+        "context_lines=5 should produce more lines than context_lines=1: got {} vs {}",
+        lines_5,
+        lines_1
+    );
+}
+
+#[test]
+fn diff_unstaged_ignores_whitespace_when_enabled() {
+    let ctx = TestContext::builder()
+        .with_file("ws.txt", "hello world\n")
+        .with_commit("Initial commit")
+        .build();
+
+    // Only change whitespace (add extra spaces)
+    std::fs::write(ctx.repo_path().join("ws.txt"), "hello  world  \n").unwrap();
+
+    // Without whitespace ignore -- should show changes
+    let opts_normal = DiffRequestOptions::default();
+    let result_normal = ctx
+        .diff_unstaged_with_options("ws.txt", &opts_normal)
+        .unwrap();
+    assert!(
+        !result_normal.is_empty(),
+        "expected diff without whitespace ignore"
+    );
+    let has_changes = result_normal[0].hunks.iter().any(|h| !h.lines.is_empty());
+    assert!(has_changes, "expected changes in normal diff");
+
+    // With whitespace ignore -- should show no meaningful changes
+    let opts_ignore = DiffRequestOptions {
+        ignore_whitespace: true,
+        ..Default::default()
+    };
+    let result_ignore = ctx
+        .diff_unstaged_with_options("ws.txt", &opts_ignore)
+        .unwrap();
+    // When ignoring whitespace changes, git2 produces empty hunks or no hunks
+    let ignore_lines: usize = result_ignore
+        .iter()
+        .flat_map(|fd| fd.hunks.iter())
+        .flat_map(|h| h.lines.iter())
+        .filter(|l| {
+            matches!(
+                l.origin,
+                trunk_lib::git::types::DiffOrigin::Add | trunk_lib::git::types::DiffOrigin::Delete
+            )
+        })
+        .count();
+    assert_eq!(
+        ignore_lines, 0,
+        "expected no add/delete lines when ignoring whitespace"
+    );
+}
+
+#[test]
+fn diff_unstaged_show_full_file_returns_all_lines() {
+    let content: String = (1..=50).map(|i| format!("line {}\n", i)).collect();
+    let ctx = TestContext::builder()
+        .with_file("full.txt", &content)
+        .with_commit("Initial commit")
+        .build();
+
+    let modified: String = (1..=50)
+        .map(|i| {
+            if i == 25 {
+                "changed line 25\n".to_string()
+            } else {
+                format!("line {}\n", i)
+            }
+        })
+        .collect();
+    std::fs::write(ctx.repo_path().join("full.txt"), &modified).unwrap();
+
+    let opts = DiffRequestOptions {
+        show_full_file: true,
+        ..Default::default()
+    };
+    let result = ctx
+        .diff_unstaged_with_options("full.txt", &opts)
+        .unwrap();
+    let total_lines: usize = result[0].hunks.iter().map(|h| h.lines.len()).sum();
+
+    // Full file should have at least 50 lines (50 original context + 1 delete + 1 add = ~52)
+    assert!(
+        total_lines >= 50,
+        "show_full_file should return all lines, got {}",
+        total_lines
+    );
+}
+
+#[test]
+fn diff_commit_respects_context_lines() {
+    let content: String = (1..=20).map(|i| format!("line {}\n", i)).collect();
+    let modified: String = (1..=20)
+        .map(|i| {
+            if i == 10 {
+                "changed line 10\n".to_string()
+            } else {
+                format!("line {}\n", i)
+            }
+        })
+        .collect();
+
+    let ctx = TestContext::builder()
+        .with_file("big.txt", &content)
+        .with_commit("Initial commit")
+        .with_file("big.txt", &modified)
+        .with_commit("Modify line 10")
+        .build();
+
+    let repo = ctx.repo();
+    let head_oid = repo.head().unwrap().target().unwrap().to_string();
+    drop(repo);
+
+    let opts_1 = DiffRequestOptions {
+        context_lines: 1,
+        ..Default::default()
+    };
+    let result_1 = ctx.diff_commit_with_options(&head_oid, &opts_1).unwrap();
+    let lines_1: usize = result_1[0].hunks.iter().map(|h| h.lines.len()).sum();
+
+    let opts_5 = DiffRequestOptions {
+        context_lines: 5,
+        ..Default::default()
+    };
+    let result_5 = ctx.diff_commit_with_options(&head_oid, &opts_5).unwrap();
+    let lines_5: usize = result_5[0].hunks.iter().map(|h| h.lines.len()).sum();
+
+    assert!(
+        lines_5 > lines_1,
+        "context_lines=5 should produce more lines than context_lines=1 for commit diff: got {} vs {}",
+        lines_5,
+        lines_1
     );
 }
