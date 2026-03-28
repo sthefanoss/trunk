@@ -1,36 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.11
-milestone_name: Infrastructure
-status: complete
-stopped_at: v0.11 milestone shipped
-last_updated: "2026-03-27T15:03:49.539Z"
-last_activity: 2026-03-27
+milestone: v0.12
+milestone_name: Better Diffs
+status: in_progress
+stopped_at: Defining requirements
+last_updated: "2026-03-28"
+last_activity: 2026-03-28
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-27 after v0.11 milestone shipped)
+See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Planning next milestone
+**Current focus:** v0.12 Better Diffs
 
 ## Current Position
 
-Phase: None — milestone complete
-Plan: None
-Status: v0.11 Infrastructure shipped
-Last activity: 2026-03-27
-
-Progress: [███░░░░░░░] 25%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-28 — Milestone v0.12 started
 
 ## Performance Metrics
 

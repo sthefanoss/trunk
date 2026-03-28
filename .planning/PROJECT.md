@@ -104,7 +104,17 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 (Defined in REQUIREMENTS.md for current milestone)
 
-## Current Milestone: Planning next milestone
+## Current Milestone: v0.12 Better Diffs
+
+**Goal:** Overhaul the diff viewer with professional-grade display and interaction options matching GitHub/GitKraken.
+
+**Target features:**
+- View mode toggle: hunk view ↔ full file view ↔ split (side-by-side)
+- Syntax highlighting with auto language detection
+- Word-level (intra-line) diff highlighting for changed words/chars
+- Whitespace toggle (ignore whitespace changes) + show invisible characters
+- Configurable context lines with incremental expand
+- Display options: word wrap toggle, line numbers in gutter, scrollbar minimap
 
 ### Out of Scope
 
@@ -215,4 +225,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after v0.11 Infrastructure milestone shipped*
+*Last updated: 2026-03-28 after v0.12 Better Diffs milestone started*
