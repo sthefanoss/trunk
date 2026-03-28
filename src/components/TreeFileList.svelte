@@ -206,7 +206,7 @@ function handleKeydown(e: KeyboardEvent) {
         depth={row.depth}
         expanded={row.expanded}
         focused={i === focusIndex}
-        ontoggle={() => toggleExpanded(row.node.path)}
+        ontoggle={() => { focusIndex = i; lastFocusedPath = row.node.path; toggleExpanded(row.node.path); }}
         actionLabel={ondirectoryaction ? actionLabel : ''}
         onaction={ondirectoryaction ? () => ondirectoryaction!(row.node.path) : undefined}
         oncontextmenu={ondirectorycontextmenu ? (e) => ondirectorycontextmenu!(e, row.node.path) : undefined}
@@ -217,7 +217,7 @@ function handleKeydown(e: KeyboardEvent) {
         actionLabel={actionLabel}
         isLoading={loadingFiles?.has(row.node.file.path) ?? false}
         onaction={() => onfileaction(row.node.file.path)}
-        onclick={() => onfileclick?.(row.node.file.path)}
+        onclick={() => { focusIndex = i; lastFocusedPath = row.node.file.path; onfileclick?.(row.node.file.path); }}
         oncontextmenu={onfilecontextmenu ? (e) => onfilecontextmenu!(e, row.node.file.path, row.node.file) : undefined}
         depth={treeMode ? row.depth : 0}
         displayName={treeMode ? row.node.name : undefined}

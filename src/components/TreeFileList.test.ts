@@ -78,6 +78,63 @@ describe("TreeFileList", () => {
 		expect(onfileclick).toHaveBeenCalledWith("src/a.ts");
 	});
 
+	it("clicking a file updates visual focus to that file", async () => {
+		const onfileclick = vi.fn();
+		const files = [makeFile("a.ts"), makeFile("b.ts"), makeFile("c.ts")];
+		render(TreeFileList, {
+			props: {
+				files,
+				treeMode: false,
+				actionLabel: "Stage",
+				onfileaction: vi.fn(),
+				onfileclick,
+			},
+		});
+		const list = screen.getByRole("list");
+
+		// Keyboard-navigate down to second file (b.ts)
+		await fireEvent.keyDown(list, { key: "ArrowDown" });
+
+		// Verify b.ts is focused (has focus background)
+		const items = screen.getAllByRole("listitem");
+		expect(items[1].style.background).toContain("var(--color-tree-focus)");
+		expect(items[2].style.background).not.toContain("var(--color-tree-focus)");
+
+		// Click on c.ts
+		await fireEvent.click(screen.getByText("c.ts"));
+
+		// Verify c.ts is now focused and b.ts is no longer focused
+		expect(items[2].style.background).toContain("var(--color-tree-focus)");
+		expect(items[1].style.background).not.toContain("var(--color-tree-focus)");
+	});
+
+	it("keyboard navigation continues from clicked file", async () => {
+		const onfileclick = vi.fn();
+		const files = [makeFile("a.ts"), makeFile("b.ts"), makeFile("c.ts")];
+		render(TreeFileList, {
+			props: {
+				files,
+				treeMode: false,
+				actionLabel: "Stage",
+				onfileaction: vi.fn(),
+				onfileclick,
+			},
+		});
+		const list = screen.getByRole("list");
+
+		// Click on c.ts (last file, index 2)
+		await fireEvent.click(screen.getByText("c.ts"));
+		expect(onfileclick).toHaveBeenCalledWith("c.ts");
+
+		// Press ArrowUp — should move to b.ts (index 1), not from initial position
+		await fireEvent.keyDown(list, { key: "ArrowUp" });
+		expect(onfileclick).toHaveBeenCalledWith("b.ts");
+
+		// Verify b.ts is visually focused
+		const items = screen.getAllByRole("listitem");
+		expect(items[1].style.background).toContain("var(--color-tree-focus)");
+	});
+
 	it("renders list role in flat mode and tree role in tree mode", () => {
 		const files = [makeFile("a.ts")];
 		const { rerender } = render(TreeFileList, {
