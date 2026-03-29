@@ -24,6 +24,14 @@ vi.mock("../lib/store.js", () => {
 			currentViewMode = mode;
 			return Promise.resolve(undefined);
 		}),
+		getDiffIgnoreWhitespace: vi.fn().mockResolvedValue(false),
+		setDiffIgnoreWhitespace: vi.fn().mockResolvedValue(undefined),
+		getDiffShowFullFile: vi.fn().mockResolvedValue(false),
+		setDiffShowFullFile: vi.fn().mockResolvedValue(undefined),
+		getDiffShowInvisibles: vi.fn().mockResolvedValue(false),
+		setDiffShowInvisibles: vi.fn().mockResolvedValue(undefined),
+		getDiffWordWrap: vi.fn().mockResolvedValue(false),
+		setDiffWordWrap: vi.fn().mockResolvedValue(undefined),
 		addRecentRepo: vi.fn().mockResolvedValue(undefined),
 		getRecentRepos: vi.fn().mockResolvedValue([]),
 		removeRecentRepo: vi.fn().mockResolvedValue(undefined),

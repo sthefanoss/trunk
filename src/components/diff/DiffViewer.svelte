@@ -18,6 +18,9 @@ interface Props {
   diffKind: "unstaged" | "staged" | "commit";
   loading: boolean;
   hunkOperationInFlight: boolean;
+  ignoreWhitespace: boolean;
+  showInvisibles: boolean;
+  wordWrap: boolean;
   selectedHunkKey: string | null;
   selectedLineIndices: Set<number>;
   selectedCount: number;
@@ -41,6 +44,9 @@ let {
   diffKind,
   loading,
   hunkOperationInFlight,
+  ignoreWhitespace,
+  showInvisibles,
+  wordWrap,
   selectedHunkKey,
   selectedLineIndices,
   selectedCount,
@@ -75,6 +81,9 @@ let {
       {selectedPath}
       {diffKind}
       {hunkOperationInFlight}
+      {ignoreWhitespace}
+      {showInvisibles}
+      {wordWrap}
       {selectedHunkKey}
       {selectedLineIndices}
       {selectedCount}

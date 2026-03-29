@@ -1,7 +1,13 @@
 <script lang="ts">
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { showToast } from "../lib/toast.svelte.js";
-import { getDiffViewMode, setDiffViewMode } from "../lib/store.js";
+import {
+	getDiffViewMode, setDiffViewMode,
+	getDiffIgnoreWhitespace, setDiffIgnoreWhitespace,
+	getDiffShowFullFile, setDiffShowFullFile,
+	getDiffShowInvisibles, setDiffShowInvisibles,
+	getDiffWordWrap, setDiffWordWrap,
+} from "../lib/store.js";
 import type {
 	CommitDetail,
 	DiffLine,
@@ -20,6 +26,7 @@ interface Props {
 	diffKind?: "unstaged" | "staged" | "commit";
 	repoPath?: string;
 	onhunkaction?: (filePath: string) => Promise<void>;
+	ondiffoptionschange?: () => void;
 	loading?: boolean;
 }
 
@@ -31,10 +38,14 @@ let {
 	diffKind = "commit",
 	repoPath = "",
 	onhunkaction,
+	ondiffoptionschange,
 	loading = false,
 }: Props = $props();
 
 let viewMode = $state<ViewMode>("hunk");
+let ignoreWhitespace = $state(false);
+let showInvisibles = $state(false);
+let wordWrap = $state(false);
 let hunkOperationInFlight = $state(false);
 let focusedHunkIndex = $state(0);
 let hunkElements = $state<Record<string, HTMLDivElement>>({});
@@ -47,13 +58,42 @@ let selectedCount = $derived(selectedLineIndices.size);
 let collapsedFiles = $state<Set<string>>(new Set());
 
 $effect(() => {
-	getDiffViewMode().then((m) => { viewMode = m; }).catch(() => {});
+	Promise.all([
+		getDiffViewMode(),
+		getDiffIgnoreWhitespace(),
+		getDiffShowInvisibles(),
+		getDiffWordWrap(),
+	]).then(([m, iw, si, ww]) => {
+		viewMode = m;
+		ignoreWhitespace = iw;
+		showInvisibles = si;
+		wordWrap = ww;
+	}).catch(() => {});
 });
 
 function handleViewModeChange(mode: ViewMode) {
 	viewMode = mode;
 	setDiffViewMode(mode);
+	const shouldShowFull = mode === "full";
+	setDiffShowFullFile(shouldShowFull);
 	clearSelection();
+	ondiffoptionschange?.();
+}
+
+function handleIgnoreWhitespaceChange(value: boolean) {
+	ignoreWhitespace = value;
+	setDiffIgnoreWhitespace(value);
+	ondiffoptionschange?.();
+}
+
+function handleShowInvisiblesChange(value: boolean) {
+	showInvisibles = value;
+	setDiffShowInvisibles(value);
+}
+
+function handleWordWrapChange(value: boolean) {
+	wordWrap = value;
+	setDiffWordWrap(value);
 }
 
 function clearSelection() {
@@ -308,6 +348,12 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		selectedPath={selectedPath}
 		{diffKind}
 		{hunkOperationInFlight}
+		{ignoreWhitespace}
+		{showInvisibles}
+		{wordWrap}
+		onignorewhitespacechange={handleIgnoreWhitespaceChange}
+		onshowinvisibleschange={handleShowInvisiblesChange}
+		onwordwrapchange={handleWordWrapChange}
 		onstagefile={handleStageFile}
 		onunstagefile={handleUnstageFile}
 		onclose={onclose}
@@ -320,6 +366,9 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		{diffKind}
 		{loading}
 		{hunkOperationInFlight}
+		{ignoreWhitespace}
+		{showInvisibles}
+		{wordWrap}
 		{selectedHunkKey}
 		{selectedLineIndices}
 		{selectedCount}

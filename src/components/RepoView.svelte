@@ -659,6 +659,11 @@ function startRightResize(e: MouseEvent) {
             await refetchFileDiff(filePath, selectedFile.kind);
           }
         }}
+        ondiffoptionschange={async () => {
+          if (selectedFile && selectedFile.kind !== "conflicted") {
+            await refetchFileDiff(selectedFile.path, selectedFile.kind);
+          }
+        }}
         onclose={handleDiffClose}
       />
     {:else}

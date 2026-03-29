@@ -6,6 +6,9 @@ interface Props {
   selectedPath: string | null;
   diffKind: "unstaged" | "staged" | "commit";
   hunkOperationInFlight: boolean;
+  ignoreWhitespace: boolean;
+  showInvisibles: boolean;
+  wordWrap: boolean;
   selectedHunkKey: string | null;
   selectedLineIndices: Set<number>;
   selectedCount: number;
@@ -26,6 +29,9 @@ let {
   selectedPath,
   diffKind,
   hunkOperationInFlight,
+  ignoreWhitespace,
+  showInvisibles,
+  wordWrap,
   selectedHunkKey,
   selectedLineIndices,
   selectedCount,
@@ -40,6 +46,13 @@ let {
   onunstagelines,
   ondiscardlines,
 }: Props = $props();
+
+const stagingDisabled = $derived(hunkOperationInFlight || ignoreWhitespace);
+const stagingDisabledTitle = $derived(
+  ignoreWhitespace
+    ? "Staging is disabled while whitespace changes are ignored"
+    : undefined
+);
 
 function lineBackground(origin: string, isSelected: boolean = false): string {
   if (origin === "Add")
@@ -141,7 +154,8 @@ function gutterWidth(maxNum: number): string {
             {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
             {#if hasSelection}
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-danger-bg);
                   border: 1px solid var(--color-danger-border);
@@ -150,8 +164,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => ondiscardlines(fd.path, hunkIdx)}
@@ -159,7 +173,8 @@ function gutterWidth(maxNum: number): string {
                 Discard Lines ({selectedCount})
               </button>
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-success-bg);
                   border: 1px solid var(--color-success-border);
@@ -168,8 +183,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => onstagelines(fd.path, hunkIdx)}
@@ -178,7 +193,8 @@ function gutterWidth(maxNum: number): string {
               </button>
             {:else}
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-danger-bg);
                   border: 1px solid var(--color-danger-border);
@@ -187,8 +203,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => ondiscardhunk(fd.path, hunkIdx)}
@@ -196,7 +212,8 @@ function gutterWidth(maxNum: number): string {
                 Discard Hunk
               </button>
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-success-bg);
                   border: 1px solid var(--color-success-border);
@@ -205,8 +222,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => onstagehunk(fd.path, hunkIdx)}
@@ -219,7 +236,8 @@ function gutterWidth(maxNum: number): string {
             {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
             {#if hasSelection}
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-warning-bg);
                   border: 1px solid var(--color-warning-border);
@@ -228,8 +246,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => onunstagelines(fd.path, hunkIdx)}
@@ -238,7 +256,8 @@ function gutterWidth(maxNum: number): string {
               </button>
             {:else}
               <button
-                disabled={hunkOperationInFlight}
+                disabled={stagingDisabled}
+              title={stagingDisabledTitle}
                 style="
                   background: var(--color-warning-bg);
                   border: 1px solid var(--color-warning-border);
@@ -247,8 +266,8 @@ function gutterWidth(maxNum: number): string {
                   font-size: 11px;
                   font-family: var(--font-sans, sans-serif);
                   padding: 2px 8px;
-                  cursor: {hunkOperationInFlight ? 'not-allowed' : 'pointer'};
-                  opacity: {hunkOperationInFlight ? 0.4 : 1};
+                  cursor: {stagingDisabled ? 'not-allowed' : 'pointer'};
+                  opacity: {stagingDisabled ? 0.4 : 1};
                   white-space: nowrap;
                 "
                 onclick={() => onunstagehunk(fd.path, hunkIdx)}
@@ -271,14 +290,15 @@ function gutterWidth(maxNum: number): string {
               font-size: 12px;
               line-height: 1.5;
               padding: 0 8px;
-              white-space: pre;
-              overflow-x: auto;
+              white-space: {wordWrap ? 'pre-wrap' : 'pre'};
+              overflow-x: {wordWrap ? 'hidden' : 'auto'};
               background: {lineBackground(line.origin, isSelected)};
               color: {lineColor(line.origin)};
               cursor: {isSelectable ? 'pointer' : 'default'};
               -webkit-user-select: {isSelectable ? 'none' : 'text'};
               user-select: {isSelectable ? 'none' : 'text'};
               display: flex;
+              align-items: flex-start;
             "
             onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
             onclick={(e) => isSelectable && onlineclick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
