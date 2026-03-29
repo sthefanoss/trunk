@@ -228,7 +228,10 @@ Plans:
   2. Line numbers (old and new) are displayed in the diff gutter for every line
   3. Existing hunk view behavior (stage/unstage/discard hunks and lines, keyboard navigation) works identically after the refactor
   4. Word-level diff highlights and syntax coloring render correctly through the new component structure
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Component extraction: ViewMode type, store, DiffToolbar, DiffViewer, HunkView with line gutter, stubs, DiffPanel thin shell
+- [ ] 62-02-PLAN.md — Tests and visual verification: VIEW-01 and DISP-01 test cases, UI checkpoint
 **UI hint**: yes
 
 ### Phase 63: Full File View & Display Options
@@ -265,8 +268,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 |-------|----------------|--------|-----------|
 | 59. Backend Data Model & Diff Options | 2/2 | Complete    | 2026-03-28 |
 | 60. Word-Level Diff | 2/2 | Complete    | 2026-03-28 |
-| 61. Syntax Highlighting | 2/2 | Complete   | 2026-03-29 |
-| 62. UI Refactor & Component Structure | 0/0 | Not started | - |
+| 61. Syntax Highlighting | 2/2 | Complete    | 2026-03-29 |
+| 62. UI Refactor & Component Structure | 0/2 | Not started | - |
 | 63. Full File View & Display Options | 0/0 | Not started | - |
 | 64. Split View | 0/0 | Not started | - |
 
@@ -283,8 +286,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
-| v0.12 Better Diffs | 59-64 | 4/6 | In progress | - |
+| v0.12 Better Diffs | 59-64 | 6/8 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-28 — Phase 61 planned (2 plans)*
+*Last updated: 2026-03-29 — Phase 62 planned (2 plans)*
