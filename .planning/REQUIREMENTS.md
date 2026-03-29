@@ -9,7 +9,7 @@ Requirements for Better Diffs milestone. Each maps to roadmap phases.
 
 ### View Modes
 
-- [ ] **VIEW-01**: User can toggle diff between hunk view, full file view, and split (side-by-side) view
+- [x] **VIEW-01**: User can toggle diff between hunk view, full file view, and split (side-by-side) view
 - [ ] **VIEW-02**: Split view shows old content on left, new on right, with phantom/spacer rows for alignment
 - [ ] **VIEW-03**: Split view panels scroll in sync (locked)
 - [ ] **VIEW-04**: Full file view shows entire file with changed lines highlighted (via context_lines=MAX)
@@ -39,7 +39,7 @@ Requirements for Better Diffs milestone. Each maps to roadmap phases.
 
 ### Display Options
 
-- [ ] **DISP-01**: Line numbers shown in diff gutter (old lineno + new lineno)
+- [x] **DISP-01**: Line numbers shown in diff gutter (old lineno + new lineno)
 - [ ] **DISP-02**: User can toggle word wrap in the diff viewer
 - [x] **DISP-03**: All diff display preferences persist across sessions via LazyStore
 
@@ -85,8 +85,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SYNT-01 | Phase 61 | Complete |
 | SYNT-02 | Phase 61 | Complete |
 | SYNT-03 | Phase 61 | Complete |
-| DISP-01 | Phase 62 | Pending |
-| VIEW-01 | Phase 62 | Pending |
+| DISP-01 | Phase 62 | Complete |
+| VIEW-01 | Phase 62 | Complete |
 | VIEW-04 | Phase 63 | Pending |
 | WHSP-02 | Phase 63 | Pending |
 | WHSP-03 | Phase 63 | Pending |
