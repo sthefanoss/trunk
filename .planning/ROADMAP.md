@@ -244,7 +244,10 @@ Plans:
   3. User can toggle display of invisible characters (spaces as dots, tabs as arrows) in the diff viewer
   4. User can toggle word wrap on and off in the diff viewer
   5. All display preferences (word wrap, show invisibles, whitespace ignore, context lines, view mode) persist across sessions
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 63-01-PLAN.md — Store preferences, CSS vars, DiffToolbar toggles, staging guard, word wrap, re-fetch wiring
+- [ ] 63-02-PLAN.md — FullFileView continuous document, invisible character utility, HunkView invisibles integration, tests
 **UI hint**: yes
 
 ### Phase 64: Split View
@@ -270,7 +273,7 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | 60. Word-Level Diff | 2/2 | Complete    | 2026-03-28 |
 | 61. Syntax Highlighting | 2/2 | Complete    | 2026-03-29 |
 | 62. UI Refactor & Component Structure | 2/2 | Complete    | 2026-03-29 |
-| 63. Full File View & Display Options | 0/0 | Not started | - |
+| 63. Full File View & Display Options | 0/2 | Planned     | - |
 | 64. Split View | 0/0 | Not started | - |
 
 | Milestone | Phases | Plans | Status | Shipped |
@@ -286,8 +289,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
-| v0.12 Better Diffs | 59-64 | 6/8 | In progress | - |
+| v0.12 Better Diffs | 59-64 | 8/10 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-29 — Phase 62 planned (2 plans)*
+*Last updated: 2026-03-29 — Phase 63 planned (2 plans)*
