@@ -29,6 +29,13 @@ export interface SyntaxToken {
 	scope: string;
 }
 
+export interface MergedSpan {
+	start: number;
+	end: number;
+	syntax_class: string;
+	emphasized: boolean;
+}
+
 export interface GraphEdge {
 	from_column: number;
 	to_column: number;
@@ -140,8 +147,7 @@ export interface DiffLine {
 	content: string;
 	old_lineno: number | null;
 	new_lineno: number | null;
-	word_spans: WordSpan[];
-	syntax_tokens: SyntaxToken[];
+	spans: MergedSpan[];
 }
 
 export interface DiffHunk {

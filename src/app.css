@@ -24,6 +24,23 @@
 	--color-diff-word-add-bg: rgba(74, 222, 128, 0.35);
 	--color-diff-word-delete-bg: rgba(248, 113, 113, 0.35);
 
+	/* Syntax highlighting colors (Phase 61) -- per D-02, D-03 */
+	--color-syn-keyword: #569cd6;
+	--color-syn-string: #ce9178;
+	--color-syn-comment: #6a9955;
+	--color-syn-number: #b5cea8;
+	--color-syn-type: #4ec9b0;
+	--color-syn-function: #dcdcaa;
+	--color-syn-variable: #9cdcfe;
+	--color-syn-constant: #4fc1ff;
+	--color-syn-operator: #d4d4d4;
+	--color-syn-punctuation: #808080;
+	--color-syn-attribute: #9cdcfe;
+	--color-syn-tag: #569cd6;
+	--color-syn-property: #9cdcfe;
+	--color-syn-regex: #d16969;
+	--color-syn-escape: #d7ba7d;
+
 	/* Semantic status colors */
 	--color-success: #4ade80;
 	--color-success-bg: rgba(74, 222, 128, 0.15);
