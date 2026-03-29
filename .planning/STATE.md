@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.12
 milestone_name: Better Diffs
-status: executing
-stopped_at: Completed 61-01-PLAN.md
-last_updated: "2026-03-29T12:06:49.500Z"
+status: verifying
+stopped_at: Completed 61-02-PLAN.md
+last_updated: "2026-03-29T12:13:59.217Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 
 Phase: 61 (syntax-highlighting) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-03-29
 
 Progress: [░░░░░░░░░░] 0%
@@ -44,6 +44,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 60 P01 | 5min | 1 tasks | 7 files |
 | Phase 60 P02 | 3min | 2 tasks | 3 files |
 | Phase 61 P01 | 17min | 2 tasks | 8 files |
+| Phase 61 P02 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 61]: Used base16-ocean.dark bundled theme with 7 discovered RGB color mappings (keyword, string, comment, number, function, type, variable)
 - [Phase 61]: DiffLine.spans: Vec<MergedSpan> replaces separate word_spans and syntax_tokens -- single unified field for frontend
 - [Phase 61]: Sweep-line boundary merge algorithm: collect all boundary points, sort+dedup, iterate pairs for zero-gap coverage
+- [Phase 61]: 15 CSS custom properties for syntax colors (--color-syn-*) even though backend produces 7 colors -- future-proofs for richer themes
+- [Phase 61]: Opacity 0.7 via CSS [class*=syn-] on diff-line-add/delete containers for syntax desaturation on diff backgrounds
 
 ### Pending Todos
 
@@ -89,7 +92,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-28
-Last session: 2026-03-29T12:06:49.495Z
-Stopped at: Completed 61-01-PLAN.md
+Last session: 2026-03-29T12:13:59.212Z
+Stopped at: Completed 61-02-PLAN.md
 Resume file: None
 Next action: /gsd:plan-phase 59

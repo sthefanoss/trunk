@@ -170,7 +170,7 @@ Full details: [milestones/v0.11-ROADMAP.md](milestones/v0.11-ROADMAP.md)
 
 - [x] **Phase 59: Backend Data Model & Diff Options** - Extend DiffLine with enrichment fields and wire DiffRequestOptions through all diff commands (completed 2026-03-28)
 - [x] **Phase 60: Word-Level Diff** - Highlight changed words/characters within modified lines using the similar crate (completed 2026-03-28)
-- [ ] **Phase 61: Syntax Highlighting** - Language-aware syntax coloring for all diff lines using syntect
+- [x] **Phase 61: Syntax Highlighting** - Language-aware syntax coloring for all diff lines using syntect (completed 2026-03-29)
 - [ ] **Phase 62: UI Refactor & Component Structure** - Extract DiffPanel monolith into composable components with view mode dispatch
 - [ ] **Phase 63: Full File View & Display Options** - Full file view, whitespace toggle, context dropdown, word wrap, show invisibles, line numbers
 - [ ] **Phase 64: Split View** - Side-by-side diff with aligned phantom rows and synchronized scrolling
@@ -214,10 +214,10 @@ Plans:
   2. Language is automatically detected from the file extension with no user action required
   3. Syntax colors are visually desaturated on add/delete line backgrounds so that the diff context (add vs delete) remains the dominant visual signal
   4. Syntax highlighting uses CSS classes mapped to custom properties, not inline styles
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 61-01-PLAN.md — Rust backend: syntect integration, syntax module, MergedSpan type, merge algorithm, diff pipeline wiring, tests
-- [ ] 61-02-PLAN.md — Frontend: TypeScript types, CSS custom properties, DiffPanel merged span rendering, opacity reduction, tests
+- [x] 61-02-PLAN.md — Frontend: TypeScript types, CSS custom properties, DiffPanel merged span rendering, opacity reduction, tests
 
 ### Phase 62: UI Refactor & Component Structure
 **Goal**: The DiffPanel monolith is decomposed into focused components (toolbar, viewer dispatcher, line renderer) that support multiple view modes and display options
@@ -265,7 +265,7 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 |-------|----------------|--------|-----------|
 | 59. Backend Data Model & Diff Options | 2/2 | Complete    | 2026-03-28 |
 | 60. Word-Level Diff | 2/2 | Complete    | 2026-03-28 |
-| 61. Syntax Highlighting | 1/2 | In Progress|  |
+| 61. Syntax Highlighting | 2/2 | Complete   | 2026-03-29 |
 | 62. UI Refactor & Component Structure | 0/0 | Not started | - |
 | 63. Full File View & Display Options | 0/0 | Not started | - |
 | 64. Split View | 0/0 | Not started | - |
