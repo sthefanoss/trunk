@@ -29,7 +29,7 @@ Requirements for Better Diffs milestone. Each maps to roadmap phases.
 ### Whitespace
 
 - [x] **WHSP-01**: User can toggle whitespace ignore in the diff toolbar (re-fetches diff with ignore_whitespace_change)
-- [ ] **WHSP-02**: Hunk/line staging is disabled with tooltip when whitespace ignore is active
+- [x] **WHSP-02**: Hunk/line staging is disabled with tooltip when whitespace ignore is active
 - [ ] **WHSP-03**: User can toggle display of invisible characters (spaces as dots, tabs as arrows)
 
 ### Context Lines
@@ -40,7 +40,7 @@ Requirements for Better Diffs milestone. Each maps to roadmap phases.
 ### Display Options
 
 - [x] **DISP-01**: Line numbers shown in diff gutter (old lineno + new lineno)
-- [ ] **DISP-02**: User can toggle word wrap in the diff viewer
+- [x] **DISP-02**: User can toggle word wrap in the diff viewer
 - [x] **DISP-03**: All diff display preferences persist across sessions via LazyStore
 
 ## Future Requirements
@@ -88,9 +88,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-01 | Phase 62 | Complete |
 | VIEW-01 | Phase 62 | Complete |
 | VIEW-04 | Phase 63 | Pending |
-| WHSP-02 | Phase 63 | Pending |
+| WHSP-02 | Phase 63 | Complete |
 | WHSP-03 | Phase 63 | Pending |
-| DISP-02 | Phase 63 | Pending |
+| DISP-02 | Phase 63 | Complete |
 | VIEW-02 | Phase 64 | Pending |
 | VIEW-03 | Phase 64 | Pending |
 | VIEW-05 | Phase 64 | Pending |
