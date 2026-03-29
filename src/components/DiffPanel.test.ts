@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
 import type { FileDiff } from "../lib/types.js";
+import {
+	splitInvisibles,
+	trailingWhitespaceStart,
+} from "../lib/diff-utils.js";
 import DiffPanel from "./DiffPanel.svelte";
 
 // Shared Tauri mock
@@ -18,20 +22,36 @@ vi.mock("../lib/toast.svelte.js", () => ({
 
 vi.mock("../lib/store.js", () => {
 	let currentViewMode = "hunk";
+	let currentIgnoreWhitespace = false;
+	let currentShowInvisibles = false;
+	let currentWordWrap = false;
 	return {
 		getDiffViewMode: vi.fn(() => Promise.resolve(currentViewMode)),
 		setDiffViewMode: vi.fn((mode: string) => {
 			currentViewMode = mode;
 			return Promise.resolve(undefined);
 		}),
-		getDiffIgnoreWhitespace: vi.fn().mockResolvedValue(false),
-		setDiffIgnoreWhitespace: vi.fn().mockResolvedValue(undefined),
+		getDiffIgnoreWhitespace: vi.fn(
+			() => Promise.resolve(currentIgnoreWhitespace),
+		),
+		setDiffIgnoreWhitespace: vi.fn((v: boolean) => {
+			currentIgnoreWhitespace = v;
+			return Promise.resolve(undefined);
+		}),
 		getDiffShowFullFile: vi.fn().mockResolvedValue(false),
 		setDiffShowFullFile: vi.fn().mockResolvedValue(undefined),
-		getDiffShowInvisibles: vi.fn().mockResolvedValue(false),
-		setDiffShowInvisibles: vi.fn().mockResolvedValue(undefined),
-		getDiffWordWrap: vi.fn().mockResolvedValue(false),
-		setDiffWordWrap: vi.fn().mockResolvedValue(undefined),
+		getDiffShowInvisibles: vi.fn(
+			() => Promise.resolve(currentShowInvisibles),
+		),
+		setDiffShowInvisibles: vi.fn((v: boolean) => {
+			currentShowInvisibles = v;
+			return Promise.resolve(undefined);
+		}),
+		getDiffWordWrap: vi.fn(() => Promise.resolve(currentWordWrap)),
+		setDiffWordWrap: vi.fn((v: boolean) => {
+			currentWordWrap = v;
+			return Promise.resolve(undefined);
+		}),
 		addRecentRepo: vi.fn().mockResolvedValue(undefined),
 		getRecentRepos: vi.fn().mockResolvedValue([]),
 		removeRecentRepo: vi.fn().mockResolvedValue(undefined),
@@ -393,10 +413,9 @@ describe("DiffPanel", () => {
 			},
 		});
 		expect(screen.getByText("@@ -1,3 +1,4 @@")).toBeInTheDocument();
-		expect(screen.queryByText(/Full file view/)).toBeNull();
 	});
 
-	it("shows full file stub when Full mode selected", async () => {
+	it("shows full file view when Full mode selected", async () => {
 		render(DiffPanel, {
 			props: {
 				fileDiffs: [testDiff],
@@ -409,7 +428,7 @@ describe("DiffPanel", () => {
 		await fireEvent.click(screen.getByText("Full"));
 		// Flush Svelte reactivity
 		await tick();
-		expect(screen.getByText(/Full file view/)).toBeInTheDocument();
+		// Full file view renders diff content (no hunk headers)
 		expect(screen.queryByText("@@ -1,3 +1,4 @@")).toBeNull();
 	});
 
@@ -488,5 +507,280 @@ describe("DiffPanel", () => {
 			expect(spans[0].textContent?.trim()).not.toBe("");
 			expect(spans[1].textContent).toBe("");
 		}
+	});
+});
+
+// ---- diff-utils unit tests (WHSP-03) ----
+
+describe("diff-utils", () => {
+	describe("splitInvisibles", () => {
+		it("replaces spaces with middle dot (WHSP-03)", () => {
+			const result = splitInvisibles("a b", false);
+			expect(result).toEqual([
+				{ text: "a", isInvisible: false, isTrailing: false },
+				{ text: "\u00B7", isInvisible: true, isTrailing: false },
+				{ text: "b", isInvisible: false, isTrailing: false },
+			]);
+		});
+
+		it("replaces tabs with rightwards arrow (WHSP-03)", () => {
+			const result = splitInvisibles("a\tb", false);
+			expect(result).toEqual([
+				{ text: "a", isInvisible: false, isTrailing: false },
+				{ text: "\u2192", isInvisible: true, isTrailing: false },
+				{ text: "b", isInvisible: false, isTrailing: false },
+			]);
+		});
+
+		it("marks trailing whitespace segments", () => {
+			const result = splitInvisibles("  ", true);
+			expect(result).toEqual([
+				{ text: "\u00B7\u00B7", isInvisible: true, isTrailing: true },
+			]);
+		});
+
+		it("returns empty array for empty string", () => {
+			expect(splitInvisibles("", false)).toEqual([]);
+		});
+
+		it("handles mixed spaces and tabs", () => {
+			const result = splitInvisibles(" \t", false);
+			expect(result).toEqual([
+				{ text: "\u00B7\u2192", isInvisible: true, isTrailing: false },
+			]);
+		});
+	});
+
+	describe("trailingWhitespaceStart", () => {
+		it("returns index where trailing whitespace begins (WHSP-03)", () => {
+			expect(trailingWhitespaceStart("hello   ")).toBe(5);
+		});
+
+		it("returns string length when no trailing whitespace", () => {
+			expect(trailingWhitespaceStart("hello")).toBe(5);
+		});
+
+		it("returns 0 for all-whitespace string", () => {
+			expect(trailingWhitespaceStart("   ")).toBe(0);
+		});
+
+		it("handles tabs in trailing whitespace", () => {
+			expect(trailingWhitespaceStart("hello\t")).toBe(5);
+		});
+	});
+});
+
+// ---- VIEW-04: Full file view ----
+
+describe("VIEW-04: Full file view", () => {
+	it("renders all lines as continuous document without hunk headers", async () => {
+		const { container } = render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		await tick();
+		await fireEvent.click(screen.getByText("Full"));
+		await tick();
+		// Hunk header should not be present
+		expect(screen.queryByText("@@ -1,3 +1,4 @@")).toBeNull();
+		// But diff content should be present
+		expect(container.textContent).toContain("const x = 2;");
+	});
+
+	it("shows line numbers in gutter for full file view", async () => {
+		const { container } = render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		await tick();
+		await fireEvent.click(screen.getByText("Full"));
+		await tick();
+		// Context lines should have gutter numbers
+		const contextLines = container.querySelectorAll(".diff-line-context");
+		expect(contextLines.length).toBeGreaterThanOrEqual(1);
+		const gutterSpans = contextLines[0].querySelectorAll("span");
+		expect(gutterSpans.length).toBeGreaterThanOrEqual(2);
+		// First context line: old=1, new=1
+		expect(gutterSpans[0].textContent).toBe("1");
+		expect(gutterSpans[1].textContent).toBe("1");
+	});
+
+	it("does not show staging buttons in full file view", async () => {
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+			},
+		});
+		await tick();
+		await fireEvent.click(screen.getByText("Full"));
+		await tick();
+		expect(screen.queryByText("Stage Hunk")).toBeNull();
+		expect(screen.queryByText("Discard Hunk")).toBeNull();
+	});
+});
+
+// ---- WHSP-02: Staging disabled when whitespace ignore active ----
+
+describe("WHSP-02: Staging disabled when whitespace ignore active", () => {
+	it("disables Stage Hunk button when whitespace ignore is active", async () => {
+		const storeMock = await import("../lib/store.js");
+		// Reset viewMode to hunk (previous tests may have changed it)
+		vi.mocked(storeMock.getDiffViewMode).mockImplementation(
+			() => Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(true),
+		);
+
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+			},
+		});
+		await tick();
+		await tick();
+
+		const stageBtn = screen.getByText("Stage Hunk");
+		expect(stageBtn.closest("button")).toBeDisabled();
+
+		// Reset mock
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(false),
+		);
+	});
+
+	it("disables Stage File button when whitespace ignore is active", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffViewMode).mockImplementation(
+			() => Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(true),
+		);
+
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+				selectedPath: "src/main.ts",
+			},
+		});
+		await tick();
+		await tick();
+
+		const stageFileBtn = screen.getByText("Stage File");
+		expect(stageFileBtn.closest("button")).toBeDisabled();
+
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(false),
+		);
+	});
+
+	it("shows tooltip on disabled staging buttons", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffViewMode).mockImplementation(
+			() => Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(true),
+		);
+
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+			},
+		});
+		await tick();
+		await tick();
+
+		const stageBtn = screen.getByText("Stage Hunk").closest("button");
+		expect(stageBtn?.title).toBe(
+			"Staging is disabled while whitespace changes are ignored",
+		);
+
+		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(
+			() => Promise.resolve(false),
+		);
+	});
+});
+
+// ---- DISP-02: Word wrap toggle ----
+
+describe("DISP-02: Word wrap toggle", () => {
+	it("persists word wrap preference when toggle clicked", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffViewMode).mockImplementation(
+			() => Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffWordWrap).mockImplementation(
+			() => Promise.resolve(false),
+		);
+
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		await tick();
+
+		// Click the word wrap toggle button
+		const wrapBtn = screen.getByTitle("Toggle word wrap");
+		await fireEvent.click(wrapBtn);
+		await tick();
+
+		// Verify that setDiffWordWrap was called with true
+		expect(vi.mocked(storeMock.setDiffWordWrap)).toHaveBeenCalledWith(true);
+	});
+
+	it("word wrap toggle button becomes active when clicked", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffViewMode).mockImplementation(
+			() => Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffWordWrap).mockImplementation(
+			() => Promise.resolve(false),
+		);
+
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+			},
+		});
+		await tick();
+
+		const wrapBtn = screen.getByTitle("Toggle word wrap");
+		// Before click: should not have active class
+		expect(wrapBtn.classList.contains("active")).toBe(false);
+
+		await fireEvent.click(wrapBtn);
+		await tick();
+
+		// After click: should have active class
+		expect(wrapBtn.classList.contains("active")).toBe(true);
 	});
 });
