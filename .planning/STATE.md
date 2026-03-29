@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.12
 milestone_name: Better Diffs
-status: verifying
-stopped_at: Phase 61 context gathered
-last_updated: "2026-03-29T02:00:42.590Z"
-last_activity: 2026-03-28
+status: executing
+stopped_at: Completed 61-01-PLAN.md
+last_updated: "2026-03-29T12:06:49.500Z"
+last_activity: 2026-03-29
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 60 — word-level-diff
+**Current focus:** Phase 61 — syntax-highlighting
 
 ## Current Position
 
-Phase: 61
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-28
+Phase: 61 (syntax-highlighting) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-29
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -43,6 +43,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 59 P02 | 5min | 3 tasks | 5 files |
 | Phase 60 P01 | 5min | 1 tasks | 7 files |
 | Phase 60 P02 | 3min | 2 tasks | 3 files |
+| Phase 61 P01 | 17min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 60]: Newline normalization before from_lines to handle content with/without trailing newlines
 - [Phase 60]: Alpha 0.35 for word-diff highlights provides visible contrast atop line-level alpha 0.1 backgrounds
 - [Phase 60]: Origin symbol rendered as separate span element outside word-span loop to keep symbol distinct from content slicing
+- [Phase 61]: Used base16-ocean.dark bundled theme with 7 discovered RGB color mappings (keyword, string, comment, number, function, type, variable)
+- [Phase 61]: DiffLine.spans: Vec<MergedSpan> replaces separate word_spans and syntax_tokens -- single unified field for frontend
+- [Phase 61]: Sweep-line boundary merge algorithm: collect all boundary points, sort+dedup, iterate pairs for zero-gap coverage
 
 ### Pending Todos
 
@@ -85,7 +89,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-28
-Last session: 2026-03-29T02:00:42.585Z
-Stopped at: Phase 61 context gathered
-Resume file: .planning/phases/61-syntax-highlighting/61-CONTEXT.md
+Last session: 2026-03-29T12:06:49.495Z
+Stopped at: Completed 61-01-PLAN.md
+Resume file: None
 Next action: /gsd:plan-phase 59

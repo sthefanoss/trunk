@@ -17,9 +17,9 @@ Requirements for Better Diffs milestone. Each maps to roadmap phases.
 
 ### Syntax Highlighting
 
-- [ ] **SYNT-01**: Diff lines are syntax-highlighted with language-aware coloring
-- [ ] **SYNT-02**: Language is auto-detected from file extension
-- [ ] **SYNT-03**: Syntax colors are desaturated on add/delete line backgrounds to maintain readability
+- [x] **SYNT-01**: Diff lines are syntax-highlighted with language-aware coloring
+- [x] **SYNT-02**: Language is auto-detected from file extension
+- [x] **SYNT-03**: Syntax colors are desaturated on add/delete line backgrounds to maintain readability
 
 ### Word-Level Diff
 
@@ -82,9 +82,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-03 | Phase 59 | Complete |
 | WORD-01 | Phase 60 | Complete |
 | WORD-02 | Phase 60 | Complete |
-| SYNT-01 | Phase 61 | Pending |
-| SYNT-02 | Phase 61 | Pending |
-| SYNT-03 | Phase 61 | Pending |
+| SYNT-01 | Phase 61 | Complete |
+| SYNT-02 | Phase 61 | Complete |
+| SYNT-03 | Phase 61 | Complete |
 | DISP-01 | Phase 62 | Pending |
 | VIEW-01 | Phase 62 | Pending |
 | VIEW-04 | Phase 63 | Pending |
