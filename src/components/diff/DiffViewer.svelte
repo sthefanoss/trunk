@@ -99,7 +99,7 @@ let {
       ondiscardlines={ondiscardlines}
     />
   {:else if viewMode === "full"}
-    <FullFileView />
+    <FullFileView {fileDiffs} {showInvisibles} {wordWrap} />
   {:else}
     <SplitView />
   {/if}

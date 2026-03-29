@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { DiffLine, DiffOrigin, FileDiff } from "../../lib/types.js";
+import { splitInvisibles, trailingWhitespaceStart } from "../../lib/diff-utils.js";
 
 interface Props {
   fileDiffs: FileDiff[];
@@ -283,6 +284,7 @@ function gutterWidth(maxNum: number): string {
           {@const isSelectable = diffKind !== 'commit' && line.origin !== 'Context'}
           {@const hunkKey = `${fd.path}-${hunkIdx}`}
           {@const isSelected = selectedHunkKey === hunkKey && selectedLineIndices.has(lineIdx)}
+          {@const trailStart = showInvisibles ? trailingWhitespaceStart(line.content) : line.content.length}
           <div
             class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}"
             style="
@@ -302,11 +304,7 @@ function gutterWidth(maxNum: number): string {
             "
             onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
             onclick={(e) => isSelectable && onlineclick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
-          ><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); user-select: none; flex-shrink: 0;">{line.old_lineno ?? ''}</span><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.new_lineno ?? ''}</span><span class="diff-line-content">{#if line.spans.length > 0}<span>{originSymbol(line.origin)}</span>{#each line.spans as span}<span
-              class="{span.syntax_class}{span.emphasized
-                ? (line.origin === 'Add' ? ' word-add' : ' word-delete')
-                : ''}"
-            >{line.content.slice(span.start, span.end)}</span>{/each}{:else}{originSymbol(line.origin)}{line.content}{/if}</span></div>
+          ><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); user-select: none; flex-shrink: 0;">{line.old_lineno ?? ''}</span><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.new_lineno ?? ''}</span><span class="diff-line-content">{#if line.spans.length > 0}<span>{originSymbol(line.origin)}</span>{#each line.spans as span}{@const sliced = line.content.slice(span.start, span.end)}{@const spanInTrailing = span.start >= trailStart}{#if showInvisibles}{@const segments = splitInvisibles(sliced, spanInTrailing || span.end > trailStart)}{#each segments as seg}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}{seg.isInvisible ? ' invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}">{sliced}</span>{/if}{/each}{:else}{#if showInvisibles}{@const segments = splitInvisibles(line.content, false)}{originSymbol(line.origin)}{#each segments as seg}<span class="{seg.isInvisible ? 'invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}{originSymbol(line.origin)}{line.content}{/if}{/if}</span></div>
         {/each}
       {/each}
     {/if}
@@ -352,5 +350,16 @@ function gutterWidth(maxNum: number): string {
   .diff-line-add [class*="syn-"],
   .diff-line-delete [class*="syn-"] {
     opacity: 0.7;
+  }
+
+  /* Invisible character styling (Phase 63 -- WHSP-03, D-11) */
+  .invisible-char {
+    color: var(--color-invisible);
+  }
+
+  /* Trailing whitespace warning (Phase 63 -- D-12) */
+  .trailing-ws {
+    background-color: var(--color-trailing-ws-bg);
+    color: var(--color-invisible);
   }
 </style>
