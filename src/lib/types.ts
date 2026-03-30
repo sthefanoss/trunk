@@ -181,7 +181,8 @@ export interface DiffRequestOptions {
 	showFullFile: boolean;
 }
 
-export type ViewMode = "hunk" | "full" | "split";
+export type ContentMode = "hunk" | "full";
+export type LayoutMode = "inline" | "split";
 
 export interface HeadCommitMessage {
 	subject: string;

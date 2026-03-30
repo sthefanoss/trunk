@@ -1,6 +1,6 @@
 import { LazyStore } from "@tauri-apps/plugin-store";
 import type { PersistedTab } from "./tab-types.js";
-import type { ViewMode } from "./types.js";
+import type { ContentMode, LayoutMode } from "./types.js";
 
 export type { PersistedTab } from "./tab-types.js";
 
@@ -286,17 +286,35 @@ export async function setDiffShowFullFile(show: boolean): Promise<void> {
 	await store.save();
 }
 
-const DIFF_VIEW_MODE_KEY = "diff_view_mode";
+const DIFF_VIEW_MODE_KEY = "diff_view_mode"; // legacy key for migration
+const DIFF_CONTENT_MODE_KEY = "diff_content_mode";
+const DIFF_LAYOUT_MODE_KEY = "diff_layout_mode";
 
-export async function getDiffViewMode(): Promise<ViewMode> {
-	const stored = await store.get<string>(DIFF_VIEW_MODE_KEY);
-	if (stored === "hunk" || stored === "full" || stored === "split")
-		return stored;
+export async function getDiffContentMode(): Promise<ContentMode> {
+	const stored = await store.get<string>(DIFF_CONTENT_MODE_KEY);
+	if (stored === "hunk" || stored === "full") return stored;
+	// Migration from old ViewMode key
+	const legacy = await store.get<string>(DIFF_VIEW_MODE_KEY);
+	if (legacy === "full") return "full";
 	return "hunk";
 }
 
-export async function setDiffViewMode(mode: ViewMode): Promise<void> {
-	await store.set(DIFF_VIEW_MODE_KEY, mode);
+export async function setDiffContentMode(mode: ContentMode): Promise<void> {
+	await store.set(DIFF_CONTENT_MODE_KEY, mode);
+	await store.save();
+}
+
+export async function getDiffLayoutMode(): Promise<LayoutMode> {
+	const stored = await store.get<string>(DIFF_LAYOUT_MODE_KEY);
+	if (stored === "inline" || stored === "split") return stored;
+	// Migration from old ViewMode key
+	const legacy = await store.get<string>(DIFF_VIEW_MODE_KEY);
+	if (legacy === "split") return "split";
+	return "inline";
+}
+
+export async function setDiffLayoutMode(mode: LayoutMode): Promise<void> {
+	await store.set(DIFF_LAYOUT_MODE_KEY, mode);
 	await store.save();
 }
 

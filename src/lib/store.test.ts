@@ -34,6 +34,10 @@ const {
 	setDiffIgnoreWhitespace,
 	getDiffShowFullFile,
 	setDiffShowFullFile,
+	getDiffContentMode,
+	setDiffContentMode,
+	getDiffLayoutMode,
+	setDiffLayoutMode,
 } = await import("./store.js");
 
 describe("tab types and helpers", () => {
@@ -175,6 +179,50 @@ describe("store", () => {
 			await setDiffShowFullFile(true);
 			const show = await getDiffShowFullFile();
 			expect(show).toBe(true);
+		});
+	});
+
+	describe("diff content/layout mode", () => {
+		it("getDiffContentMode returns 'hunk' when store is empty (default)", async () => {
+			const mode = await getDiffContentMode();
+			expect(mode).toBe("hunk");
+		});
+
+		it("setDiffContentMode persists and getDiffContentMode retrieves it", async () => {
+			await setDiffContentMode("full");
+			const mode = await getDiffContentMode();
+			expect(mode).toBe("full");
+		});
+
+		it("getDiffLayoutMode returns 'inline' when store is empty (default)", async () => {
+			const mode = await getDiffLayoutMode();
+			expect(mode).toBe("inline");
+		});
+
+		it("setDiffLayoutMode persists and getDiffLayoutMode retrieves it", async () => {
+			await setDiffLayoutMode("split");
+			const mode = await getDiffLayoutMode();
+			expect(mode).toBe("split");
+		});
+
+		it("getDiffContentMode migrates from legacy 'full' ViewMode key", async () => {
+			backingStore.set("diff_view_mode", "full");
+			const mode = await getDiffContentMode();
+			expect(mode).toBe("full");
+		});
+
+		it("getDiffLayoutMode migrates from legacy 'split' ViewMode key", async () => {
+			backingStore.set("diff_view_mode", "split");
+			const mode = await getDiffLayoutMode();
+			expect(mode).toBe("split");
+		});
+
+		it("new keys take priority over legacy key", async () => {
+			backingStore.set("diff_view_mode", "split");
+			backingStore.set("diff_content_mode", "full");
+			backingStore.set("diff_layout_mode", "inline");
+			expect(await getDiffContentMode()).toBe("full");
+			expect(await getDiffLayoutMode()).toBe("inline");
 		});
 	});
 });

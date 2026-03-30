@@ -23,6 +23,7 @@
 	/* Word-level diff highlights (Phase 60) */
 	--color-diff-word-add-bg: rgba(74, 222, 128, 0.35);
 	--color-diff-word-delete-bg: rgba(248, 113, 113, 0.35);
+	--color-diff-phantom-bg: rgba(139, 148, 158, 0.04);
 
 	/* Syntax highlighting colors (Phase 61) -- per D-02, D-03 */
 	--color-syn-keyword: #569cd6;
