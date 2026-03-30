@@ -443,7 +443,9 @@ fn word_span_basic_pair() {
 
     std::fs::write(ctx.repo_path().join("greet.txt"), "hello mars\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged_enriched("greet.txt").expect("diff failed");
+    let file_diffs = ctx
+        .diff_unstaged_enriched("greet.txt")
+        .expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -516,7 +518,9 @@ fn word_span_unpaired_add_has_no_emphasis() {
 
     std::fs::write(ctx.repo_path().join("lines.txt"), "line1\nline2\nline3\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged_enriched("lines.txt").expect("diff failed");
+    let file_diffs = ctx
+        .diff_unstaged_enriched("lines.txt")
+        .expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -579,7 +583,9 @@ fn word_span_dissimilar_skipped() {
 
     std::fs::write(ctx.repo_path().join("dissimilar.txt"), "xxx yyy zzz\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged_enriched("dissimilar.txt").expect("diff failed");
+    let file_diffs = ctx
+        .diff_unstaged_enriched("dissimilar.txt")
+        .expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -646,7 +652,9 @@ fn word_span_covers_entire_content() {
 
     std::fs::write(ctx.repo_path().join("cover.txt"), "hello mars\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged_enriched("cover.txt").expect("diff failed");
+    let file_diffs = ctx
+        .diff_unstaged_enriched("cover.txt")
+        .expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -718,7 +726,9 @@ fn syntax_extension_detection_unknown_ext_no_syntax() {
 
     std::fs::write(ctx.repo_path().join("data.xyz123"), "different content\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged_enriched("data.xyz123").expect("diff failed");
+    let file_diffs = ctx
+        .diff_unstaged_enriched("data.xyz123")
+        .expect("diff failed");
     assert!(!file_diffs.is_empty());
     let hunk = &file_diffs[0].hunks[0];
 

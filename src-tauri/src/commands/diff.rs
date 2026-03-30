@@ -264,8 +264,7 @@ pub fn enrich_file_diffs(file_diffs: &mut [FileDiff]) {
                     vec![]
                 };
                 if !syntax_tokens.is_empty() || !ws.is_empty() {
-                    line.spans =
-                        syntax::merge_spans(&syntax_tokens, ws, line.content.len() as u32);
+                    line.spans = syntax::merge_spans(&syntax_tokens, ws, line.content.len() as u32);
                 }
             }
         }
@@ -296,7 +295,10 @@ pub fn walk_diff_raw_for_bench(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Tr
                 _ => DiffStatus::Unknown,
             };
             file_diffs.borrow_mut().push(FileDiff {
-                path, status, is_binary, hunks: Vec::new(),
+                path,
+                status,
+                is_binary,
+                hunks: Vec::new(),
             });
             true
         },
@@ -305,8 +307,10 @@ pub fn walk_diff_raw_for_bench(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Tr
             if let Some(fd) = file_diffs.borrow_mut().last_mut() {
                 fd.hunks.push(DiffHunk {
                     header: String::from_utf8_lossy(hunk.header()).into_owned(),
-                    old_start: hunk.old_start(), old_lines: hunk.old_lines(),
-                    new_start: hunk.new_start(), new_lines: hunk.new_lines(),
+                    old_start: hunk.old_start(),
+                    old_lines: hunk.old_lines(),
+                    new_start: hunk.new_start(),
+                    new_lines: hunk.new_lines(),
                     lines: Vec::new(),
                 });
             }
@@ -323,7 +327,8 @@ pub fn walk_diff_raw_for_bench(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Tr
             if let Some(fd) = diffs.last_mut() {
                 if let Some(hunk) = fd.hunks.last_mut() {
                     hunk.lines.push(DiffLine {
-                        origin, content,
+                        origin,
+                        content,
                         old_lineno: line.old_lineno(),
                         new_lineno: line.new_lineno(),
                         spans: vec![],
@@ -332,7 +337,8 @@ pub fn walk_diff_raw_for_bench(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Tr
             }
             true
         }),
-    ).map_err(TrunkError::from)?;
+    )
+    .map_err(TrunkError::from)?;
     Ok(file_diffs.into_inner())
 }
 
@@ -351,7 +357,6 @@ pub fn diff_unstaged_raw_for_bench(
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
     walk_diff_raw_for_bench(diff)
 }
-
 
 pub fn diff_unstaged_inner(
     path: &str,
@@ -566,12 +571,12 @@ pub async fn list_commit_files(
     state: State<'_, RepoState>,
 ) -> Result<Vec<FileDiff>, String> {
     let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        list_commit_files_inner(&path, &oid, &state_map)
-    })
-    .await
-    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
-    .map_err(|e| serde_json::to_string(&e).unwrap())
+    tauri::async_runtime::spawn_blocking(move || list_commit_files_inner(&path, &oid, &state_map))
+        .await
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
+        .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
 #[tauri::command]
@@ -605,4 +610,3 @@ pub async fn get_commit_detail(
         })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
-

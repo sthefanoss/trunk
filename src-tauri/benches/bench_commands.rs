@@ -386,7 +386,6 @@ fn bench_enrich_new(c: &mut Criterion) {
     });
 }
 
-
 criterion_group!(
     benches,
     bench_list_refs,
