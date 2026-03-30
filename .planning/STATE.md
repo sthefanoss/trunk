@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.12
 milestone_name: Better Diffs
 status: executing
-stopped_at: Completed 64-01-PLAN.md
-last_updated: "2026-03-30T15:43:53.983Z"
+stopped_at: Completed 64-02-PLAN.md
+last_updated: "2026-03-30T15:56:30.034Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-28 after v0.12 milestone started)
 ## Current Position
 
 Phase: 64 (split-view) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-03-30
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 63 P02 | 10min | 2 tasks | 5 files |
 | Phase 63 P03 | 11min | 2 tasks | 4 files |
 | Phase 64 P01 | 7min | 2 tasks | 9 files |
+| Phase 64 P02 | 10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 63]: flushPrefs test helper: setTimeout(0) + tick() to properly handle async  initialization in DiffPanel tests
 - [Phase 64]: ContentMode + LayoutMode replace ViewMode as independent type unions for 2D mode dispatch
 - [Phase 64]: Legacy diff_view_mode store key migration: 'full' -> contentMode='full', 'split' -> layoutMode='split'
+- [Phase 64]: Two independent scroll panels with syncScroll for vertical sync, independent horizontal scroll per panel
+- [Phase 64]: Hunk headers in split view: left panel shows header text, right panel shows staging buttons
+- [Phase 64]: Line selection only on right panel Add lines using original lineIdx from PairedRow for correct staging indices
 
 ### Pending Todos
 
@@ -111,7 +115,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-28
-Last session: 2026-03-30T15:43:53.979Z
-Stopped at: Completed 64-01-PLAN.md
+Last session: 2026-03-30T15:56:30.029Z
+Stopped at: Completed 64-02-PLAN.md
 Resume file: None
 Next action: /gsd:plan-phase 59
