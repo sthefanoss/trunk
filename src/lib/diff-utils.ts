@@ -1,3 +1,65 @@
+import type { DiffLine } from "./types.js";
+
+/**
+ * Represents a paired row for split (side-by-side) diff display.
+ * Context lines appear on both sides. Delete lines go to the left, Add lines to the right.
+ * When one side has more lines, null entries (phantom rows) pad the shorter side.
+ * Each entry carries the original lineIdx for correct staging callbacks.
+ */
+export interface PairedRow {
+	left: { line: DiffLine; lineIdx: number } | null;
+	right: { line: DiffLine; lineIdx: number } | null;
+}
+
+/**
+ * Transforms a flat array of DiffLines into paired rows for split (side-by-side) display.
+ * Context lines appear on both sides. Delete lines go to the left, Add lines to the right.
+ * When one side has more lines, null entries (phantom rows) pad the shorter side.
+ * Each entry carries the original lineIdx for correct staging callbacks.
+ */
+export function pairLines(lines: DiffLine[]): PairedRow[] {
+	const rows: PairedRow[] = [];
+	let i = 0;
+
+	while (i < lines.length) {
+		const line = lines[i];
+
+		if (line.origin === "Context") {
+			rows.push({
+				left: { line, lineIdx: i },
+				right: { line, lineIdx: i },
+			});
+			i++;
+			continue;
+		}
+
+		// Collect consecutive deletes
+		const deletes: { line: DiffLine; lineIdx: number }[] = [];
+		while (i < lines.length && lines[i].origin === "Delete") {
+			deletes.push({ line: lines[i], lineIdx: i });
+			i++;
+		}
+
+		// Collect consecutive adds
+		const adds: { line: DiffLine; lineIdx: number }[] = [];
+		while (i < lines.length && lines[i].origin === "Add") {
+			adds.push({ line: lines[i], lineIdx: i });
+			i++;
+		}
+
+		// Pair them up, phantom rows fill the shorter side
+		const maxLen = Math.max(deletes.length, adds.length);
+		for (let j = 0; j < maxLen; j++) {
+			rows.push({
+				left: j < deletes.length ? deletes[j] : null,
+				right: j < adds.length ? adds[j] : null,
+			});
+		}
+	}
+
+	return rows;
+}
+
 /**
  * Represents a segment of text for invisible character rendering.
  * When showInvisibles is active, space/tab characters are split into
