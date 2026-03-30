@@ -26,15 +26,21 @@ vi.mock("../lib/toast.svelte.js", () => ({
 }));
 
 vi.mock("../lib/store.js", () => {
-	let currentViewMode = "hunk";
+	let currentContentMode = "hunk";
+	let currentLayoutMode = "inline";
 	let currentIgnoreWhitespace = false;
 	let currentShowInvisibles = false;
 	let currentWordWrap = false;
 	return {
 		getDiffContextLines: vi.fn(() => Promise.resolve(3)),
-		getDiffViewMode: vi.fn(() => Promise.resolve(currentViewMode)),
-		setDiffViewMode: vi.fn((mode: string) => {
-			currentViewMode = mode;
+		getDiffContentMode: vi.fn(() => Promise.resolve(currentContentMode)),
+		setDiffContentMode: vi.fn((mode: string) => {
+			currentContentMode = mode;
+			return Promise.resolve(undefined);
+		}),
+		getDiffLayoutMode: vi.fn(() => Promise.resolve(currentLayoutMode)),
+		setDiffLayoutMode: vi.fn((mode: string) => {
+			currentLayoutMode = mode;
 			return Promise.resolve(undefined);
 		}),
 		getDiffIgnoreWhitespace: vi.fn(() =>
@@ -421,7 +427,7 @@ describe("DiffPanel", () => {
 
 	// ---- VIEW-01: View mode toggle tests ----
 
-	it("renders view mode segmented control with three options", async () => {
+	it("renders content mode and layout mode controls", async () => {
 		render(DiffPanel, {
 			props: {
 				fileDiffs: [testDiff],
@@ -432,7 +438,8 @@ describe("DiffPanel", () => {
 		await flushPrefs();
 		expect(screen.getByText("Hunk")).toBeInTheDocument();
 		expect(screen.getByText("Full")).toBeInTheDocument();
-		expect(screen.getByText("Split")).toBeInTheDocument();
+		expect(screen.getByTitle("Inline view")).toBeInTheDocument();
+		expect(screen.getByTitle("Side-by-side view")).toBeInTheDocument();
 	});
 
 	it("shows hunk view by default", async () => {
@@ -472,9 +479,9 @@ describe("DiffPanel", () => {
 				onclose: vi.fn(),
 			},
 		});
-		// Let the initial $effect (getDiffViewMode) settle
+		// Let the initial $effect (getDiffContentMode/getDiffLayoutMode) settle
 		await flushPrefs();
-		await fireEvent.click(screen.getByText("Split"));
+		await fireEvent.click(screen.getByTitle("Side-by-side view"));
 		// Flush Svelte reactivity
 		await flushPrefs();
 		expect(screen.getByText(/Split view/)).toBeInTheDocument();
@@ -484,8 +491,11 @@ describe("DiffPanel", () => {
 
 	it("renders line numbers in gutter for context lines", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		const { container } = render(DiffPanel, {
 			props: {
@@ -512,8 +522,11 @@ describe("DiffPanel", () => {
 
 	it("shows only new line number for Add lines", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		const { container } = render(DiffPanel, {
 			props: {
@@ -535,8 +548,11 @@ describe("DiffPanel", () => {
 
 	it("shows only old line number for Delete lines", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		const { container } = render(DiffPanel, {
 			props: {
@@ -621,6 +637,13 @@ describe("diff-utils", () => {
 
 describe("VIEW-04: Full file view", () => {
 	it("renders all lines as continuous document without hunk headers", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
+			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
+		);
 		const { container } = render(DiffPanel, {
 			props: {
 				fileDiffs: [testDiff],
@@ -638,6 +661,13 @@ describe("VIEW-04: Full file view", () => {
 	});
 
 	it("shows line numbers in gutter for full file view", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
+			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
+		);
 		const { container } = render(DiffPanel, {
 			props: {
 				fileDiffs: [testDiff],
@@ -659,6 +689,13 @@ describe("VIEW-04: Full file view", () => {
 	});
 
 	it("does not show staging buttons in full file view", async () => {
+		const storeMock = await import("../lib/store.js");
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
+			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
+		);
 		render(DiffPanel, {
 			props: {
 				fileDiffs: [testDiff],
@@ -681,9 +718,12 @@ describe("VIEW-04: Full file view", () => {
 describe("WHSP-02: Staging disabled when whitespace ignore active", () => {
 	it("disables Stage Hunk button when whitespace ignore is active", async () => {
 		const storeMock = await import("../lib/store.js");
-		// Reset viewMode to hunk (previous tests may have changed it)
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		// Reset modes to inline+hunk (previous tests may have changed them)
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(() =>
 			Promise.resolve(true),
@@ -712,8 +752,11 @@ describe("WHSP-02: Staging disabled when whitespace ignore active", () => {
 
 	it("disables Stage File button when whitespace ignore is active", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(() =>
 			Promise.resolve(true),
@@ -742,8 +785,11 @@ describe("WHSP-02: Staging disabled when whitespace ignore active", () => {
 
 	it("shows tooltip on disabled staging buttons", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		vi.mocked(storeMock.getDiffIgnoreWhitespace).mockImplementation(() =>
 			Promise.resolve(true),
@@ -777,8 +823,11 @@ describe("WHSP-02: Staging disabled when whitespace ignore active", () => {
 describe("DISP-02: Word wrap toggle", () => {
 	it("persists word wrap preference when toggle clicked", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		vi.mocked(storeMock.getDiffWordWrap).mockImplementation(() =>
 			Promise.resolve(false),
@@ -804,8 +853,11 @@ describe("DISP-02: Word wrap toggle", () => {
 
 	it("word wrap toggle button becomes active when clicked", async () => {
 		const storeMock = await import("../lib/store.js");
-		vi.mocked(storeMock.getDiffViewMode).mockImplementation(() =>
+		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
+		);
+		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
+			Promise.resolve("inline"),
 		);
 		vi.mocked(storeMock.getDiffWordWrap).mockImplementation(() =>
 			Promise.resolve(false),

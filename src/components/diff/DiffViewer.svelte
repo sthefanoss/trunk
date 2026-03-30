@@ -1,17 +1,19 @@
 <script lang="ts">
 import type {
 	CommitDetail,
+	ContentMode,
 	DiffLine,
 	DiffOrigin,
 	FileDiff,
-	ViewMode,
+	LayoutMode,
 } from "../../lib/types.js";
 import FullFileView from "./FullFileView.svelte";
 import HunkView from "./HunkView.svelte";
 import SplitView from "./SplitView.svelte";
 
 interface Props {
-	viewMode: ViewMode;
+	contentMode: ContentMode;
+	layoutMode: LayoutMode;
 	fileDiffs: FileDiff[];
 	commitDetail: CommitDetail | null;
 	selectedPath: string | null;
@@ -44,7 +46,8 @@ interface Props {
 }
 
 let {
-	viewMode,
+	contentMode,
+	layoutMode,
 	fileDiffs,
 	commitDetail,
 	selectedPath,
@@ -82,7 +85,7 @@ let {
     ">
       Select a file or commit to view its diff
     </div>
-  {:else if viewMode === "hunk"}
+  {:else if layoutMode === "inline" && contentMode === "hunk"}
     <HunkView
       {fileDiffs}
       {selectedPath}
@@ -105,9 +108,15 @@ let {
       onunstagelines={onunstagelines}
       ondiscardlines={ondiscardlines}
     />
-  {:else if viewMode === "full"}
+  {:else if layoutMode === "inline" && contentMode === "full"}
     <FullFileView {fileDiffs} {showInvisibles} {wordWrap} />
   {:else}
-    <SplitView />
+    <SplitView {contentMode} {fileDiffs} {selectedPath} {diffKind}
+      {hunkOperationInFlight} {ignoreWhitespace} {showInvisibles} {wordWrap}
+      {selectedHunkKey} {selectedLineIndices} {selectedCount}
+      {collapsedFiles} {hunkElements}
+      {onfilecollapsetoggle} {onlineclick}
+      onstagehunk={onstagehunk} onunstagehunk={onunstagehunk} ondiscardhunk={ondiscardhunk}
+      onstagelines={onstagelines} onunstagelines={onunstagelines} ondiscardlines={ondiscardlines} />
   {/if}
 </div>

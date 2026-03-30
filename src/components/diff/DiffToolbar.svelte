@@ -1,10 +1,12 @@
 <script lang="ts">
-import { Pilcrow, Space, TextWrap } from "@lucide/svelte";
-import type { ViewMode } from "../../lib/types.js";
+import { Columns2, Pilcrow, Rows2, Space, TextWrap } from "@lucide/svelte";
+import type { ContentMode, LayoutMode } from "../../lib/types.js";
 
 interface Props {
-	viewMode: ViewMode;
-	onviewmodechange: (mode: ViewMode) => void;
+	contentMode: ContentMode;
+	layoutMode: LayoutMode;
+	oncontentmodechange: (mode: ContentMode) => void;
+	onlayoutmodechange: (mode: LayoutMode) => void;
 	selectedPath: string | null;
 	diffKind: "unstaged" | "staged" | "commit";
 	hunkOperationInFlight: boolean;
@@ -20,8 +22,10 @@ interface Props {
 }
 
 let {
-	viewMode,
-	onviewmodechange,
+	contentMode,
+	layoutMode,
+	oncontentmodechange,
+	onlayoutmodechange,
 	selectedPath,
 	diffKind,
 	hunkOperationInFlight,
@@ -35,25 +39,39 @@ let {
 	onunstagefile,
 	onclose,
 }: Props = $props();
-
-const modes: { label: string; value: ViewMode }[] = [
-	{ label: "Hunk", value: "hunk" },
-	{ label: "Full", value: "full" },
-	{ label: "Split", value: "split" },
-];
 </script>
 
 <div class="toolbar">
   <div class="segmented-control">
-    {#each modes as mode}
-      <button
-        class="segment"
-        class:active={viewMode === mode.value}
-        onclick={() => onviewmodechange(mode.value)}
-      >
-        {mode.label}
-      </button>
-    {/each}
+    <button
+      class="segment"
+      class:active={contentMode === "hunk"}
+      onclick={() => oncontentmodechange("hunk")}
+    >Hunk</button>
+    <button
+      class="segment"
+      class:active={contentMode === "full"}
+      onclick={() => oncontentmodechange("full")}
+    >Full</button>
+  </div>
+
+  <div class="segmented-control">
+    <button
+      class="segment segment-icon"
+      class:active={layoutMode === "inline"}
+      title="Inline view"
+      onclick={() => onlayoutmodechange("inline")}
+    >
+      <Rows2 size={14} />
+    </button>
+    <button
+      class="segment segment-icon"
+      class:active={layoutMode === "split"}
+      title="Side-by-side view"
+      onclick={() => onlayoutmodechange("split")}
+    >
+      <Columns2 size={14} />
+    </button>
   </div>
 
   <div class="toolbar-divider"></div>
@@ -156,6 +174,12 @@ const modes: { label: string; value: ViewMode }[] = [
   .segment.active {
     background: var(--color-accent-bg);
     color: var(--color-accent);
+  }
+
+  .segment-icon {
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
   }
 
   .filename {
