@@ -1,101 +1,113 @@
 <script lang="ts">
 import {
-  pairLines,
-  type PairedRow,
-  splitInvisibles,
-  trailingWhitespaceStart,
+	type PairedRow,
+	pairLines,
+	splitInvisibles,
+	trailingWhitespaceStart,
 } from "../../lib/diff-utils.js";
-import type { ContentMode, DiffLine, DiffOrigin, FileDiff } from "../../lib/types.js";
+import type {
+	ContentMode,
+	DiffLine,
+	DiffOrigin,
+	FileDiff,
+} from "../../lib/types.js";
 
 interface Props {
-  contentMode: ContentMode;
-  fileDiffs: FileDiff[];
-  selectedPath: string | null;
-  diffKind: "unstaged" | "staged" | "commit";
-  hunkOperationInFlight: boolean;
-  ignoreWhitespace: boolean;
-  showInvisibles: boolean;
-  wordWrap: boolean;
-  selectedHunkKey: string | null;
-  selectedLineIndices: Set<number>;
-  selectedCount: number;
-  collapsedFiles: Set<string>;
-  hunkElements: Record<string, HTMLDivElement>;
-  onfilecollapsetoggle: (path: string) => void;
-  onlineclick: (filePath: string, hunkIdx: number, lineIndex: number, origin: DiffOrigin, hunkLines: DiffLine[], e: MouseEvent) => void;
-  onstagehunk: (filePath: string, hunkIndex: number) => void;
-  onunstagehunk: (filePath: string, hunkIndex: number) => void;
-  ondiscardhunk: (filePath: string, hunkIndex: number) => void;
-  onstagelines: (filePath: string, hunkIndex: number) => void;
-  onunstagelines: (filePath: string, hunkIndex: number) => void;
-  ondiscardlines: (filePath: string, hunkIndex: number) => void;
+	contentMode: ContentMode;
+	fileDiffs: FileDiff[];
+	selectedPath: string | null;
+	diffKind: "unstaged" | "staged" | "commit";
+	hunkOperationInFlight: boolean;
+	ignoreWhitespace: boolean;
+	showInvisibles: boolean;
+	wordWrap: boolean;
+	selectedHunkKey: string | null;
+	selectedLineIndices: Set<number>;
+	selectedCount: number;
+	collapsedFiles: Set<string>;
+	hunkElements: Record<string, HTMLDivElement>;
+	onfilecollapsetoggle: (path: string) => void;
+	onlineclick: (
+		filePath: string,
+		hunkIdx: number,
+		lineIndex: number,
+		origin: DiffOrigin,
+		hunkLines: DiffLine[],
+		e: MouseEvent,
+	) => void;
+	onstagehunk: (filePath: string, hunkIndex: number) => void;
+	onunstagehunk: (filePath: string, hunkIndex: number) => void;
+	ondiscardhunk: (filePath: string, hunkIndex: number) => void;
+	onstagelines: (filePath: string, hunkIndex: number) => void;
+	onunstagelines: (filePath: string, hunkIndex: number) => void;
+	ondiscardlines: (filePath: string, hunkIndex: number) => void;
 }
 
 let {
-  contentMode,
-  fileDiffs,
-  selectedPath,
-  diffKind,
-  hunkOperationInFlight,
-  ignoreWhitespace,
-  showInvisibles,
-  wordWrap,
-  selectedHunkKey,
-  selectedLineIndices,
-  selectedCount,
-  collapsedFiles,
-  hunkElements,
-  onfilecollapsetoggle,
-  onlineclick,
-  onstagehunk,
-  onunstagehunk,
-  ondiscardhunk,
-  onstagelines,
-  onunstagelines,
-  ondiscardlines,
+	contentMode,
+	fileDiffs,
+	selectedPath,
+	diffKind,
+	hunkOperationInFlight,
+	ignoreWhitespace,
+	showInvisibles,
+	wordWrap,
+	selectedHunkKey,
+	selectedLineIndices,
+	selectedCount,
+	collapsedFiles,
+	hunkElements,
+	onfilecollapsetoggle,
+	onlineclick,
+	onstagehunk,
+	onunstagehunk,
+	ondiscardhunk,
+	onstagelines,
+	onunstagelines,
+	ondiscardlines,
 }: Props = $props();
 
 const stagingDisabled = $derived(hunkOperationInFlight || ignoreWhitespace);
 const stagingDisabledTitle = $derived(
-  ignoreWhitespace
-    ? "Staging is disabled while whitespace changes are ignored"
-    : undefined,
+	ignoreWhitespace
+		? "Staging is disabled while whitespace changes are ignored"
+		: undefined,
 );
 
 function lineBackground(origin: string, isSelected: boolean = false): string {
-  if (origin === "Add")
-    return isSelected
-      ? "var(--color-diff-add-bg-selected)"
-      : "var(--color-diff-add-bg)";
-  if (origin === "Delete")
-    return isSelected
-      ? "var(--color-diff-delete-bg-selected)"
-      : "var(--color-diff-delete-bg)";
-  return "transparent";
+	if (origin === "Add")
+		return isSelected
+			? "var(--color-diff-add-bg-selected)"
+			: "var(--color-diff-add-bg)";
+	if (origin === "Delete")
+		return isSelected
+			? "var(--color-diff-delete-bg-selected)"
+			: "var(--color-diff-delete-bg)";
+	return "transparent";
 }
 
 function lineColor(origin: string): string {
-  if (origin === "Add") return "var(--color-diff-add)";
-  if (origin === "Delete") return "var(--color-diff-delete)";
-  return "var(--color-text)";
+	if (origin === "Add") return "var(--color-diff-add)";
+	if (origin === "Delete") return "var(--color-diff-delete)";
+	return "var(--color-text)";
 }
 
 function maxLineNumber(fd: FileDiff): number {
-  let max = 0;
-  for (const hunk of fd.hunks) {
-    for (const line of hunk.lines) {
-      if (line.old_lineno !== null && line.old_lineno > max)
-        max = line.old_lineno;
-      if (line.new_lineno !== null && line.new_lineno > max)
-        max = line.new_lineno;
-    }
-  }
-  return max;
+	let max = 0;
+	for (const hunk of fd.hunks) {
+		for (const line of hunk.lines) {
+			if (line.old_lineno !== null && line.old_lineno > max)
+				max = line.old_lineno;
+			if (line.new_lineno !== null && line.new_lineno > max)
+				max = line.new_lineno;
+		}
+	}
+	return max;
 }
 
 function gutterWidth(maxNum: number): string {
-  const digits = Math.max(String(maxNum).length, 1);
-  return `${digits + 1}ch`;
+	const digits = Math.max(String(maxNum).length, 1);
+	return `${digits + 1}ch`;
 }
 
 let splitRatio = $state(0.5);
@@ -104,52 +116,77 @@ let rightPanel: HTMLDivElement;
 let syncing = false;
 
 function syncScroll(source: HTMLDivElement, target: HTMLDivElement) {
-  if (syncing) return;
-  syncing = true;
-  target.scrollTop = source.scrollTop;
-  syncing = false;
+	if (syncing) return;
+	syncing = true;
+	target.scrollTop = source.scrollTop;
+	syncing = false;
 }
 
 function startResize(e: MouseEvent) {
-  e.preventDefault();
-  const container = (e.target as HTMLElement).parentElement!;
-  const containerRect = container.getBoundingClientRect();
+	e.preventDefault();
+	const container = (e.target as HTMLElement).parentElement;
+	if (!container) return;
+	const containerRect = container.getBoundingClientRect();
 
-  function onMouseMove(ev: MouseEvent) {
-    const ratio = (ev.clientX - containerRect.left) / containerRect.width;
-    splitRatio = Math.max(0.2, Math.min(0.8, ratio));
-  }
+	function onMouseMove(ev: MouseEvent) {
+		const ratio = (ev.clientX - containerRect.left) / containerRect.width;
+		splitRatio = Math.max(0.2, Math.min(0.8, ratio));
+	}
 
-  function onMouseUp() {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-  }
+	function onMouseUp() {
+		window.removeEventListener("mousemove", onMouseMove);
+		window.removeEventListener("mouseup", onMouseUp);
+	}
 
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
+	window.addEventListener("mousemove", onMouseMove);
+	window.addEventListener("mouseup", onMouseUp);
 }
 
 interface Section {
-  type: "header" | "lines";
-  header?: string;
-  hunkIdx: number;
-  rows: PairedRow[];
-  hunkLines?: DiffLine[];
+	type: "header" | "lines";
+	header?: string;
+	hunkIdx: number;
+	rows: PairedRow[];
+	hunkLines?: DiffLine[];
 }
 
-const pairedData = $derived(fileDiffs.map((fd) => {
-  const maxLn = maxLineNumber(fd);
-  const gw = gutterWidth(maxLn);
-  if (contentMode === "full") {
-    const allLines = fd.hunks.flatMap((h) => h.lines);
-    return { fd, gutterW: gw, sections: [{ type: "lines" as const, rows: pairLines(allLines), hunkIdx: 0, hunkLines: allLines }] as Section[] };
-  }
-  const sections: Section[] = fd.hunks.flatMap((hunk, hunkIdx) => [
-    { type: "header" as const, header: hunk.header, hunkIdx, rows: [] as PairedRow[], hunkLines: hunk.lines },
-    { type: "lines" as const, rows: pairLines(hunk.lines), hunkIdx, hunkLines: hunk.lines },
-  ]);
-  return { fd, gutterW: gw, sections };
-}));
+const pairedData = $derived(
+	fileDiffs.map((fd) => {
+		const maxLn = maxLineNumber(fd);
+		const gw = gutterWidth(maxLn);
+		if (contentMode === "full") {
+			const allLines = fd.hunks.flatMap((h) => h.lines);
+			return {
+				fd,
+				gutterW: gw,
+				sections: [
+					{
+						type: "lines" as const,
+						rows: pairLines(allLines),
+						hunkIdx: 0,
+						hunkLines: allLines,
+					},
+				] as Section[],
+			};
+		}
+		const sections: Section[] = fd.hunks.flatMap((hunk, hunkIdx) => [
+			{
+				type: "header" as const,
+				header: hunk.header,
+				hunkIdx,
+				rows: [] as PairedRow[],
+				hunkLines: hunk.lines,
+			},
+			{
+				type: "lines" as const,
+				rows: pairLines(hunk.lines),
+				hunkIdx,
+				hunkLines: hunk.lines,
+			},
+		]);
+		return { fd, gutterW: gw, sections };
+	}),
+);
 </script>
 
 {#each pairedData as { fd, gutterW, sections } (fd.path)}

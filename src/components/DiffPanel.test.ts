@@ -3,7 +3,6 @@ import { tick } from "svelte";
 import { describe, expect, it, vi } from "vitest";
 import {
 	pairLines,
-	type PairedRow,
 	splitInvisibles,
 	trailingWhitespaceStart,
 } from "../lib/diff-utils.js";
