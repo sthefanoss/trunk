@@ -259,7 +259,11 @@ Plans:
   2. Scrolling either panel scrolls both panels in sync
   3. User can stage/unstage/discard hunks and lines from within split view (disabled when whitespace ignore is active)
   4. Word-level diff highlights and syntax coloring render correctly in both split view panels
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 64-01-PLAN.md — ViewMode refactor: ContentMode + LayoutMode types, store functions, DiffToolbar two controls, DiffViewer 2D dispatch, tests
+- [ ] 64-02-PLAN.md — SplitView component: pairLines utility, row alignment, phantom spacers, scroll sync, resizable divider, tests
+- [ ] 64-03-PLAN.md — Staging in split view: hunk buttons, line selection on right panel, VIEW-05 tests, visual checkpoint
 **UI hint**: yes
 
 ## Progress
@@ -274,7 +278,7 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | 61. Syntax Highlighting | 2/2 | Complete    | 2026-03-29 |
 | 62. UI Refactor & Component Structure | 2/2 | Complete    | 2026-03-29 |
 | 63. Full File View & Display Options | 3/3 | Complete    | 2026-03-30 |
-| 64. Split View | 0/0 | Not started | - |
+| 64. Split View | 0/3 | Not started | - |
 
 | Milestone | Phases | Plans | Status | Shipped |
 |-----------|--------|-------|--------|---------|
@@ -289,8 +293,8 @@ Phases execute in numeric order: 59 → 60 → 61 → 62 → 63 → 64
 | v0.9 Multi-tab & Tree View | 44-49 | 13/13 | Complete | 2026-03-25 |
 | v0.10 CI/CD & Releases | 50-52 | 4/4 | Complete | 2026-03-26 |
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
-| v0.12 Better Diffs | 59-64 | 8/10 | In progress | - |
+| v0.12 Better Diffs | 59-64 | 11/14 | In progress | - |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-03-29 — Phase 63 planned (2 plans)*
+*Last updated: 2026-03-30 — Phase 64 planned (3 plans)*
