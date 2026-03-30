@@ -36,6 +36,16 @@ fn color_to_css_class(color: Color) -> &'static str {
     }
 }
 
+/// Returns true if syntect has a real syntax definition for this extension (not plain text).
+pub fn has_syntax_for_extension(ext: &str) -> bool {
+    if ext.is_empty() {
+        return false;
+    }
+    SYNTAX_SET
+        .find_syntax_by_extension(ext)
+        .is_some_and(|s| s.name != "Plain Text")
+}
+
 /// Extract file extension from a path string.
 pub fn extension_from_path(path: &str) -> &str {
     std::path::Path::new(path)
@@ -44,16 +54,23 @@ pub fn extension_from_path(path: &str) -> &str {
         .unwrap_or("")
 }
 
-/// Highlight a single line of code, returning byte-offset-based SyntaxTokens.
-/// Each token carries a CSS class name in its `scope` field.
-pub fn highlight_line_tokens(content: &str, extension: &str) -> Vec<SyntaxToken> {
-    let syntax = SYNTAX_SET
-        .find_syntax_by_extension(extension)
-        .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
-
+/// Create a reusable highlighter for a file extension.
+/// Returns None if the extension has no syntax definition (plain text).
+pub fn create_highlighter(extension: &str) -> Option<HighlightLines<'static>> {
+    let syntax = SYNTAX_SET.find_syntax_by_extension(extension)?;
+    if syntax.name == "Plain Text" {
+        return None;
+    }
     let theme = &THEME_SET.themes["base16-ocean.dark"];
-    let mut highlighter = HighlightLines::new(syntax, theme);
+    Some(HighlightLines::new(syntax, theme))
+}
 
+/// Highlight a single line using a reusable highlighter instance.
+/// The highlighter maintains parse state across calls, giving correct multi-line highlighting.
+pub fn highlight_line_with(
+    highlighter: &mut HighlightLines<'_>,
+    content: &str,
+) -> Vec<SyntaxToken> {
     // syntect requires newline-terminated lines with load_defaults_newlines
     let normalized = if content.ends_with('\n') {
         content.to_string()
@@ -85,6 +102,15 @@ pub fn highlight_line_tokens(content: &str, extension: &str) -> Vec<SyntaxToken>
         offset += len;
     }
     tokens
+}
+
+/// Highlight a single line of code (standalone — creates a fresh highlighter).
+/// Prefer `create_highlighter` + `highlight_line_with` for batch processing.
+pub fn highlight_line_tokens(content: &str, extension: &str) -> Vec<SyntaxToken> {
+    let Some(mut hl) = create_highlighter(extension) else {
+        return vec![];
+    };
+    highlight_line_with(&mut hl, content)
 }
 
 /// Merge syntax tokens and word spans into a single sorted span array.

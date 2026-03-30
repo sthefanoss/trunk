@@ -166,13 +166,27 @@ function clearCommit() {
 	selectedCommitFile = null;
 }
 
-async function buildDiffOptions(): Promise<DiffRequestOptions> {
-	const [contextLines, ignoreWhitespace, showFullFile] = await Promise.all([
+// Cached diff options — loaded once on mount, updated via ondiffoptionschange callback.
+// Avoids 3 LazyStore IPC reads per file click.
+let cachedDiffOptions = $state<DiffRequestOptions>({
+	contextLines: 3,
+	ignoreWhitespace: false,
+	showFullFile: false,
+});
+
+$effect(() => {
+	void repoPath; // re-load when repo changes
+	Promise.all([
 		getDiffContextLines(),
 		getDiffIgnoreWhitespace(),
 		getDiffShowFullFile(),
-	]);
-	return { contextLines, ignoreWhitespace, showFullFile };
+	]).then(([contextLines, ignoreWhitespace, showFullFile]) => {
+		cachedDiffOptions = { contextLines, ignoreWhitespace, showFullFile };
+	}).catch(() => {});
+});
+
+function buildDiffOptions(): DiffRequestOptions {
+	return cachedDiffOptions;
 }
 
 /** WIP row clicked -- switch to staging view and auto-open right pane if collapsed. */
@@ -228,7 +242,7 @@ async function handleFileSelect(
 	stagingDiffLoading = true;
 	try {
 		const command = kind === "unstaged" ? "diff_unstaged" : "diff_staged";
-		const options = await buildDiffOptions();
+		const options = buildDiffOptions();
 		stagingDiffFiles = await safeInvoke<FileDiff[]>(command, {
 			path: repoPath,
 			filePath: path,
@@ -260,12 +274,10 @@ async function handleCommitSelect(oid: string) {
 	selectedCommitOid = oid;
 	if (!repoPath) return;
 	try {
-		const commitDiffOptions = await buildDiffOptions();
 		const [files, detail] = await Promise.all([
-			safeInvoke<FileDiff[]>("diff_commit", {
+			safeInvoke<FileDiff[]>("list_commit_files", {
 				path: repoPath,
 				oid,
-				options: commitDiffOptions,
 			}),
 			safeInvoke<CommitDetailType>("get_commit_detail", {
 				path: repoPath,
@@ -308,23 +320,40 @@ async function handleRefNavigate(refNameOrOid: string) {
 	await commitGraphRef?.scrollToOid(oid);
 }
 
-function handleCommitFileSelect(path: string) {
+async function handleCommitFileSelect(path: string) {
 	if (selectedCommitFile === path) {
 		clearCommitFileDiff();
 		return;
 	}
 	selectedCommitFile = path;
+	if (!repoPath || !selectedCommitOid) return;
+	try {
+		const options = buildDiffOptions();
+		const fileDiffs = await safeInvoke<FileDiff[]>("diff_commit_file", {
+			path: repoPath,
+			oid: selectedCommitOid,
+			filePath: path,
+			options,
+		});
+		// Replace the lightweight entry with the raw diff data
+		commitFileDiffs = commitFileDiffs.map((fd) =>
+			fd.path === path && fileDiffs.length > 0 ? fileDiffs[0] : fd,
+		);
+	} catch {
+		// Keep the lightweight entry — DiffPanel will show empty diff
+	}
 }
 
 async function refetchFileDiff(
 	path: string,
 	kind: "unstaged" | "staged" | "conflicted",
+	options?: DiffRequestOptions,
 ) {
 	if (!repoPath) return;
 	if (kind === "conflicted") return; // MergeEditor handles its own data loading
 	try {
 		const command = kind === "unstaged" ? "diff_unstaged" : "diff_staged";
-		const reloadOptions = await buildDiffOptions();
+		const reloadOptions = options ?? buildDiffOptions();
 		stagingDiffFiles = await safeInvoke<FileDiff[]>(command, {
 			path: repoPath,
 			filePath: path,
@@ -461,16 +490,14 @@ async function handleRebaseFocusChange(oid: string) {
 	rebaseFocusedFileSelected = null;
 	rebaseDiffFile = null;
 	try {
-		const rebaseDiffOptions = await buildDiffOptions();
 		const [detail, files] = await Promise.all([
 			safeInvoke<CommitDetailType>("get_commit_detail", {
 				path: repoPath,
 				oid,
 			}),
-			safeInvoke<FileDiff[]>("diff_commit", {
+			safeInvoke<FileDiff[]>("list_commit_files", {
 				path: repoPath,
 				oid,
-				options: rebaseDiffOptions,
 			}),
 		]);
 		rebaseFocusedCommitDetail = detail;
@@ -659,9 +686,10 @@ function startRightResize(e: MouseEvent) {
             await refetchFileDiff(filePath, selectedFile.kind);
           }
         }}
-        ondiffoptionschange={async () => {
+        ondiffoptionschange={async (options) => {
+          cachedDiffOptions = options;
           if (selectedFile && selectedFile.kind !== "conflicted") {
-            await refetchFileDiff(selectedFile.path, selectedFile.kind);
+            await refetchFileDiff(selectedFile.path, selectedFile.kind, options);
           }
         }}
         onclose={handleDiffClose}

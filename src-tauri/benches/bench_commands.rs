@@ -203,10 +203,196 @@ fn bench_stage_hunk(c: &mut Criterion) {
     });
 }
 
+/// Create a repo with a realistic code file (TypeScript) that has multiple changed hunks.
+/// Tests the full enrichment pipeline: syntax highlighting + word-level diff.
+fn make_repo_with_code_changes() -> BenchRepo {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = git2::Repository::init(dir.path()).unwrap();
+    let sig = git2::Signature::now("Bench", "bench@test.com").unwrap();
+
+    let original = r#"import { invoke } from "@tauri-apps/api/core";
+import type { FileDiff, DiffRequestOptions } from "../lib/types";
+
+export async function loadDiff(path: string, options: DiffRequestOptions): Promise<FileDiff[]> {
+    const result = await invoke<FileDiff[]>("diff_unstaged", { path, options });
+    return result.filter((fd) => !fd.is_binary);
+}
+
+export function formatLineNumber(num: number | null): string {
+    if (num === null) return "   ";
+    return num.toString().padStart(4, " ");
+}
+
+export function isContextLine(origin: string): boolean {
+    return origin === "Context";
+}
+
+export function getLineClass(origin: string): string {
+    switch (origin) {
+        case "Add": return "line-add";
+        case "Delete": return "line-delete";
+        default: return "line-context";
+    }
+}
+
+export async function stageFile(path: string, filePath: string): Promise<void> {
+    await invoke("stage_file", { path, filePath });
+}
+
+export async function unstageFile(path: string, filePath: string): Promise<void> {
+    await invoke("unstage_file", { path, filePath });
+}
+
+export function computeStats(diffs: FileDiff[]): { added: number; removed: number } {
+    let added = 0;
+    let removed = 0;
+    for (const fd of diffs) {
+        for (const hunk of fd.hunks) {
+            for (const line of hunk.lines) {
+                if (line.origin === "Add") added++;
+                if (line.origin === "Delete") removed++;
+            }
+        }
+    }
+    return { added, removed };
+}
+"#;
+
+    let modified = r#"import { invoke } from "@tauri-apps/api/core";
+import type { FileDiff, DiffRequestOptions, ViewMode } from "../lib/types";
+
+export async function loadDiff(
+    path: string,
+    filePath: string,
+    options: DiffRequestOptions,
+): Promise<FileDiff[]> {
+    const result = await invoke<FileDiff[]>("diff_unstaged", { path, filePath, options });
+    return result.filter((fd) => !fd.is_binary && fd.hunks.length > 0);
+}
+
+export function formatLineNumber(num: number | null, width: number = 4): string {
+    if (num === null) return " ".repeat(width);
+    return num.toString().padStart(width, " ");
+}
+
+export function isContextLine(origin: string): boolean {
+    return origin === "Context";
+}
+
+export function getLineClass(origin: string, viewMode: ViewMode): string {
+    const base = (() => {
+        switch (origin) {
+            case "Add": return "line-add";
+            case "Delete": return "line-delete";
+            default: return "line-context";
+        }
+    })();
+    return viewMode === "full" ? `${base} full-file` : base;
+}
+
+export async function stageFile(repoPath: string, filePath: string): Promise<void> {
+    await invoke("stage_file", { path: repoPath, filePath });
+}
+
+export async function unstageFile(repoPath: string, filePath: string): Promise<void> {
+    await invoke("unstage_file", { path: repoPath, filePath });
+}
+
+export function computeStats(diffs: FileDiff[]): { added: number; removed: number; files: number } {
+    let added = 0;
+    let removed = 0;
+    for (const fd of diffs) {
+        for (const hunk of fd.hunks) {
+            for (const line of hunk.lines) {
+                if (line.origin === "Add") added++;
+                if (line.origin === "Delete") removed++;
+            }
+        }
+    }
+    return { added, removed, files: diffs.length };
+}
+"#;
+
+    std::fs::write(dir.path().join("diff-utils.ts"), original).unwrap();
+    let mut index = repo.index().unwrap();
+    index
+        .add_path(std::path::Path::new("diff-utils.ts"))
+        .unwrap();
+    index.write().unwrap();
+    let tree_oid = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_oid).unwrap();
+    repo.commit(
+        Some("refs/heads/main"),
+        &sig,
+        &sig,
+        "Initial commit",
+        &tree,
+        &[],
+    )
+    .unwrap();
+
+    std::fs::write(dir.path().join("diff-utils.ts"), modified).unwrap();
+
+    BenchRepo {
+        path: dir.path().to_path_buf(),
+        _dir: dir,
+    }
+}
+
+static REPO_CODE: OnceLock<BenchRepo> = OnceLock::new();
+
+/// Benchmark the full pipeline (git2 walk + enrichment) — the optimized version.
+fn bench_diff_code_file(c: &mut Criterion) {
+    let bench_repo = REPO_CODE.get_or_init(make_repo_with_code_changes);
+    let path = bench_repo.path.display().to_string();
+    let mut state_map: HashMap<String, PathBuf> = HashMap::new();
+    state_map.insert(path.clone(), bench_repo.path.clone());
+
+    c.bench_function("diff_ts_full_pipeline", |b| {
+        b.iter(|| {
+            trunk_lib::commands::diff::diff_unstaged_inner(
+                &path,
+                "diff-utils.ts",
+                &state_map,
+                &trunk_lib::git::types::DiffRequestOptions::default(),
+            )
+            .unwrap()
+        });
+    });
+}
+
+/// Benchmark JUST the enrichment step (new: per-file highlighter).
+fn bench_enrich_new(c: &mut Criterion) {
+    let bench_repo = REPO_CODE.get_or_init(make_repo_with_code_changes);
+    let path = bench_repo.path.display().to_string();
+    let mut state_map: HashMap<String, PathBuf> = HashMap::new();
+    state_map.insert(path.clone(), bench_repo.path.clone());
+
+    // Get raw diffs once
+    let raw = trunk_lib::commands::diff::diff_unstaged_raw_for_bench(
+        &path,
+        "diff-utils.ts",
+        &state_map,
+        &trunk_lib::git::types::DiffRequestOptions::default(),
+    )
+    .unwrap();
+
+    c.bench_function("enrich_ts_new_perfile", |b| {
+        b.iter(|| {
+            let mut diffs = raw.clone();
+            trunk_lib::commands::diff::enrich_file_diffs(&mut diffs);
+            diffs
+        });
+    });
+}
+
+
 criterion_group!(
     benches,
     bench_list_refs,
     bench_diff_unstaged,
+    bench_diff_code_file,
+    bench_enrich_new,
     bench_get_status,
     bench_stage_hunk
 );

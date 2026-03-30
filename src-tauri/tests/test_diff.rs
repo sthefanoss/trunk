@@ -443,7 +443,7 @@ fn word_span_basic_pair() {
 
     std::fs::write(ctx.repo_path().join("greet.txt"), "hello mars\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("greet.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("greet.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -516,7 +516,7 @@ fn word_span_unpaired_add_has_no_emphasis() {
 
     std::fs::write(ctx.repo_path().join("lines.txt"), "line1\nline2\nline3\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("lines.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("lines.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -550,7 +550,7 @@ fn word_span_long_line_skipped() {
     let modified = "b".repeat(600) + "\n";
     std::fs::write(ctx.repo_path().join("long.txt"), &modified).unwrap();
 
-    let file_diffs = ctx.diff_unstaged("long.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("long.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -579,7 +579,7 @@ fn word_span_dissimilar_skipped() {
 
     std::fs::write(ctx.repo_path().join("dissimilar.txt"), "xxx yyy zzz\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("dissimilar.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("dissimilar.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -617,7 +617,7 @@ fn word_span_context_lines_have_no_emphasis() {
         .collect();
     std::fs::write(ctx.repo_path().join("ctx.txt"), &modified).unwrap();
 
-    let file_diffs = ctx.diff_unstaged("ctx.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("ctx.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -646,7 +646,7 @@ fn word_span_covers_entire_content() {
 
     std::fs::write(ctx.repo_path().join("cover.txt"), "hello mars\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("cover.txt").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("cover.txt").expect("diff failed");
     assert!(!file_diffs.is_empty(), "expected file diffs");
     let hunk = &file_diffs[0].hunks[0];
 
@@ -697,7 +697,7 @@ fn syntax_tokens_populated_for_rust_file() {
     )
     .unwrap();
 
-    let file_diffs = ctx.diff_unstaged("main.rs").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("main.rs").expect("diff failed");
     assert!(!file_diffs.is_empty());
     let hunk = &file_diffs[0].hunks[0];
 
@@ -718,7 +718,7 @@ fn syntax_extension_detection_unknown_ext_no_syntax() {
 
     std::fs::write(ctx.repo_path().join("data.xyz123"), "different content\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("data.xyz123").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("data.xyz123").expect("diff failed");
     assert!(!file_diffs.is_empty());
     let hunk = &file_diffs[0].hunks[0];
 
@@ -743,7 +743,7 @@ fn merged_spans_cover_entire_content() {
 
     std::fs::write(ctx.repo_path().join("test.rs"), "let y = 2;\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("test.rs").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("test.rs").expect("diff failed");
     assert!(!file_diffs.is_empty());
 
     for hunk in &file_diffs[0].hunks {
@@ -787,7 +787,7 @@ fn syntax_and_word_diff_coexist() {
 
     std::fs::write(ctx.repo_path().join("combo.rs"), "let x = 99;\n").unwrap();
 
-    let file_diffs = ctx.diff_unstaged("combo.rs").expect("diff failed");
+    let file_diffs = ctx.diff_unstaged_enriched("combo.rs").expect("diff failed");
     assert!(!file_diffs.is_empty());
     let hunk = &file_diffs[0].hunks[0];
 

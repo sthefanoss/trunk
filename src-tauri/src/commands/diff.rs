@@ -117,6 +117,12 @@ fn compute_word_spans_for_hunk(lines: &[DiffLine]) -> Vec<Vec<WordSpan>> {
 
         // Pair positionally
         let pairs = (del_end - del_start).min(add_end - add_start);
+
+        // Skip word diff entirely for large change blocks (likely a rewrite)
+        if pairs > 40 {
+            continue;
+        }
+
         for p in 0..pairs {
             let del_idx = del_start + p;
             let add_idx = add_start + p;
@@ -129,9 +135,32 @@ fn compute_word_spans_for_hunk(lines: &[DiffLine]) -> Vec<Vec<WordSpan>> {
                 continue;
             }
 
-            // Edit distance threshold (WORD-02): ratio < 0.4 means >60% different
-            let check_diff = TextDiff::from_chars(del_content, add_content);
-            if check_diff.ratio() < 0.4 {
+            // Quick dissimilarity check: skip if lengths differ by >3x
+            // or if character overlap is too low (cheap O(n) check vs O(n*m) from_chars)
+            let (short, long) = if del_content.len() <= add_content.len() {
+                (del_content.len(), add_content.len())
+            } else {
+                (add_content.len(), del_content.len())
+            };
+            if short == 0 || long > short * 3 {
+                continue;
+            }
+            // Count shared characters as a cheap similarity proxy
+            let mut del_chars = [0u16; 128];
+            let mut shared = 0usize;
+            for &b in del_content.as_bytes() {
+                if (b as usize) < 128 {
+                    del_chars[b as usize] = del_chars[b as usize].saturating_add(1);
+                }
+            }
+            for &b in add_content.as_bytes() {
+                if (b as usize) < 128 && del_chars[b as usize] > 0 {
+                    del_chars[b as usize] -= 1;
+                    shared += 1;
+                }
+            }
+            // If less than 40% of chars are shared, lines are too dissimilar
+            if shared * 5 < long * 2 {
                 continue;
             }
 
@@ -143,7 +172,9 @@ fn compute_word_spans_for_hunk(lines: &[DiffLine]) -> Vec<Vec<WordSpan>> {
     word_spans
 }
 
-fn walk_diff_into_file_diffs(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, TrunkError> {
+/// Collect diff lines from git2 and enrich with syntax highlighting + word-level diff.
+/// Single pass: git2 walk → word diff → syntax → merge spans. Returns complete data.
+fn walk_diff(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, TrunkError> {
     use std::cell::RefCell;
 
     let file_diffs: RefCell<Vec<FileDiff>> = RefCell::new(Vec::new());
@@ -213,23 +244,114 @@ fn walk_diff_into_file_diffs(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, Trun
     .map_err(TrunkError::from)?;
 
     let mut file_diffs = file_diffs.into_inner();
+    enrich_file_diffs(&mut file_diffs);
+    Ok(file_diffs)
+}
 
-    // Pass 2: word-level diff enrichment
-    // Pass 3: syntax highlighting + merge into unified spans
-    for fd in &mut file_diffs {
+/// Enrich file diffs with word-level diff spans and syntax highlighting.
+/// Creates ONE highlighter per file (not per line) for dramatically better performance.
+pub fn enrich_file_diffs(file_diffs: &mut [FileDiff]) {
+    for fd in file_diffs.iter_mut() {
         let ext = syntax::extension_from_path(&fd.path);
+        let mut highlighter = syntax::create_highlighter(ext);
         for hunk in &mut fd.hunks {
             let word_spans_per_line = compute_word_spans_for_hunk(&hunk.lines);
             for (i, line) in hunk.lines.iter_mut().enumerate() {
-                let syntax_tokens = syntax::highlight_line_tokens(&line.content, ext);
                 let ws = &word_spans_per_line[i];
-                line.spans = syntax::merge_spans(&syntax_tokens, ws, line.content.len() as u32);
+                let syntax_tokens = if let Some(ref mut hl) = highlighter {
+                    syntax::highlight_line_with(hl, &line.content)
+                } else {
+                    vec![]
+                };
+                if !syntax_tokens.is_empty() || !ws.is_empty() {
+                    line.spans =
+                        syntax::merge_spans(&syntax_tokens, ws, line.content.len() as u32);
+                }
             }
         }
     }
-
-    Ok(file_diffs)
 }
+
+/// Raw walk without enrichment — exposed for benchmarking only.
+#[doc(hidden)]
+pub fn walk_diff_raw_for_bench(diff: git2::Diff<'_>) -> Result<Vec<FileDiff>, TrunkError> {
+    use std::cell::RefCell;
+    let file_diffs: RefCell<Vec<FileDiff>> = RefCell::new(Vec::new());
+    diff.foreach(
+        &mut |delta, _progress| {
+            let path = delta
+                .new_file()
+                .path()
+                .or_else(|| delta.old_file().path())
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let is_binary = delta.old_file().is_binary() || delta.new_file().is_binary();
+            let status = match delta.status() {
+                git2::Delta::Added => DiffStatus::Added,
+                git2::Delta::Deleted => DiffStatus::Deleted,
+                git2::Delta::Modified => DiffStatus::Modified,
+                git2::Delta::Renamed => DiffStatus::Renamed,
+                git2::Delta::Copied => DiffStatus::Copied,
+                git2::Delta::Untracked => DiffStatus::Untracked,
+                _ => DiffStatus::Unknown,
+            };
+            file_diffs.borrow_mut().push(FileDiff {
+                path, status, is_binary, hunks: Vec::new(),
+            });
+            true
+        },
+        None,
+        Some(&mut |_delta, hunk| {
+            if let Some(fd) = file_diffs.borrow_mut().last_mut() {
+                fd.hunks.push(DiffHunk {
+                    header: String::from_utf8_lossy(hunk.header()).into_owned(),
+                    old_start: hunk.old_start(), old_lines: hunk.old_lines(),
+                    new_start: hunk.new_start(), new_lines: hunk.new_lines(),
+                    lines: Vec::new(),
+                });
+            }
+            true
+        }),
+        Some(&mut |_delta, _hunk, line| {
+            let origin = match line.origin() {
+                '+' => DiffOrigin::Add,
+                '-' => DiffOrigin::Delete,
+                _ => DiffOrigin::Context,
+            };
+            let content = String::from_utf8_lossy(line.content()).into_owned();
+            let mut diffs = file_diffs.borrow_mut();
+            if let Some(fd) = diffs.last_mut() {
+                if let Some(hunk) = fd.hunks.last_mut() {
+                    hunk.lines.push(DiffLine {
+                        origin, content,
+                        old_lineno: line.old_lineno(),
+                        new_lineno: line.new_lineno(),
+                        spans: vec![],
+                    });
+                }
+            }
+            true
+        }),
+    ).map_err(TrunkError::from)?;
+    Ok(file_diffs.into_inner())
+}
+
+/// Diff unstaged changes without enrichment — for benchmarking.
+#[doc(hidden)]
+pub fn diff_unstaged_raw_for_bench(
+    path: &str,
+    file_path: &str,
+    state_map: &HashMap<String, PathBuf>,
+    options: &DiffRequestOptions,
+) -> Result<Vec<FileDiff>, TrunkError> {
+    let repo = open_repo_from_state(path, state_map)?;
+    let mut opts = git2::DiffOptions::new();
+    opts.pathspec(file_path);
+    apply_request_options(&mut opts, options);
+    let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
+    walk_diff_raw_for_bench(diff)
+}
+
 
 pub fn diff_unstaged_inner(
     path: &str,
@@ -245,7 +367,7 @@ pub fn diff_unstaged_inner(
     opts.show_untracked_content(true);
     apply_request_options(&mut opts, options);
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
-    walk_diff_into_file_diffs(diff)
+    walk_diff(diff)
 }
 
 pub fn diff_staged_inner(
@@ -264,7 +386,7 @@ pub fn diff_staged_inner(
         let head_tree = repo.head()?.peel_to_tree()?;
         repo.diff_tree_to_index(Some(&head_tree), None, Some(&mut opts))?
     };
-    walk_diff_into_file_diffs(diff)
+    walk_diff(diff)
 }
 
 pub fn diff_commit_inner(
@@ -286,7 +408,81 @@ pub fn diff_commit_inner(
         let parent_tree = commit.parent(0)?.tree()?;
         repo.diff_tree_to_tree(Some(&parent_tree), Some(&commit_tree), Some(&mut opts))?
     };
-    walk_diff_into_file_diffs(diff)
+    walk_diff(diff)
+}
+
+/// Lightweight commit file listing — returns only metadata (path, status, is_binary),
+/// no hunks/lines/spans. Used for the commit detail sidebar file list.
+pub fn list_commit_files_inner(
+    path: &str,
+    oid: &str,
+    state_map: &HashMap<String, PathBuf>,
+) -> Result<Vec<FileDiff>, TrunkError> {
+    let repo = open_repo_from_state(path, state_map)?;
+    let oid =
+        git2::Oid::from_str(oid).map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
+    let commit = repo.find_commit(oid)?;
+    let commit_tree = commit.tree()?;
+    let opts = git2::DiffOptions::new();
+    let diff = if commit.parent_count() == 0 {
+        repo.diff_tree_to_tree(None, Some(&commit_tree), Some(&mut { opts }))?
+    } else {
+        let parent_tree = commit.parent(0)?.tree()?;
+        repo.diff_tree_to_tree(Some(&parent_tree), Some(&commit_tree), Some(&mut { opts }))?
+    };
+
+    let mut file_diffs = Vec::new();
+    for delta_idx in 0..diff.deltas().len() {
+        let delta = diff.get_delta(delta_idx).unwrap();
+        let file_path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let is_binary = delta.old_file().is_binary() || delta.new_file().is_binary();
+        let status = match delta.status() {
+            git2::Delta::Added => DiffStatus::Added,
+            git2::Delta::Deleted => DiffStatus::Deleted,
+            git2::Delta::Modified => DiffStatus::Modified,
+            git2::Delta::Renamed => DiffStatus::Renamed,
+            git2::Delta::Copied => DiffStatus::Copied,
+            git2::Delta::Untracked => DiffStatus::Untracked,
+            _ => DiffStatus::Unknown,
+        };
+        file_diffs.push(FileDiff {
+            path: file_path,
+            status,
+            is_binary,
+            hunks: Vec::new(),
+        });
+    }
+    Ok(file_diffs)
+}
+
+/// Diff a single file from a commit — used when user clicks a file in commit detail.
+pub fn diff_commit_file_inner(
+    path: &str,
+    oid: &str,
+    file_path: &str,
+    state_map: &HashMap<String, PathBuf>,
+    options: &DiffRequestOptions,
+) -> Result<Vec<FileDiff>, TrunkError> {
+    let repo = open_repo_from_state(path, state_map)?;
+    let oid =
+        git2::Oid::from_str(oid).map_err(|e| TrunkError::new("invalid_oid", e.to_string()))?;
+    let commit = repo.find_commit(oid)?;
+    let commit_tree = commit.tree()?;
+    let mut opts = git2::DiffOptions::new();
+    opts.pathspec(file_path);
+    apply_request_options(&mut opts, options);
+    let diff = if commit.parent_count() == 0 {
+        repo.diff_tree_to_tree(None, Some(&commit_tree), Some(&mut opts))?
+    } else {
+        let parent_tree = commit.parent(0)?.tree()?;
+        repo.diff_tree_to_tree(Some(&parent_tree), Some(&commit_tree), Some(&mut opts))?
+    };
+    walk_diff(diff)
 }
 
 pub fn get_commit_detail_inner(
@@ -364,6 +560,38 @@ pub async fn diff_commit(
 }
 
 #[tauri::command]
+pub async fn list_commit_files(
+    path: String,
+    oid: String,
+    state: State<'_, RepoState>,
+) -> Result<Vec<FileDiff>, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        list_commit_files_inner(&path, &oid, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())
+}
+
+#[tauri::command]
+pub async fn diff_commit_file(
+    path: String,
+    oid: String,
+    file_path: String,
+    options: DiffRequestOptions,
+    state: State<'_, RepoState>,
+) -> Result<Vec<FileDiff>, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        diff_commit_file_inner(&path, &oid, &file_path, &state_map, &options)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())
+}
+
+#[tauri::command]
 pub async fn get_commit_detail(
     path: String,
     oid: String,
@@ -377,3 +605,4 @@ pub async fn get_commit_detail(
         })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
+

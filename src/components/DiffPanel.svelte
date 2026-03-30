@@ -2,6 +2,7 @@
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { showToast } from "../lib/toast.svelte.js";
 import {
+	getDiffContextLines,
 	getDiffViewMode, setDiffViewMode,
 	getDiffIgnoreWhitespace, setDiffIgnoreWhitespace,
 	getDiffShowFullFile, setDiffShowFullFile,
@@ -12,6 +13,7 @@ import type {
 	CommitDetail,
 	DiffLine,
 	DiffOrigin,
+	DiffRequestOptions,
 	FileDiff,
 	ViewMode,
 } from "../lib/types.js";
@@ -26,7 +28,7 @@ interface Props {
 	diffKind?: "unstaged" | "staged" | "commit";
 	repoPath?: string;
 	onhunkaction?: (filePath: string) => Promise<void>;
-	ondiffoptionschange?: () => void;
+	ondiffoptionschange?: (options: DiffRequestOptions) => void;
 	loading?: boolean;
 }
 
@@ -43,10 +45,10 @@ let {
 }: Props = $props();
 
 let viewMode = $state<ViewMode>("hunk");
+let contextLines = $state(3);
 let ignoreWhitespace = $state(false);
 let showInvisibles = $state(false);
 let wordWrap = $state(false);
-let prefsLoaded = $state(false);
 let hunkOperationInFlight = $state(false);
 let focusedHunkIndex = $state(0);
 let hunkElements = $state<Record<string, HTMLDivElement>>({});
@@ -61,31 +63,40 @@ let collapsedFiles = $state<Set<string>>(new Set());
 $effect(() => {
 	Promise.all([
 		getDiffViewMode(),
+		getDiffContextLines(),
 		getDiffIgnoreWhitespace(),
 		getDiffShowInvisibles(),
 		getDiffWordWrap(),
-	]).then(([m, iw, si, ww]) => {
+	]).then(([m, cl, iw, si, ww]) => {
 		viewMode = m;
+		contextLines = cl;
 		ignoreWhitespace = iw;
 		showInvisibles = si;
 		wordWrap = ww;
-		prefsLoaded = true;
 	}).catch(() => {});
 });
 
+function currentDiffOptions(overrides?: Partial<DiffRequestOptions>): DiffRequestOptions {
+	return {
+		contextLines,
+		ignoreWhitespace,
+		showFullFile: viewMode === "full",
+		...overrides,
+	};
+}
+
 async function handleViewModeChange(mode: ViewMode) {
 	viewMode = mode;
-	await setDiffViewMode(mode);
 	const shouldShowFull = mode === "full";
-	await setDiffShowFullFile(shouldShowFull);
 	clearSelection();
-	ondiffoptionschange?.();
+	ondiffoptionschange?.(currentDiffOptions({ showFullFile: shouldShowFull }));
+	Promise.all([setDiffViewMode(mode), setDiffShowFullFile(shouldShowFull)]);
 }
 
 async function handleIgnoreWhitespaceChange(value: boolean) {
 	ignoreWhitespace = value;
-	await setDiffIgnoreWhitespace(value);
-	ondiffoptionschange?.();
+	ondiffoptionschange?.(currentDiffOptions({ ignoreWhitespace: value }));
+	setDiffIgnoreWhitespace(value);
 }
 
 function handleShowInvisiblesChange(value: boolean) {
@@ -344,7 +355,6 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg);">
-	{#if prefsLoaded}
 	<DiffToolbar
 		{viewMode}
 		onviewmodechange={handleViewModeChange}
@@ -386,5 +396,4 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		onunstagelines={handleUnstageLines}
 		ondiscardlines={handleDiscardLines}
 	/>
-	{/if}
 </div>

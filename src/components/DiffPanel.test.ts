@@ -12,8 +12,8 @@ import DiffPanel from "./DiffPanel.svelte";
 import "../__tests__/helpers/tauri-mock";
 
 // Helper: flush microtasks (Promise.resolve in store mocks) + Svelte update queue
-// Needed because DiffPanel gates rendering on prefsLoaded, which is set after
-// the $effect's Promise.all resolves (microtask) and Svelte processes the update.
+// Needed because DiffPanel loads preferences via $effect Promise.all which resolves
+// asynchronously. This ensures the component has processed the loaded values.
 async function flushPrefs() {
 	await new Promise((r) => setTimeout(r, 0));
 	await tick();
@@ -34,6 +34,7 @@ vi.mock("../lib/store.js", () => {
 	let currentShowInvisibles = false;
 	let currentWordWrap = false;
 	return {
+		getDiffContextLines: vi.fn(() => Promise.resolve(3)),
 		getDiffViewMode: vi.fn(() => Promise.resolve(currentViewMode)),
 		setDiffViewMode: vi.fn((mode: string) => {
 			currentViewMode = mode;
