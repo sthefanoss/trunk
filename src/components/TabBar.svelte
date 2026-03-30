@@ -67,7 +67,7 @@ $effect(() => {
       class="tab-item"
       class:active={tab.id === activeTabId}
       data-tab-id={tab.id}
-      onclick={() => onactivate(tab.id)}
+      onmousedown={(e: MouseEvent) => { if (e.button === 0) onactivate(tab.id); }}
       onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') onactivate(tab.id); }}
       oncontextmenu={(e: MouseEvent) => { e.preventDefault(); oncontextmenu(tab.id, e); }}
       onauxclick={(e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); onauxclose(tab.id); } }}
@@ -76,7 +76,7 @@ $effect(() => {
       aria-selected={tab.id === activeTabId}
     >
       {#if tab.dirty}<span class="dirty-dot"></span>{/if}
-      <span class="truncate" style="max-width: 200px;">{tab.repoName || 'New Tab'}</span>
+      <span class="truncate" style="max-width: 200px; flex: 1;">{tab.repoName || 'New Tab'}</span>
       <button
         class="close-btn"
         onclick={(e: MouseEvent) => { e.stopPropagation(); onclose(tab.id, e.shiftKey); }}
@@ -110,6 +110,7 @@ $effect(() => {
     align-items: center;
     gap: 4px;
     padding: 0 12px;
+    min-width: 80px;
     height: 100%;
     font-size: 12px;
     font-weight: 500;

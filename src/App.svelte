@@ -448,16 +448,6 @@ $effect(() => {
 	return () => window.removeEventListener("keydown", handleKeydown);
 });
 
-// Trigger resize recalculation when switching tabs so virtual lists
-// that were mounted under display:none get correct viewport dimensions.
-$effect(() => {
-	// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-	activeTabId; // track
-	requestAnimationFrame(() => {
-		window.dispatchEvent(new Event("resize"));
-	});
-});
-
 // Dirty detection: listen for repo-changed events and update tab.dirty for ALL tabs (TAB-07, D-04, D-05)
 $effect(() => {
 	let unlisten: (() => void) | undefined;
@@ -506,29 +496,31 @@ $effect(() => {
     {/if}
   </div>
 
-  {#each tabs as tab (tab.id)}
-    <div style="display: {tab.id === activeTabId ? 'contents' : 'none'};">
-      {#if tab.repoPath}
-        {@const tabState = getOrCreateTabState(tab.id)}
-        <RepoView
-          repoPath={tab.repoPath}
-          repoName={tab.repoName}
-          remoteState={tabState.remoteState}
-          undoRedo={tabState.undoRedo}
-          {leftPaneWidth}
-          {leftPaneCollapsed}
-          {rightPaneWidth}
-          {rightPaneCollapsed}
-          onleftpanecollapsedchange={(c) => { leftPaneCollapsed = c; setLeftPaneCollapsed(c); }}
-          onrightpanecollapsedchange={(c) => { rightPaneCollapsed = c; setRightPaneCollapsed(c); }}
-          onleftpanewidthchange={(w) => { leftPaneWidth = w; setLeftPaneWidth(w); }}
-          onrightpanewidthchange={(w) => { rightPaneWidth = w; setRightPaneWidth(w); }}
-        />
-      {:else}
-        <WelcomeScreen {isFullscreen} onopen={(path, name) => openRepoInTab(tab.id, path, name)} />
-      {/if}
-    </div>
-  {/each}
+  <div style="flex: 1; overflow: hidden; position: relative;">
+    {#each tabs as tab (tab.id)}
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; {tab.id !== activeTabId ? 'visibility: hidden; pointer-events: none;' : ''}">
+        {#if tab.repoPath}
+          {@const tabState = getOrCreateTabState(tab.id)}
+          <RepoView
+            repoPath={tab.repoPath}
+            repoName={tab.repoName}
+            remoteState={tabState.remoteState}
+            undoRedo={tabState.undoRedo}
+            {leftPaneWidth}
+            {leftPaneCollapsed}
+            {rightPaneWidth}
+            {rightPaneCollapsed}
+            onleftpanecollapsedchange={(c) => { leftPaneCollapsed = c; setLeftPaneCollapsed(c); }}
+            onrightpanecollapsedchange={(c) => { rightPaneCollapsed = c; setRightPaneCollapsed(c); }}
+            onleftpanewidthchange={(w) => { leftPaneWidth = w; setLeftPaneWidth(w); }}
+            onrightpanewidthchange={(w) => { rightPaneWidth = w; setRightPaneWidth(w); }}
+          />
+        {:else}
+          <WelcomeScreen {isFullscreen} onopen={(path, name) => openRepoInTab(tab.id, path, name)} />
+        {/if}
+      </div>
+    {/each}
+  </div>
 
   <Toast />
 </div>
