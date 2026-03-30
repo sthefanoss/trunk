@@ -55,24 +55,18 @@ let {
     >Full</button>
   </div>
 
-  <div class="segmented-control">
-    <button
-      class="segment segment-icon"
-      class:active={layoutMode === "inline"}
-      title="Inline view"
-      onclick={() => onlayoutmodechange("inline")}
-    >
-      <Rows2 size={14} />
-    </button>
-    <button
-      class="segment segment-icon"
-      class:active={layoutMode === "split"}
-      title="Side-by-side view"
-      onclick={() => onlayoutmodechange("split")}
-    >
+  <button
+    class="toggle-btn"
+    class:active={layoutMode === "split"}
+    title={layoutMode === "inline" ? "Side-by-side view" : "Inline view"}
+    onclick={() => onlayoutmodechange(layoutMode === "inline" ? "split" : "inline")}
+  >
+    {#if layoutMode === "inline"}
       <Columns2 size={14} />
-    </button>
-  </div>
+    {:else}
+      <Rows2 size={14} />
+    {/if}
+  </button>
 
   <div class="toolbar-divider"></div>
   <button
@@ -174,12 +168,6 @@ let {
   .segment.active {
     background: var(--color-accent-bg);
     color: var(--color-accent);
-  }
-
-  .segment-icon {
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
   }
 
   .filename {

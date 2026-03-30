@@ -442,7 +442,7 @@ describe("DiffPanel", () => {
 		await flushPrefs();
 		expect(screen.getByText("Hunk")).toBeInTheDocument();
 		expect(screen.getByText("Full")).toBeInTheDocument();
-		expect(screen.getByTitle("Inline view")).toBeInTheDocument();
+		// Layout toggle shows "Side-by-side view" title when in inline mode (default)
 		expect(screen.getByTitle("Side-by-side view")).toBeInTheDocument();
 	});
 
@@ -488,9 +488,9 @@ describe("DiffPanel", () => {
 		await fireEvent.click(screen.getByTitle("Side-by-side view"));
 		// Flush Svelte reactivity
 		await flushPrefs();
-		// Split view should render panels
-		const panels = container.querySelectorAll(".split-panel");
-		expect(panels.length).toBe(2);
+		// Split view should render paired rows with two cells each
+		const rows = container.querySelectorAll(".split-row");
+		expect(rows.length).toBeGreaterThan(0);
 	});
 
 	// ---- DISP-01: Line number gutter tests ----
@@ -1055,7 +1055,7 @@ describe("pairLines", () => {
 // ---- VIEW-02: Split view layout ----
 
 describe("VIEW-02: Split view layout", () => {
-	it("renders split view with left and right panels when layout mode is split", async () => {
+	it("renders split view with paired rows when layout mode is split", async () => {
 		const storeMock = await import("../lib/store.js");
 		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
@@ -1073,9 +1073,12 @@ describe("VIEW-02: Split view layout", () => {
 		});
 		await flushPrefs();
 
-		// Split view should render panels
-		const panels = container.querySelectorAll(".split-panel");
-		expect(panels.length).toBe(2);
+		// Split view should render paired rows with two cells each
+		const rows = container.querySelectorAll(".split-row");
+		expect(rows.length).toBeGreaterThan(0);
+		// Each row should have two cells
+		const firstRow = rows[0];
+		expect(firstRow.querySelectorAll(".split-cell").length).toBe(2);
 
 		// Reset
 		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
@@ -1083,7 +1086,7 @@ describe("VIEW-02: Split view layout", () => {
 		);
 	});
 
-	it("shows old line numbers only in left panel, new only in right", async () => {
+	it("shows old line numbers only in left cell, new only in right", async () => {
 		const storeMock = await import("../lib/store.js");
 		vi.mocked(storeMock.getDiffContentMode).mockImplementation(() =>
 			Promise.resolve("hunk"),
@@ -1101,9 +1104,9 @@ describe("VIEW-02: Split view layout", () => {
 		});
 		await flushPrefs();
 
-		// The split view is rendered -- verify gutter content exists
-		const splitPanels = container.querySelectorAll(".split-panel");
-		expect(splitPanels.length).toBe(2);
+		// The split view is rendered -- verify paired rows exist
+		const rows = container.querySelectorAll(".split-row");
+		expect(rows.length).toBeGreaterThan(0);
 
 		// Reset
 		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
@@ -1133,10 +1136,9 @@ describe("VIEW-02: Split view layout", () => {
 		// The diff content "const x = 2;" should be present without the "+" prefix
 		const bodyText = container.textContent ?? "";
 		expect(bodyText).toContain("const x = 2;");
-		// Verify no "+const" or "-const" patterns appear (origin symbols absent)
-		// Content is rendered directly without origin symbol prefix
-		const splitPanels = container.querySelectorAll(".split-panel");
-		expect(splitPanels.length).toBe(2);
+		// Verify paired rows rendered
+		const rows = container.querySelectorAll(".split-row");
+		expect(rows.length).toBeGreaterThan(0);
 
 		// Reset
 		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
