@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.12
 milestone_name: Better Diffs
 status: executing
-stopped_at: Completed 63-03-PLAN.md
-last_updated: "2026-03-30T04:05:21.986Z"
+stopped_at: Phase 64 context gathered
+last_updated: "2026-03-30T14:51:35.813Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 6
@@ -108,7 +108,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-03-28
-Last session: 2026-03-30T03:57:16.590Z
-Stopped at: Completed 63-03-PLAN.md
-Resume file: None
+Last session: 2026-03-30T14:51:35.809Z
+Stopped at: Phase 64 context gathered
+Resume file: .planning/phases/64-split-view/64-CONTEXT.md
 Next action: /gsd:plan-phase 59
