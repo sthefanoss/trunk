@@ -42,6 +42,10 @@ let {
 </script>
 
 <div class="toolbar">
+  <span class="filename">
+    {#if selectedPath}{selectedPath}{/if}
+  </span>
+
   <button
     class="toggle-btn"
     title={contentMode === "hunk" ? "Show full file" : "Show hunks"}
@@ -90,10 +94,6 @@ let {
   >
     <TextWrap size={14} />
   </button>
-
-  <span class="filename">
-    {#if selectedPath}{selectedPath}{/if}
-  </span>
 
   {#if diffKind === 'unstaged'}
     <button
@@ -148,7 +148,7 @@ let {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    text-align: center;
+    text-align: left;
   }
 
   .action-btn {
