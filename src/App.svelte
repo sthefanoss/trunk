@@ -1,5 +1,6 @@
 <script lang="ts">
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import RepoView from "./components/RepoView.svelte";
 import TabBar from "./components/TabBar.svelte";
@@ -360,9 +361,9 @@ $effect(() => {
 	};
 });
 
-// Apply zoom to document
+// Apply zoom to webview
 $effect(() => {
-	document.documentElement.style.zoom = String(zoomLevel);
+	getCurrentWebview().setZoom(zoomLevel);
 });
 
 // Keyboard shortcuts

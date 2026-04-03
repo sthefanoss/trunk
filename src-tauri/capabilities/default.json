@@ -11,6 +11,7 @@
     "store:default",
     "core:menu:default",
     "window-state:default",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "core:webview:allow-set-webview-zoom"
   ]
 }
