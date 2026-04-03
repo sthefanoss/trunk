@@ -886,27 +886,29 @@ function refFromLabel(ref: RefLabel): RefInfo {
 	return { name: ref.short_name, refType: ref.ref_type, isHead: ref.is_head };
 }
 
+function checkoutLocalBranch(name: string) {
+	return safeInvoke<void>("checkout_branch", {
+		path: repoPath,
+		branchName: name,
+	});
+}
+
+function checkoutRemoteBranch(fullName: string) {
+	const shortName = fullName.slice(fullName.indexOf("/") + 1);
+	return safeInvoke<void>("create_branch", {
+		path: repoPath,
+		name: shortName,
+		fromOid: fullName,
+	});
+}
+
 async function handleRefCheckout(e: MouseEvent, ref: RefInfo) {
 	e.preventDefault();
 	e.stopPropagation();
 	if (ref.isHead) return;
 	try {
-		if (ref.refType === "RemoteBranch") {
-			const shortName = ref.name.includes("/")
-				? ref.name.slice(ref.name.indexOf("/") + 1)
-				: ref.name;
-			await safeInvoke<void>("create_branch", {
-				path: repoPath,
-				name: shortName,
-				fromOid: ref.name,
-			});
-			showToast(`Checked out ${shortName}`, "success");
-		} else {
-			await safeInvoke<void>("checkout_branch", {
-				path: repoPath,
-				branchName: ref.name,
-			});
-		}
+		if (ref.refType === "RemoteBranch") await checkoutRemoteBranch(ref.name);
+		else await checkoutLocalBranch(ref.name);
 	} catch (e) {
 		showToast((e as TrunkError).message ?? "Checkout failed", "error");
 	}

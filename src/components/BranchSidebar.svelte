@@ -150,9 +150,7 @@ async function handleCheckout(branchName: string) {
 }
 
 async function handleCheckoutRemoteBranch(fullName: string) {
-	const shortName = fullName.includes("/")
-		? fullName.slice(fullName.indexOf("/") + 1)
-		: fullName;
+	const shortName = fullName.slice(fullName.indexOf("/") + 1);
 	checkoutError = null;
 	checkingOutBranch = fullName;
 	try {
@@ -163,17 +161,8 @@ async function handleCheckoutRemoteBranch(fullName: string) {
 		});
 		await loadRefs(repoPath);
 		onrefreshed?.();
-		showToast(`Checked out ${shortName}`, "success");
 	} catch (e) {
-		const err = e as TrunkError;
-		if (err.code === "dirty_workdir") {
-			checkoutError = {
-				branch: fullName,
-				message:
-					"Cannot checkout — working tree has uncommitted changes. Commit or stash your changes first.",
-			};
-		}
-		showToast(err.message ?? "Checkout failed", "error");
+		showToast((e as TrunkError).message ?? "Checkout failed", "error");
 	} finally {
 		checkingOutBranch = null;
 	}
