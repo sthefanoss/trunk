@@ -1,5 +1,6 @@
 <script lang="ts">
 import { listen } from "@tauri-apps/api/event";
+import { buildTree, collectFilePaths } from "../lib/build-tree.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import type { RemoteState } from "../lib/remote-state.svelte.js";
 import {
@@ -215,13 +216,16 @@ function advanceToNextFile(
 		clearStagingDiff();
 		return;
 	}
-	const files = [...cachedStatus[section]].sort((a, b) =>
-		a.path.localeCompare(b.path),
-	);
-	const idx = files.findIndex((f) => f.path === currentPath);
-	const next = idx >= 0 ? (files[idx + 1] ?? files[idx - 1]) : undefined;
-	if (next) {
-		handleFileSelect(next.path, section);
+	const rawFiles = cachedStatus[section];
+	// Use the same ordering the visual list uses
+	const orderedPaths = treeViewEnabled
+		? collectFilePaths(buildTree(rawFiles))
+		: rawFiles.map((f) => f.path);
+	const idx = orderedPaths.indexOf(currentPath);
+	const nextPath =
+		idx >= 0 ? (orderedPaths[idx + 1] ?? orderedPaths[idx - 1]) : undefined;
+	if (nextPath) {
+		handleFileSelect(nextPath, section);
 	} else {
 		clearStagingDiff();
 	}
