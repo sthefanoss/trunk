@@ -61,6 +61,27 @@ let {
 }: Props = $props();
 
 let status = $state<WorkingTreeStatus | null>(null);
+
+export function optimisticMove(
+	filePath: string,
+	from: "unstaged" | "staged" | "conflicted",
+	action: "stage" | "unstage" | "discard",
+) {
+	if (!status) return;
+	const file = status[from].find((f) => f.path === filePath);
+	if (!file) return;
+	const updated = {
+		...status,
+		[from]: status[from].filter((f) => f.path !== filePath),
+	};
+	if (action === "stage") {
+		updated.staged = [...status.staged, file];
+	} else if (action === "unstage") {
+		updated.unstaged = [...status.unstaged, file];
+	}
+	status = updated;
+	onstatuschange?.(status);
+}
 let unstaged_expanded = $state(true);
 let staged_expanded = $state(true);
 let loadingFiles = $state<Set<string>>(new Set());
@@ -127,6 +148,7 @@ async function loadStatus() {
 async function stageFile(filePath: string) {
 	loadingFiles = new Set([...loadingFiles, filePath]);
 	await safeInvoke("stage_file", { path: repoPath, filePath });
+	optimisticMove(filePath, "unstaged", "stage");
 	onfileadvance?.(filePath, "unstaged");
 	await loadStatus();
 	const next = new Set(loadingFiles);
@@ -137,6 +159,7 @@ async function stageFile(filePath: string) {
 async function unstageFile(filePath: string) {
 	loadingFiles = new Set([...loadingFiles, filePath]);
 	await safeInvoke("unstage_file", { path: repoPath, filePath });
+	optimisticMove(filePath, "staged", "unstage");
 	onfileadvance?.(filePath, "staged");
 	await loadStatus();
 	const next = new Set(loadingFiles);
@@ -205,6 +228,7 @@ async function handleDiscardFile(filePath: string, fileStatus: FileStatusType) {
 	if (!confirmed) return;
 	try {
 		await safeInvoke("discard_file", { path: repoPath, filePath });
+		optimisticMove(filePath, "unstaged", "discard");
 		onfileadvance?.(filePath, "unstaged");
 		showToast(`Discarded ${filePath}`, "success");
 		await loadStatus();

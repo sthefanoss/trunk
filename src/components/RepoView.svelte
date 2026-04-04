@@ -88,6 +88,7 @@ let stagingDiffFiles = $state<FileDiff[]>([]);
 let stagingDiffLoading = $state(false);
 let selectGeneration = 0;
 let cachedStatus = $state<WorkingTreeStatus | null>(null);
+let stagingPanelRef = $state<StagingPanel | null>(null);
 
 // Commit selection (from CommitGraph)
 let selectedCommitOid = $state<string | null>(null);
@@ -717,8 +718,9 @@ function startRightResize(e: MouseEvent) {
             }
           }
         }}
-        onfileemptied={(filePath) => {
+        onfileemptied={(filePath, action) => {
           if (selectedFile?.path === filePath) {
+            stagingPanelRef?.optimisticMove(filePath, selectedFile.kind, action);
             advanceToNextFile(selectedFile.path, selectedFile.kind);
           }
         }}
@@ -763,7 +765,7 @@ function startRightResize(e: MouseEvent) {
         ontreeviewtoggle={handleTreeViewToggle}
       />
     {:else}
-      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} onfileadvance={(path: string, kind: "unstaged" | "staged" | "conflicted") => { if (selectedFile?.path === path && selectedFile?.kind === kind) { advanceToNextFile(path, kind); } }} selectedPath={selectedFile?.path ?? null} selectedKind={selectedFile?.kind ?? null} onstatuschange={(s) => { cachedStatus = s; }} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
+      <StagingPanel bind:this={stagingPanelRef} {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} onfileadvance={(path: string, kind: "unstaged" | "staged" | "conflicted") => { if (selectedFile?.path === path && selectedFile?.kind === kind) { advanceToNextFile(path, kind); } }} selectedPath={selectedFile?.path ?? null} selectedKind={selectedFile?.kind ?? null} onstatuschange={(s) => { cachedStatus = s; }} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
     {/if}
   </div>
   {/if}

@@ -36,7 +36,10 @@ interface Props {
 	diffKind?: "unstaged" | "staged" | "commit";
 	repoPath?: string;
 	onhunkaction?: (filePath: string) => Promise<void>;
-	onfileemptied?: (filePath: string) => void;
+	onfileemptied?: (
+		filePath: string,
+		action: "stage" | "unstage" | "discard",
+	) => void;
 	ondiffoptionschange?: (options: DiffRequestOptions) => void;
 	loading?: boolean;
 }
@@ -196,7 +199,7 @@ async function handleStageFile() {
 	hunkOperationInFlight = true;
 	try {
 		await safeInvoke("stage_file", { path: repoPath, filePath: selectedPath });
-		onfileemptied?.(selectedPath);
+		onfileemptied?.(selectedPath, "stage");
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Stage file failed", "error");
@@ -213,7 +216,7 @@ async function handleUnstageFile() {
 			path: repoPath,
 			filePath: selectedPath,
 		});
-		onfileemptied?.(selectedPath);
+		onfileemptied?.(selectedPath, "unstage");
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Unstage file failed", "error");
@@ -227,7 +230,7 @@ async function handleStageHunk(filePath: string, hunkIndex: number) {
 	try {
 		await safeInvoke("stage_hunk", { path: repoPath, filePath, hunkIndex });
 		if (isLastHunk(filePath)) {
-			onfileemptied?.(filePath);
+			onfileemptied?.(filePath, "stage");
 		} else {
 			await onhunkaction?.(filePath);
 		}
@@ -244,7 +247,7 @@ async function handleUnstageHunk(filePath: string, hunkIndex: number) {
 	try {
 		await safeInvoke("unstage_hunk", { path: repoPath, filePath, hunkIndex });
 		if (isLastHunk(filePath)) {
-			onfileemptied?.(filePath);
+			onfileemptied?.(filePath, "unstage");
 		} else {
 			await onhunkaction?.(filePath);
 		}
@@ -269,7 +272,7 @@ async function handleDiscardHunk(filePath: string, hunkIndex: number) {
 		await safeInvoke("discard_hunk", { path: repoPath, filePath, hunkIndex });
 		showToast("Discarded hunk", "success");
 		if (isLastHunk(filePath)) {
-			onfileemptied?.(filePath);
+			onfileemptied?.(filePath, "discard");
 		} else {
 			await onhunkaction?.(filePath);
 		}
