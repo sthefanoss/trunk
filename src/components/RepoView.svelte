@@ -86,7 +86,7 @@ let selectedFile = $state<{
 let stagingDiffFiles = $state<FileDiff[]>([]);
 let stagingDiffLoading = $state(false);
 let selectGeneration = 0;
-let advanceInFlight = false;
+let cachedStatus = $state<WorkingTreeStatus | null>(null);
 
 // Commit selection (from CommitGraph)
 let selectedCommitOid = $state<string | null>(null);
@@ -207,59 +207,29 @@ function handleDiffClose() {
 	else clearCommitFileDiff();
 }
 
-async function advanceToNextFile(
+function advanceToNextFile(
 	currentPath: string,
 	section: "unstaged" | "staged" | "conflicted",
 ) {
-	if (advanceInFlight) return;
-	if (!repoPath) {
+	if (!cachedStatus) {
 		clearStagingDiff();
 		return;
 	}
-	advanceInFlight = true;
-	try {
-		const status = await safeInvoke<WorkingTreeStatus>("get_status", {
-			path: repoPath,
-		});
-		const files = [...status[section]].sort((a, b) =>
-			a.path.localeCompare(b.path),
-		);
-		const idx = files.findIndex((f) => f.path === currentPath);
-		let next: { path: string } | undefined;
-		if (idx >= 0) {
-			// File still in same section -- pick the next sibling, or previous
-			next = files[idx + 1] ?? files[idx - 1];
-		} else {
-			// File moved out of section -- pick positional successor
-			const insertIdx = files.findIndex(
-				(f) => f.path.localeCompare(currentPath) > 0,
-			);
-			if (insertIdx >= 0) {
-				next = files[insertIdx];
-			} else {
-				// currentPath was alphabetically last -- pick the new last file
-				next = files[files.length - 1];
-			}
-		}
-		if (next) {
-			await handleFileSelect(next.path, section);
-		} else {
-			clearStagingDiff();
-		}
-	} catch {
+	const files = [...cachedStatus[section]].sort((a, b) =>
+		a.path.localeCompare(b.path),
+	);
+	const idx = files.findIndex((f) => f.path === currentPath);
+	const next = idx >= 0 ? (files[idx + 1] ?? files[idx - 1]) : undefined;
+	if (next) {
+		handleFileSelect(next.path, section);
+	} else {
 		clearStagingDiff();
-	} finally {
-		advanceInFlight = false;
 	}
 }
 
-async function handleFileResolved() {
-	if (!repoPath) {
-		clearStagingDiff();
-		return;
-	}
+function handleFileResolved() {
 	if (selectedFile) {
-		await advanceToNextFile(selectedFile.path, "conflicted");
+		advanceToNextFile(selectedFile.path, "conflicted");
 	} else {
 		clearStagingDiff();
 	}
@@ -739,8 +709,13 @@ function startRightResize(e: MouseEvent) {
             const { path, kind } = selectedFile;
             const isEmpty = await refetchFileDiff(filePath, kind);
             if (isEmpty && selectedFile?.path === path && selectedFile?.kind === kind) {
-              await advanceToNextFile(path, kind);
+              advanceToNextFile(path, kind);
             }
+          }
+        }}
+        onfileemptied={(filePath) => {
+          if (selectedFile?.path === filePath) {
+            advanceToNextFile(selectedFile.path, selectedFile.kind);
           }
         }}
         ondiffoptionschange={async (options) => {
@@ -784,7 +759,7 @@ function startRightResize(e: MouseEvent) {
         ontreeviewtoggle={handleTreeViewToggle}
       />
     {:else}
-      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} onfileadvance={(path: string, kind: "unstaged" | "staged" | "conflicted") => { if (selectedFile?.path === path && selectedFile?.kind === kind) { advanceToNextFile(path, kind); } }} selectedPath={selectedFile?.path ?? null} selectedKind={selectedFile?.kind ?? null} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
+      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} onfileadvance={(path: string, kind: "unstaged" | "staged" | "conflicted") => { if (selectedFile?.path === path && selectedFile?.kind === kind) { advanceToNextFile(path, kind); } }} selectedPath={selectedFile?.path ?? null} selectedKind={selectedFile?.kind ?? null} onstatuschange={(s) => { cachedStatus = s; }} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
     {/if}
   </div>
   {/if}

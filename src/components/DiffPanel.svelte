@@ -36,6 +36,7 @@ interface Props {
 	diffKind?: "unstaged" | "staged" | "commit";
 	repoPath?: string;
 	onhunkaction?: (filePath: string) => Promise<void>;
+	onfileemptied?: (filePath: string) => void;
 	ondiffoptionschange?: (options: DiffRequestOptions) => void;
 	loading?: boolean;
 }
@@ -48,6 +49,7 @@ let {
 	diffKind = "commit",
 	repoPath = "",
 	onhunkaction,
+	onfileemptied,
 	ondiffoptionschange,
 	loading = false,
 }: Props = $props();
@@ -184,12 +186,17 @@ $effect(() => {
 	collapsedFiles = new Set();
 });
 
+function isLastHunk(filePath: string): boolean {
+	const fd = fileDiffs.find((f) => f.path === filePath);
+	return !fd || fd.hunks.length <= 1;
+}
+
 async function handleStageFile() {
 	if (!selectedPath) return;
 	hunkOperationInFlight = true;
 	try {
 		await safeInvoke("stage_file", { path: repoPath, filePath: selectedPath });
-		await onhunkaction?.(selectedPath);
+		onfileemptied?.(selectedPath);
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Stage file failed", "error");
@@ -206,7 +213,7 @@ async function handleUnstageFile() {
 			path: repoPath,
 			filePath: selectedPath,
 		});
-		await onhunkaction?.(selectedPath);
+		onfileemptied?.(selectedPath);
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Unstage file failed", "error");
@@ -219,7 +226,11 @@ async function handleStageHunk(filePath: string, hunkIndex: number) {
 	hunkOperationInFlight = true;
 	try {
 		await safeInvoke("stage_hunk", { path: repoPath, filePath, hunkIndex });
-		await onhunkaction?.(filePath);
+		if (isLastHunk(filePath)) {
+			onfileemptied?.(filePath);
+		} else {
+			await onhunkaction?.(filePath);
+		}
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Stage hunk failed", "error");
@@ -232,7 +243,11 @@ async function handleUnstageHunk(filePath: string, hunkIndex: number) {
 	hunkOperationInFlight = true;
 	try {
 		await safeInvoke("unstage_hunk", { path: repoPath, filePath, hunkIndex });
-		await onhunkaction?.(filePath);
+		if (isLastHunk(filePath)) {
+			onfileemptied?.(filePath);
+		} else {
+			await onhunkaction?.(filePath);
+		}
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Unstage hunk failed", "error");
@@ -253,7 +268,11 @@ async function handleDiscardHunk(filePath: string, hunkIndex: number) {
 	try {
 		await safeInvoke("discard_hunk", { path: repoPath, filePath, hunkIndex });
 		showToast("Discarded hunk", "success");
-		await onhunkaction?.(filePath);
+		if (isLastHunk(filePath)) {
+			onfileemptied?.(filePath);
+		} else {
+			await onhunkaction?.(filePath);
+		}
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Discard hunk failed", "error");

@@ -39,6 +39,7 @@ interface Props {
 	) => void;
 	selectedPath?: string | null;
 	selectedKind?: "unstaged" | "staged" | "conflicted" | null;
+	onstatuschange?: (status: WorkingTreeStatus) => void;
 	clearRedoStack: () => void;
 	treeViewEnabled?: boolean;
 	ontreeviewtoggle?: () => void;
@@ -53,6 +54,7 @@ let {
 	onfileadvance,
 	selectedPath = null,
 	selectedKind = null,
+	onstatuschange,
 	clearRedoStack,
 	treeViewEnabled = false,
 	ontreeviewtoggle,
@@ -117,6 +119,7 @@ async function loadStatus() {
 	});
 	if (seq === loadSeq) {
 		status = result;
+		onstatuschange?.(result);
 	}
 	await loadOperationState();
 }
@@ -124,21 +127,21 @@ async function loadStatus() {
 async function stageFile(filePath: string) {
 	loadingFiles = new Set([...loadingFiles, filePath]);
 	await safeInvoke("stage_file", { path: repoPath, filePath });
+	onfileadvance?.(filePath, "unstaged");
 	await loadStatus();
 	const next = new Set(loadingFiles);
 	next.delete(filePath);
 	loadingFiles = next;
-	onfileadvance?.(filePath, "unstaged");
 }
 
 async function unstageFile(filePath: string) {
 	loadingFiles = new Set([...loadingFiles, filePath]);
 	await safeInvoke("unstage_file", { path: repoPath, filePath });
+	onfileadvance?.(filePath, "staged");
 	await loadStatus();
 	const next = new Set(loadingFiles);
 	next.delete(filePath);
 	loadingFiles = next;
-	onfileadvance?.(filePath, "staged");
 }
 
 async function stageDirectory(dirPath: string) {
@@ -202,9 +205,9 @@ async function handleDiscardFile(filePath: string, fileStatus: FileStatusType) {
 	if (!confirmed) return;
 	try {
 		await safeInvoke("discard_file", { path: repoPath, filePath });
-		await loadStatus();
-		showToast(`Discarded ${filePath}`, "success");
 		onfileadvance?.(filePath, "unstaged");
+		showToast(`Discarded ${filePath}`, "success");
+		await loadStatus();
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Discard failed", "error");
@@ -404,9 +407,9 @@ async function resolveConflictedFile(
 			filePath,
 			content,
 		});
-		await loadStatus();
 		onfileresolved?.();
 		onfileadvance?.(filePath, "conflicted");
+		await loadStatus();
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Resolution failed", "error");
