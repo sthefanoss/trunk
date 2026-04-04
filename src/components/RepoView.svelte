@@ -205,8 +205,10 @@ function handleDiffClose() {
 	else clearCommitFileDiff();
 }
 
-async function handleFileResolved() {
-	const resolvedPath = selectedFile?.path;
+async function advanceToNextFile(
+	currentPath: string,
+	section: "unstaged" | "staged" | "conflicted",
+) {
 	if (!repoPath) {
 		clearStagingDiff();
 		return;
@@ -215,13 +217,34 @@ async function handleFileResolved() {
 		const status = await safeInvoke<WorkingTreeStatus>("get_status", {
 			path: repoPath,
 		});
-		const next = status.conflicted.find((f) => f.path !== resolvedPath);
+		const files = status[section];
+		const idx = files.findIndex((f) => f.path === currentPath);
+		let next: { path: string } | undefined;
+		if (idx >= 0) {
+			// File still in same section -- pick the next sibling, or previous
+			next = files[idx + 1] ?? files[idx - 1];
+		} else {
+			// File moved out of section -- pick first remaining file
+			next = files[0];
+		}
 		if (next) {
-			handleFileSelect(next.path, "conflicted");
+			handleFileSelect(next.path, section);
 		} else {
 			clearStagingDiff();
 		}
 	} catch {
+		clearStagingDiff();
+	}
+}
+
+async function handleFileResolved() {
+	if (!repoPath) {
+		clearStagingDiff();
+		return;
+	}
+	if (selectedFile) {
+		await advanceToNextFile(selectedFile.path, "conflicted");
+	} else {
 		clearStagingDiff();
 	}
 }
@@ -686,6 +709,10 @@ function startRightResize(e: MouseEvent) {
         onhunkaction={async (filePath) => {
           if (selectedFile) {
             await refetchFileDiff(filePath, selectedFile.kind);
+            const isEmpty = stagingDiffFiles.length === 0 || stagingDiffFiles.every((f) => f.hunks.length === 0);
+            if (isEmpty) {
+              await advanceToNextFile(selectedFile.path, selectedFile.kind);
+            }
           }
         }}
         ondiffoptionschange={async (options) => {
@@ -729,7 +756,7 @@ function startRightResize(e: MouseEvent) {
         ontreeviewtoggle={handleTreeViewToggle}
       />
     {:else}
-      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
+      <StagingPanel {repoPath} currentBranch={headBranch} onfileselect={handleFileSelect} onsubjectchange={(v) => (wipSubject = v)} onfileresolved={handleFileResolved} onfileadvance={(path: string, kind: "unstaged" | "staged" | "conflicted") => { if (selectedFile?.path === path && selectedFile?.kind === kind) { advanceToNextFile(path, kind); } }} clearRedoStack={undoRedo.clear} {treeViewEnabled} ontreeviewtoggle={handleTreeViewToggle} />
     {/if}
   </div>
   {/if}
