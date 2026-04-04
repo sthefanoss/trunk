@@ -378,16 +378,21 @@ fn stage_hunk_works_on_untracked_file() {
         .with_commit("Initial commit")
         .build();
 
-    // Create a brand-new untracked file
-    std::fs::write(ctx.repo_path().join("new_file.txt"), "new content\n").unwrap();
+    // Create a brand-new untracked file in a subdirectory
+    let subdir = ctx.repo_path().join("subdir");
+    std::fs::create_dir_all(&subdir).unwrap();
+    std::fs::write(subdir.join("new_file.txt"), "new content\n").unwrap();
 
-    ctx.stage_hunk("new_file.txt", 0)
-        .expect("stage_hunk should work on untracked files");
+    ctx.stage_hunk("subdir/new_file.txt", 0)
+        .expect("stage_hunk should work on untracked files in subdirectories");
 
     let status = ctx.get_status().expect("get_status failed");
     assert!(
-        status.staged.iter().any(|f| f.path == "new_file.txt"),
-        "expected new_file.txt in staged list"
+        status
+            .staged
+            .iter()
+            .any(|f| f.path == "subdir/new_file.txt"),
+        "expected subdir/new_file.txt in staged list"
     );
 }
 

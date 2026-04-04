@@ -265,6 +265,7 @@ pub fn stage_hunk_inner(
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.pathspec(file_path);
     diff_opts.include_untracked(true);
+    diff_opts.recurse_untracked_dirs(true);
     diff_opts.show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
 
@@ -403,6 +404,7 @@ pub fn discard_hunk_inner(
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.pathspec(file_path).reverse(true);
     diff_opts.include_untracked(true);
+    diff_opts.recurse_untracked_dirs(true);
     diff_opts.show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
 
@@ -883,6 +885,7 @@ pub fn stage_lines_inner(
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.pathspec(file_path);
     diff_opts.include_untracked(true);
+    diff_opts.recurse_untracked_dirs(true);
     diff_opts.show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
 
@@ -1020,6 +1023,7 @@ pub fn discard_lines_inner(
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.pathspec(file_path);
     diff_opts.include_untracked(true);
+    diff_opts.recurse_untracked_dirs(true);
     diff_opts.show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut diff_opts))?;
 
