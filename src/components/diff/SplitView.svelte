@@ -333,7 +333,7 @@ const pairedData = $derived(
   .split-cell {
     flex: 1;
     min-width: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .split-cell:first-child {

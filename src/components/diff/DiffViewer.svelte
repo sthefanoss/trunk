@@ -73,7 +73,7 @@ let {
 }: Props = $props();
 </script>
 
-<div style="flex: 1; overflow-y: auto; min-height: 0;">
+<div style="flex: 1; overflow: auto; min-height: 0;">
   {#if fileDiffs.length === 0 && commitDetail === null && !loading}
     <div style="
       flex: 1;

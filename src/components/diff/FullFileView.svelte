@@ -73,7 +73,6 @@ function gutterWidth(maxNum: number): string {
             line-height: 1.5;
             padding: 0 8px;
             white-space: {wordWrap ? 'pre-wrap' : 'pre'};
-            overflow-x: {wordWrap ? 'hidden' : 'auto'};
             background: {lineBackground(line.origin)};
             color: {lineColor(line.origin)};
             display: flex;
