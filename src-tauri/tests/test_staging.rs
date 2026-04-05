@@ -888,8 +888,7 @@ fn stage_files_handles_deleted_file() {
         status
             .staged
             .iter()
-            .any(|f| f.path == "dir/to_delete.txt"
-                && matches!(f.status, FileStatusType::Deleted)),
+            .any(|f| f.path == "dir/to_delete.txt" && matches!(f.status, FileStatusType::Deleted)),
         "expected dir/to_delete.txt staged as deleted"
     );
 }
@@ -903,7 +902,8 @@ fn stage_files_empty_vec_is_noop() {
 
     std::fs::write(ctx.repo_path().join("README.md"), "modified").unwrap();
 
-    ctx.stage_files(&[]).expect("stage_files with empty vec should succeed");
+    ctx.stage_files(&[])
+        .expect("stage_files with empty vec should succeed");
 
     let status = ctx.get_status().expect("get_status failed");
     assert!(
@@ -960,12 +960,8 @@ fn unstage_files_on_unborn_head() {
     {
         let repo = ctx.repo();
         let mut index = repo.index().unwrap();
-        index
-            .add_path(std::path::Path::new("a.txt"))
-            .unwrap();
-        index
-            .add_path(std::path::Path::new("b.txt"))
-            .unwrap();
+        index.add_path(std::path::Path::new("a.txt")).unwrap();
+        index.add_path(std::path::Path::new("b.txt")).unwrap();
         index.write().unwrap();
     }
 
@@ -994,7 +990,8 @@ fn unstage_files_empty_vec_is_noop() {
     std::fs::write(ctx.repo_path().join("README.md"), "modified").unwrap();
     ctx.stage_file("README.md").expect("stage_file failed");
 
-    ctx.unstage_files(&[]).expect("unstage_files with empty vec should succeed");
+    ctx.unstage_files(&[])
+        .expect("unstage_files with empty vec should succeed");
 
     let status = ctx.get_status().expect("get_status failed");
     assert!(

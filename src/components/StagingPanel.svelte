@@ -182,11 +182,7 @@ async function stageDirectory(dirPath: string) {
 	if (pathsToStage.length === 0) return;
 
 	loadingFiles = new Set([...loadingFiles, ...pathsToStage]);
-	await Promise.all(
-		pathsToStage.map((p) =>
-			safeInvoke("stage_file", { path: repoPath, filePath: p }),
-		),
-	);
+	await safeInvoke("stage_files", { path: repoPath, filePaths: pathsToStage });
 	await loadStatus();
 	const next = new Set(loadingFiles);
 	for (const p of pathsToStage) next.delete(p);
@@ -201,11 +197,10 @@ async function unstageDirectory(dirPath: string) {
 	if (pathsToUnstage.length === 0) return;
 
 	loadingFiles = new Set([...loadingFiles, ...pathsToUnstage]);
-	await Promise.all(
-		pathsToUnstage.map((p) =>
-			safeInvoke("unstage_file", { path: repoPath, filePath: p }),
-		),
-	);
+	await safeInvoke("unstage_files", {
+		path: repoPath,
+		filePaths: pathsToUnstage,
+	});
 	await loadStatus();
 	const next = new Set(loadingFiles);
 	for (const p of pathsToUnstage) next.delete(p);
