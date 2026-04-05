@@ -49,9 +49,13 @@ interface Props {
 	overlaySnippet?: Snippet<
 		[contentHeight: number, visibleStart: number, visibleEnd: number]
 	>;
+	/** Reactive average item height measured by the virtual list.
+	 *  Bind to this to get the actual measured row height (may differ from
+	 *  defaultEstimatedItemHeight at non-100% browser zoom levels). */
+	measuredItemHeight?: number;
 }
 
-const {
+let {
 	items = [],
 	defaultEstimatedItemHeight = 40,
 	debug = false,
@@ -61,6 +65,7 @@ const {
 	loadMoreThreshold = 20,
 	hasMore = true,
 	overlaySnippet,
+	measuredItemHeight = $bindable(defaultEstimatedItemHeight),
 }: Props = $props();
 
 /**
@@ -229,6 +234,14 @@ $effect(() => {
 $effect(() => {
 	heightManager.updateItemLength(items.length);
 	stabilizedContentHeight = 0;
+});
+
+// Expose measured average height to parent (for SVG overlay alignment at non-100% zoom)
+$effect(() => {
+	const avg = heightManager.averageHeight;
+	if (Number.isFinite(avg) && avg > 0) {
+		measuredItemHeight = avg;
+	}
 });
 
 // Infinite scroll: trigger onLoadMore when approaching end of list

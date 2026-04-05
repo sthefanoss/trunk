@@ -92,6 +92,13 @@ const PILL_ICONS: Record<string, typeof Laptop> = {
 // Change values here (or load from store) to adjust layout without touching any other file.
 let displaySettings = $state({ ...DEFAULT_GRAPH_SETTINGS });
 
+// Measured row height from VirtualList. At non-100% browser zoom, sub-pixel
+// snapping makes the actual rendered row height differ slightly from the CSS
+// value (ROW_HEIGHT = 26). Over thousands of rows, using the CSS constant for
+// SVG coordinates causes progressive drift. svgRowHeight tracks the real
+// measured height so the SVG overlay stays aligned with the DOM rows.
+let svgRowHeight = $state(displaySettings.rowHeight);
+
 let commits = $state<GraphCommit[]>([]);
 let maxColumns = $state(1);
 let hasMore = $state(true);
@@ -1121,18 +1128,23 @@ const displayItems = $derived.by(() => {
 const laneColor = (idx: number) => `var(--lane-${idx % 8})`;
 const cx = (col: number) =>
 	col * displaySettings.laneWidth + displaySettings.laneWidth / 2;
-const cy = (row: number) =>
-	row * displaySettings.rowHeight + displaySettings.rowHeight / 2;
+// Use svgRowHeight for Y-coordinates so the SVG overlay stays aligned with
+// the actual DOM row positions at non-100% browser zoom levels.
+const cy = (row: number) => row * svgRowHeight + svgRowHeight / 2;
+
+// SVG-specific display settings — identical to displaySettings except rowHeight
+// uses the measured value so that overlay paths, dots, and pills don't drift.
+const svgSettings = $derived({ ...displaySettings, rowHeight: svgRowHeight });
 
 const graphData = $derived.by(() => buildGraphData(displayItems, maxColumns));
-const paths = $derived.by(() => buildOverlayPaths(graphData, displaySettings));
+const paths = $derived.by(() => buildOverlayPaths(graphData, svgSettings));
 const pillData = $derived.by(() =>
 	buildRefPillData(
 		graphData.nodes,
 		displayItems,
 		columnWidths.ref,
 		measureTextWidth,
-		displaySettings,
+		svgSettings,
 	),
 );
 
@@ -1206,7 +1218,7 @@ export async function scrollToOid(oid: string): Promise<void> {
 	// Center the row in the viewport by computing the scroll offset manually.
 	// VirtualList doesn't support 'center' alignment, so we calculate:
 	//   scrollTop = rowTop - (viewportHeight / 2) + (rowHeight / 2)
-	const rowTop = idx * displaySettings.rowHeight;
+	const rowTop = idx * svgRowHeight;
 	const viewport = document.querySelector(
 		".virtual-list-viewport",
 	) as HTMLElement | null;
@@ -1214,7 +1226,7 @@ export async function scrollToOid(oid: string): Promise<void> {
 		const viewportHeight = viewport.clientHeight;
 		const centerOffset = Math.max(
 			0,
-			rowTop - viewportHeight / 2 + displaySettings.rowHeight / 2,
+			rowTop - viewportHeight / 2 + svgRowHeight / 2,
 		);
 		viewport.scrollTo({ top: centerOffset, behavior: "smooth" });
 	} else {
@@ -1784,6 +1796,7 @@ $effect(() => {
         bind:this={listRef}
         items={displayItems}
         defaultEstimatedItemHeight={displaySettings.rowHeight}
+        bind:measuredItemHeight={svgRowHeight}
         onLoadMore={loadMore}
         loadMoreThreshold={50}
         {hasMore}
