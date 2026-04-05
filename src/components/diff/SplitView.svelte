@@ -67,18 +67,18 @@ let {
 	ondiscardlines,
 }: Props = $props();
 
-const syncedCells: Set<HTMLElement> = new Set();
+const syncedCols: Set<HTMLElement> = new Set();
 let syncing = false;
 
-function splitCellSync(node: HTMLElement) {
-	syncedCells.add(node);
+function splitColSync(node: HTMLElement) {
+	syncedCols.add(node);
 
 	function onScroll() {
 		if (syncing) return;
 		syncing = true;
 		const { scrollLeft } = node;
-		for (const cell of syncedCells) {
-			if (cell !== node) cell.scrollLeft = scrollLeft;
+		for (const col of syncedCols) {
+			if (col !== node) col.scrollLeft = scrollLeft;
 		}
 		syncing = false;
 	}
@@ -88,7 +88,7 @@ function splitCellSync(node: HTMLElement) {
 	return {
 		destroy() {
 			node.removeEventListener("scroll", onScroll);
-			syncedCells.delete(node);
+			syncedCols.delete(node);
 		},
 	};
 }
@@ -291,10 +291,10 @@ const pairedData = $derived(
             {/if}
           </div>
         {:else}
-          {#each section.rows as row}
-            <div class="split-row">
-              <!-- Left cell (old content) -->
-              <div class="split-cell" use:splitCellSync>
+          <div class="split-columns">
+            <!-- Left column (old content) -->
+            <div class="split-column" use:splitColSync>
+              {#each section.rows as row}
                 {#if row.left}
                   {@const line = row.left.line}
                   {@const isSelected = selectedHunkKey === `${fd.path}-${section.hunkIdx}` && selectedLineIndices.has(row.left.lineIdx)}
@@ -310,9 +310,11 @@ const pairedData = $derived(
                 {:else}
                   <div class="split-phantom"></div>
                 {/if}
-              </div>
-              <!-- Right cell (new content) -->
-              <div class="split-cell" use:splitCellSync>
+              {/each}
+            </div>
+            <!-- Right column (new content) -->
+            <div class="split-column" use:splitColSync>
+              {#each section.rows as row}
                 {#if row.right}
                   {@const line = row.right.line}
                   {@const isSelectable = diffKind !== 'commit' && line.origin === 'Add'}
@@ -336,9 +338,9 @@ const pairedData = $derived(
                 {:else}
                   <div class="split-phantom"></div>
                 {/if}
-              </div>
+              {/each}
             </div>
-          {/each}
+          </div>
         {/if}
       {/each}
     {/if}
@@ -352,11 +354,11 @@ const pairedData = $derived(
     flex-direction: column;
   }
 
-  .split-row {
+  .split-columns {
     display: flex;
   }
 
-  .split-cell {
+  .split-column {
     flex: 1;
     min-width: 0;
     overflow-x: auto;
@@ -364,11 +366,11 @@ const pairedData = $derived(
     scrollbar-width: none;
   }
 
-  .split-cell::-webkit-scrollbar {
+  .split-column::-webkit-scrollbar {
     display: none;
   }
 
-  .split-cell:first-child {
+  .split-column:first-child {
     border-right: 1px solid var(--color-border);
   }
 
@@ -397,8 +399,6 @@ const pairedData = $derived(
     line-height: 1.5;
     padding: 0 8px;
     background: var(--color-diff-phantom-bg);
-    min-height: 100%;
-    min-width: 100%;
   }
 
   .split-hunk-header {

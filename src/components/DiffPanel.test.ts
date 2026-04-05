@@ -488,7 +488,7 @@ describe("DiffPanel", () => {
 		// Flush Svelte reactivity
 		await flushPrefs();
 		// Split view should render paired rows with two cells each
-		const rows = container.querySelectorAll(".split-row");
+		const rows = container.querySelectorAll(".split-columns");
 		expect(rows.length).toBeGreaterThan(0);
 	});
 
@@ -1073,11 +1073,11 @@ describe("VIEW-02: Split view layout", () => {
 		await flushPrefs();
 
 		// Split view should render paired rows with two cells each
-		const rows = container.querySelectorAll(".split-row");
+		const rows = container.querySelectorAll(".split-columns");
 		expect(rows.length).toBeGreaterThan(0);
 		// Each row should have two cells
 		const firstRow = rows[0];
-		expect(firstRow.querySelectorAll(".split-cell").length).toBe(2);
+		expect(firstRow.querySelectorAll(".split-column").length).toBe(2);
 
 		// Reset
 		vi.mocked(storeMock.getDiffLayoutMode).mockImplementation(() =>
@@ -1104,7 +1104,7 @@ describe("VIEW-02: Split view layout", () => {
 		await flushPrefs();
 
 		// The split view is rendered -- verify paired rows exist
-		const rows = container.querySelectorAll(".split-row");
+		const rows = container.querySelectorAll(".split-columns");
 		expect(rows.length).toBeGreaterThan(0);
 
 		// Reset
@@ -1136,7 +1136,7 @@ describe("VIEW-02: Split view layout", () => {
 		const bodyText = container.textContent ?? "";
 		expect(bodyText).toContain("const x = 2;");
 		// Verify paired rows rendered
-		const rows = container.querySelectorAll(".split-row");
+		const rows = container.querySelectorAll(".split-columns");
 		expect(rows.length).toBeGreaterThan(0);
 
 		// Reset
