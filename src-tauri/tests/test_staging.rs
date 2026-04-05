@@ -820,6 +820,189 @@ fn unstage_lines_unstages_selected_lines() {
     );
 }
 
+// -- stage_files / unstage_files tests --
+
+#[test]
+fn stage_files_stages_multiple_modified_files() {
+    let ctx = TestContext::builder()
+        .with_file("dir/a.txt", "a")
+        .with_file("dir/b.txt", "b")
+        .with_file("dir/c.txt", "c")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("dir/a.txt"), "a modified").unwrap();
+    std::fs::write(ctx.repo_path().join("dir/b.txt"), "b modified").unwrap();
+    std::fs::write(ctx.repo_path().join("dir/c.txt"), "c modified").unwrap();
+
+    ctx.stage_files(&["dir/a.txt", "dir/b.txt", "dir/c.txt"])
+        .expect("stage_files failed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert_eq!(status.staged.len(), 3, "expected 3 staged files");
+    assert!(status.unstaged.is_empty(), "expected no unstaged files");
+}
+
+#[test]
+fn stage_files_handles_mix_of_new_and_modified() {
+    let ctx = TestContext::builder()
+        .with_file("dir/existing.txt", "original")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("dir/existing.txt"), "modified").unwrap();
+    std::fs::write(ctx.repo_path().join("dir/new_file.txt"), "brand new").unwrap();
+
+    ctx.stage_files(&["dir/existing.txt", "dir/new_file.txt"])
+        .expect("stage_files failed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert_eq!(status.staged.len(), 2, "expected 2 staged files");
+    assert!(
+        status.staged.iter().any(|f| f.path == "dir/existing.txt"),
+        "expected dir/existing.txt in staged"
+    );
+    assert!(
+        status.staged.iter().any(|f| f.path == "dir/new_file.txt"),
+        "expected dir/new_file.txt in staged"
+    );
+}
+
+#[test]
+fn stage_files_handles_deleted_file() {
+    let ctx = TestContext::builder()
+        .with_file("dir/to_delete.txt", "content")
+        .with_file("dir/keep.txt", "keep")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::remove_file(ctx.repo_path().join("dir/to_delete.txt")).unwrap();
+    std::fs::write(ctx.repo_path().join("dir/keep.txt"), "modified").unwrap();
+
+    ctx.stage_files(&["dir/to_delete.txt", "dir/keep.txt"])
+        .expect("stage_files failed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert_eq!(status.staged.len(), 2, "expected 2 staged files");
+    assert!(
+        status
+            .staged
+            .iter()
+            .any(|f| f.path == "dir/to_delete.txt"
+                && matches!(f.status, FileStatusType::Deleted)),
+        "expected dir/to_delete.txt staged as deleted"
+    );
+}
+
+#[test]
+fn stage_files_empty_vec_is_noop() {
+    let ctx = TestContext::builder()
+        .with_file("README.md", "hello")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("README.md"), "modified").unwrap();
+
+    ctx.stage_files(&[]).expect("stage_files with empty vec should succeed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert!(
+        status.staged.is_empty(),
+        "expected no staged files after empty stage_files"
+    );
+}
+
+#[test]
+fn unstage_files_unstages_multiple_files() {
+    let ctx = TestContext::builder()
+        .with_file("dir/a.txt", "a")
+        .with_file("dir/b.txt", "b")
+        .with_file("dir/c.txt", "c")
+        .with_commit("Initial commit")
+        .build();
+
+    std::fs::write(ctx.repo_path().join("dir/a.txt"), "a modified").unwrap();
+    std::fs::write(ctx.repo_path().join("dir/b.txt"), "b modified").unwrap();
+    std::fs::write(ctx.repo_path().join("dir/c.txt"), "c modified").unwrap();
+
+    // Stage all first
+    ctx.stage_all().expect("stage_all failed");
+
+    let status_before = ctx.get_status().expect("get_status failed");
+    assert_eq!(
+        status_before.staged.len(),
+        3,
+        "expected 3 staged files before unstage"
+    );
+
+    ctx.unstage_files(&["dir/a.txt", "dir/b.txt", "dir/c.txt"])
+        .expect("unstage_files failed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert!(
+        status.staged.is_empty(),
+        "expected no staged files after unstage_files"
+    );
+    assert_eq!(
+        status.unstaged.len(),
+        3,
+        "expected 3 unstaged files after unstage_files"
+    );
+}
+
+#[test]
+fn unstage_files_on_unborn_head() {
+    let ctx = TestContext::new_empty();
+
+    // Create files and stage them (no commits yet)
+    std::fs::write(ctx.repo_path().join("a.txt"), "a").unwrap();
+    std::fs::write(ctx.repo_path().join("b.txt"), "b").unwrap();
+    {
+        let repo = ctx.repo();
+        let mut index = repo.index().unwrap();
+        index
+            .add_path(std::path::Path::new("a.txt"))
+            .unwrap();
+        index
+            .add_path(std::path::Path::new("b.txt"))
+            .unwrap();
+        index.write().unwrap();
+    }
+
+    ctx.unstage_files(&["a.txt", "b.txt"])
+        .expect("unstage_files on unborn HEAD should succeed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert!(
+        !status.staged.iter().any(|f| f.path == "a.txt"),
+        "expected a.txt not in staged"
+    );
+    assert!(
+        !status.staged.iter().any(|f| f.path == "b.txt"),
+        "expected b.txt not in staged"
+    );
+}
+
+#[test]
+fn unstage_files_empty_vec_is_noop() {
+    let ctx = TestContext::builder()
+        .with_file("README.md", "hello")
+        .with_commit("Initial commit")
+        .build();
+
+    // Stage a file
+    std::fs::write(ctx.repo_path().join("README.md"), "modified").unwrap();
+    ctx.stage_file("README.md").expect("stage_file failed");
+
+    ctx.unstage_files(&[]).expect("unstage_files with empty vec should succeed");
+
+    let status = ctx.get_status().expect("get_status failed");
+    assert!(
+        !status.staged.is_empty(),
+        "expected staged file to remain after empty unstage_files"
+    );
+}
+
 // -- discard_lines tests --
 
 #[test]
