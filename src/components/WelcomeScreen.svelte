@@ -89,7 +89,7 @@ async function handleRemoveRecent(path: string, event: MouseEvent) {
     <button
       onclick={openRepository}
       disabled={loading}
-      class="w-full rounded-md px-4 py-2.5 text-sm font-medium transition-opacity disabled:opacity-50"
+      class="w-full rounded-md px-4 py-2.5 text-sm font-medium transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       style="background: var(--color-accent); color: #fff;"
     >
       {loading ? 'Opening...' : 'Open Repository'}
