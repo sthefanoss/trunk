@@ -294,7 +294,7 @@ const pairedData = $derived(
           <div class="split-columns">
             <!-- Left column (old content) -->
             <div class="split-column" use:splitColSync>
-              <div style="min-width: 100%; width: max-content;">
+              <div style="min-width: 100%; width: {wordWrap ? '100%' : 'max-content'};">
               {#each section.rows as row}
                 {#if row.left}
                   {@const line = row.left.line}
@@ -316,7 +316,7 @@ const pairedData = $derived(
             </div>
             <!-- Right column (new content) -->
             <div class="split-column" use:splitColSync>
-              <div style="min-width: 100%; width: max-content;">
+              <div style="min-width: 100%; width: {wordWrap ? '100%' : 'max-content'};">
               {#each section.rows as row}
                 {#if row.right}
                   {@const line = row.right.line}

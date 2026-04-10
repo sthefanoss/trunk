@@ -104,7 +104,7 @@ function gutterWidth(maxNum: number): string {
 
 {#each fileDiffs as fd (fd.path)}
   {@const gutterW = gutterWidth(maxLineNumber(fd))}
-  <div style="min-width: 100%; width: max-content;">
+  <div style="min-width: 100%; width: {wordWrap ? '100%' : 'max-content'};">
     <!-- File header bar (hidden for single-file view since top bar shows the path) -->
     {#if !selectedPath}
       <div
