@@ -4,6 +4,7 @@ use crate::git::{
     graph,
     types::{BranchInfo, RefLabel, RefType, RefsResponse, StashEntry},
 };
+use crate::shell_env;
 use crate::state::{CommitCache, RepoState};
 use git2::{BranchType, Status, StatusOptions};
 use std::collections::HashMap;
@@ -332,7 +333,7 @@ pub fn fast_forward_to_inner(
     let output = std::process::Command::new("git")
         .args(["merge", "--ff-only", target_oid])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("merge_error", e.to_string()))?;
 

@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod error;
 pub mod git;
+pub mod shell_env;
 pub mod state;
 pub mod watcher;
 

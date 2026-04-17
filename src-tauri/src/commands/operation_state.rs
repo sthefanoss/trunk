@@ -3,6 +3,7 @@ use crate::git::{
     graph,
     types::{GraphResult, OperationInfo, OperationType},
 };
+use crate::shell_env;
 use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -159,14 +160,14 @@ pub fn merge_continue_inner(
         std::process::Command::new("git")
             .args(["commit", "-m", msg])
             .current_dir(path_buf)
-            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("PATH", shell_env::system_path())
             .output()
             .map_err(|e| TrunkError::new("merge_error", e.to_string()))?
     } else {
         std::process::Command::new("git")
             .args(["merge", "--continue"])
             .current_dir(path_buf)
-            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("PATH", shell_env::system_path())
             .env("GIT_EDITOR", "true")
             .output()
             .map_err(|e| TrunkError::new("merge_error", e.to_string()))?
@@ -189,8 +190,7 @@ pub fn merge_abort_inner(
     let output = std::process::Command::new("git")
         .args(["merge", "--abort"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_EDITOR", "true")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("merge_error", e.to_string()))?;
     if !output.status.success() {
@@ -229,8 +229,7 @@ pub fn rebase_continue_inner(
     let output = std::process::Command::new("git")
         .args(["rebase", "--continue"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_EDITOR", "true")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {
@@ -256,8 +255,7 @@ pub fn rebase_skip_inner(
     let output = std::process::Command::new("git")
         .args(["rebase", "--skip"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_EDITOR", "true")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {
@@ -278,8 +276,7 @@ pub fn rebase_abort_inner(
     let output = std::process::Command::new("git")
         .args(["rebase", "--abort"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_EDITOR", "true")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {
@@ -303,7 +300,7 @@ pub fn merge_branch_inner(
     let output = std::process::Command::new("git")
         .args(["merge", branch, "--no-edit"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .env("GIT_EDITOR", "true")
         .output()
         .map_err(|e| TrunkError::new("merge_error", e.to_string()))?;
@@ -331,8 +328,7 @@ pub fn rebase_branch_inner(
     let output = std::process::Command::new("git")
         .args(["rebase", onto_branch])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_EDITOR", "true")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {

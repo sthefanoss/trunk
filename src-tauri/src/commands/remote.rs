@@ -8,6 +8,7 @@ use tokio::process::Command;
 
 use crate::error::TrunkError;
 use crate::git::{graph, types::GraphResult};
+use crate::shell_env;
 use crate::state::{kill_process, CommitCache, RepoState, RunningOp};
 
 /// Classifies git stderr output into structured error codes.
@@ -59,8 +60,7 @@ async fn run_git_remote(
     let mut child = Command::new("git")
         .args(args)
         .current_dir(cwd)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")
+        .env("PATH", shell_env::system_path())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()

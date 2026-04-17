@@ -1,5 +1,6 @@
 use crate::error::TrunkError;
 use crate::git::{graph, types::RebaseTodoItem};
+use crate::shell_env;
 use crate::state::{CommitCache, RepoState};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -91,7 +92,7 @@ pub fn get_fork_point_inner(
     let output = std::process::Command::new("git")
         .args(["merge-base", branch, "HEAD"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("fork_point_error", e.to_string()))?;
 
@@ -179,9 +180,9 @@ exit 0
 
     // 5. Run git rebase -i (blocking — waits for completion)
     let output = std::process::Command::new("git")
-        .args(["rebase", "-i", "--empty=keep", base_oid])
+        .args(["rebase", "-i", base_oid])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .env("GIT_SEQUENCE_EDITOR", seq_editor_path.to_str().unwrap())
         .env("GIT_EDITOR", editor_script_path.to_str().unwrap())
         .output()

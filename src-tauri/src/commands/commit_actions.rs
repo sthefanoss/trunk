@@ -3,6 +3,7 @@ use crate::git::{
     graph,
     types::{GraphResult, UndoResult},
 };
+use crate::shell_env;
 use crate::state::{CommitCache, RepoState};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -121,7 +122,7 @@ pub fn cherry_pick_inner(
     let output = std::process::Command::new("git")
         .args(["cherry-pick", oid])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("cherry_pick_error", e.to_string()))?;
 
@@ -151,7 +152,7 @@ pub fn revert_commit_inner(
     let output = std::process::Command::new("git")
         .args(["revert", oid, "--no-edit"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("revert_error", e.to_string()))?;
 
@@ -190,7 +191,7 @@ pub fn reset_to_commit_inner(
     let output = std::process::Command::new("git")
         .args(["reset", &format!("--{}", mode), oid])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("reset_error", e.to_string()))?;
 
@@ -370,7 +371,7 @@ pub fn undo_commit_inner(
     let output = std::process::Command::new("git")
         .args(["reset", "--soft", "HEAD~1"])
         .current_dir(path_buf)
-        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("PATH", shell_env::system_path())
         .output()
         .map_err(|e| TrunkError::new("undo_error", e.to_string()))?;
 
