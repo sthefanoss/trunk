@@ -4,8 +4,8 @@ milestone: v0.12
 milestone_name: Better Diffs
 status: milestone_complete
 stopped_at: v0.12 Better Diffs shipped
-last_updated: "2026-03-30T20:28:48.701Z"
-last_activity: 2026-03-30
+last_updated: "2026-05-14T05:35:00.000Z"
+last_activity: 2026-05-14
 progress:
   total_phases: 6
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 Phase: —
 Plan: —
 Status: v0.12 shipped, ready for next milestone
-Last activity: 2026-03-30
+Last activity: 2026-05-14 - Completed quick task 260514-356: VSCode-style recent projects picker (Cmd/Ctrl+R)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -117,11 +117,12 @@ None.
 | 260403-uy4 | Auto-advance focus to next file after staging/unstaging/discarding | 2026-04-04 | 753358e | [260403-uy4-auto-advance-focus-to-next-file-after-st](./quick/260403-uy4-auto-advance-focus-to-next-file-after-st/) |
 | 260405-ik1 | Fix tree view folder staging to stage all files (bulk stage_files/unstage_files) | 2026-04-05 | 96013e7 | [260405-ik1-fix-tree-view-folder-staging-to-stage-al](./quick/260405-ik1-fix-tree-view-folder-staging-to-stage-al/) |
 | 260405-j41 | Fix diff view horizontal scroll to scroll entire view together | 2026-04-05 | c458fd3 | [260405-j41-fix-diff-view-horizontal-scroll-scroll-e](./quick/260405-j41-fix-diff-view-horizontal-scroll-scroll-e/) |
+| 260514-356 | VSCode-style recent projects picker (Cmd/Ctrl+R) | 2026-05-14 | 045de1f | [260514-356-build-a-recent-projects-picker-vscode-ct](./quick/260514-356-build-a-recent-projects-picker-vscode-ct/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-05
-Last session: 2026-04-05T16:50:34Z
-Stopped at: Completed quick-260405-j41
+Last activity: 2026-05-14
+Last session: 2026-05-14T05:35:00Z
+Stopped at: Completed quick-260514-356
 Resume file: None
 Next action: /gsd:next
