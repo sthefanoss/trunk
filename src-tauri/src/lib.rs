@@ -5,7 +5,7 @@ pub mod shell_env;
 pub mod state;
 pub mod watcher;
 
-use state::{CommitCache, RepoState, RunningOp};
+use state::{CommitCache, RepoState, ReviewSessionsState, RunningOp};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
 use watcher::WatcherState;
@@ -65,6 +65,7 @@ pub fn run() {
         .manage(CommitCache(Default::default()))
         .manage(RunningOp(Default::default()))
         .manage(WatcherState(Default::default()))
+        .manage(ReviewSessionsState(Default::default()))
         .invoke_handler(tauri::generate_handler![
             commands::repo::open_repo,
             commands::repo::close_repo,
