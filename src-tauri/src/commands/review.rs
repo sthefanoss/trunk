@@ -537,4 +537,81 @@ mod tests {
         }
         assert_eq!(result.len(), 4, "no duplicates after union");
     }
+
+    // ── Task 3: Graph-ordered intersection (SEL-04) ──────────────────────────
+
+    /// A minimal `GraphCommit` for fixtures — only the fields `SessionCommit`
+    /// copies (oid, short_oid, summary) carry meaning; the rest are inert.
+    fn graph_commit(oid: &str, summary: &str) -> crate::git::types::GraphCommit {
+        crate::git::types::GraphCommit {
+            oid: oid.to_string(),
+            short_oid: oid.chars().take(7).collect(),
+            summary: summary.to_string(),
+            body: None,
+            author_name: String::new(),
+            author_email: String::new(),
+            author_timestamp: 0,
+            parent_oids: vec![],
+            column: 0,
+            color_index: 0,
+            edges: vec![],
+            refs: vec![],
+            is_head: false,
+            is_merge: false,
+            is_branch_tip: false,
+            is_stash: false,
+        }
+    }
+
+    #[test]
+    fn list_session_commits_graph_order() {
+        let t = make_repo();
+        // Graph order: D, C, B (newest-first slice of the cached graph).
+        let graph = crate::git::types::GraphResult {
+            commits: vec![
+                graph_commit(&t.d.to_string(), "D"),
+                graph_commit(&t.c.to_string(), "C"),
+                graph_commit(&t.b.to_string(), "B"),
+            ],
+            max_columns: 1,
+        };
+        // Session set given in a DIFFERENT order, with a duplicate.
+        let session = vec![
+            t.b.to_string(),
+            t.d.to_string(),
+            t.b.to_string(), // dup — must collapse
+        ];
+        let out = intersect_graph_order(&session, &graph, &t.repo);
+        let oids: Vec<String> = out.iter().map(|c| c.oid.clone()).collect();
+        // Re-imposed graph order (D before B), deduped, C excluded (not selected).
+        assert_eq!(oids, vec![t.d.to_string(), t.b.to_string()]);
+        assert_eq!(out[0].summary, "D");
+    }
+
+    #[test]
+    fn list_session_commits_orphan_fallback() {
+        let t = make_repo();
+        // Graph contains only D; the session also selects A (absent from graph but
+        // resolvable via find_commit) and a bogus OID (truly unresolvable).
+        let graph = crate::git::types::GraphResult {
+            commits: vec![graph_commit(&t.d.to_string(), "D")],
+            max_columns: 1,
+        };
+        let bogus = "0".repeat(40);
+        let session = vec![t.d.to_string(), t.a.to_string(), bogus.clone()];
+        let out = intersect_graph_order(&session, &graph, &t.repo);
+        let oids: Vec<String> = out.iter().map(|c| c.oid.clone()).collect();
+        // D from the graph, then the appended fallbacks — none silently dropped.
+        assert!(oids.contains(&t.d.to_string()), "in-graph commit present");
+        assert!(
+            oids.contains(&t.a.to_string()),
+            "orphan resolvable via find_commit must be appended"
+        );
+        assert!(
+            oids.contains(&bogus),
+            "unresolvable orphan must still appear (never dropped)"
+        );
+        let unresolved = out.iter().find(|c| c.oid == bogus).unwrap();
+        assert_eq!(unresolved.summary, "(unavailable)");
+    }
 }
