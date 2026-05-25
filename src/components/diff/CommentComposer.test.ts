@@ -1,0 +1,274 @@
+import { fireEvent, render, screen } from "@testing-library/svelte";
+import { tick } from "svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { safeInvoke } from "../../lib/invoke.js";
+import type { FileDiff } from "../../lib/types.js";
+import CommentComposer from "./CommentComposer.svelte";
+
+// Shared Tauri mock (provides plugin-dialog `ask`, etc.)
+import "../../__tests__/helpers/tauri-mock";
+
+vi.mock("../../lib/invoke.js", () => ({
+	safeInvoke: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../lib/toast.svelte.js", () => ({
+	showToast: vi.fn(),
+}));
+
+const mockedInvoke = vi.mocked(safeInvoke);
+
+// A Modified file whose hunk holds context + add + delete lines. The selection
+// fixtures below pick line indices into this hunk.
+const modifiedFile: FileDiff = {
+	path: "src/main.ts",
+	status: "Modified",
+	is_binary: false,
+	hunks: [
+		{
+			header: "@@ -10,3 +10,4 @@",
+			old_start: 10,
+			old_lines: 3,
+			new_start: 10,
+			new_lines: 4,
+			lines: [
+				{
+					origin: "Context",
+					content: "context before",
+					old_lineno: 10,
+					new_lineno: 10,
+					spans: [],
+				},
+				{
+					origin: "Add",
+					content: "added one",
+					old_lineno: null,
+					new_lineno: 11,
+					spans: [],
+				},
+				{
+					origin: "Add",
+					content: "added two",
+					old_lineno: null,
+					new_lineno: 12,
+					spans: [],
+				},
+				{
+					origin: "Delete",
+					content: "removed one",
+					old_lineno: 11,
+					new_lineno: null,
+					spans: [],
+				},
+			],
+		},
+	],
+};
+
+async function getAskMock() {
+	const dialog = await import("@tauri-apps/plugin-dialog");
+	return vi.mocked(dialog.ask);
+}
+
+describe("CommentComposer", () => {
+	beforeEach(() => {
+		mockedInvoke.mockClear();
+		mockedInvoke.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("renders a 'Comments on lines N-M' preview matching the collapsed range", () => {
+		// Selecting the two Add lines (indices 1,2) -> New side, new_lineno 11..12.
+		render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				selectedLineIndices: new Set([1, 2]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		expect(screen.getByText("Comments on lines 11-12")).toBeTruthy();
+	});
+
+	it("disables Submit while the textarea is empty or whitespace and enables it once non-empty", async () => {
+		render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				selectedLineIndices: new Set([1]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		const submit = screen.getByRole("button", {
+			name: /submit/i,
+		}) as HTMLButtonElement;
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+
+		expect(submit.disabled).toBe(true);
+
+		await fireEvent.input(textarea, { target: { value: "   " } });
+		await tick();
+		expect(submit.disabled).toBe(true);
+
+		await fireEvent.input(textarea, { target: { value: "looks good" } });
+		await tick();
+		expect(submit.disabled).toBe(false);
+	});
+
+	it("persists a draft via save_draft_comment after the debounce idle window", async () => {
+		vi.useFakeTimers();
+		render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				selectedLineIndices: new Set([1]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "draft text" } });
+
+		// Before the debounce fires, no draft invoke.
+		expect(
+			mockedInvoke.mock.calls.filter((c) => c[0] === "save_draft_comment"),
+		).toHaveLength(0);
+
+		await vi.advanceTimersByTimeAsync(300);
+		await tick();
+
+		const draftCalls = mockedInvoke.mock.calls.filter(
+			(c) => c[0] === "save_draft_comment",
+		);
+		expect(draftCalls).toHaveLength(1);
+		const args = draftCalls[0][1] as {
+			path: string;
+			text: string;
+			anchor: { side: string; start_line: number; end_line: number };
+		};
+		expect(args.path).toBe("/repo");
+		expect(args.text).toBe("draft text");
+		expect(args.anchor.side).toBe("New");
+		expect(args.anchor.start_line).toBe(11);
+	});
+
+	it("submits via add_comment with the buildDiffAnchor anchor + cachedExcerpt and clears on success", async () => {
+		const onclose = vi.fn();
+		render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				selectedLineIndices: new Set([1, 2]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose,
+			},
+		});
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "ship it" } });
+		await tick();
+
+		const submit = screen.getByRole("button", { name: /submit/i });
+		await fireEvent.click(submit);
+		await tick();
+
+		const addCalls = mockedInvoke.mock.calls.filter(
+			(c) => c[0] === "add_comment",
+		);
+		expect(addCalls).toHaveLength(1);
+		const args = addCalls[0][1] as {
+			path: string;
+			text: string;
+			anchor: { commit_oid: string; side: string; start_line: number };
+			cachedExcerpt: string;
+		};
+		expect(args.path).toBe("/repo");
+		expect(args.text).toBe("ship it");
+		expect(args.anchor.commit_oid).toBe("abc123");
+		expect(args.anchor.side).toBe("New");
+		expect(args.anchor.start_line).toBe(11);
+		expect(typeof args.cachedExcerpt).toBe("string");
+		expect(args.cachedExcerpt.length).toBeGreaterThan(0);
+		expect(onclose).toHaveBeenCalledTimes(1);
+	});
+
+	it("confirmDiscardIfDirty asks only when text is non-empty; blocks the switch on a false return", async () => {
+		const ask = await getAskMock();
+		ask.mockResolvedValue(false);
+
+		const { component } = render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				selectedLineIndices: new Set([1]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		// Empty draft -> no ask, switch allowed.
+		ask.mockClear();
+		const allowedWhenEmpty = await component.confirmDiscardIfDirty();
+		expect(ask).not.toHaveBeenCalled();
+		expect(allowedWhenEmpty).toBe(true);
+
+		// Dirty the draft.
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "unsaved" } });
+		await tick();
+
+		// Non-empty draft + ask returns false -> blocked.
+		ask.mockClear();
+		ask.mockResolvedValue(false);
+		const blocked = await component.confirmDiscardIfDirty();
+		expect(ask).toHaveBeenCalledTimes(1);
+		expect(blocked).toBe(false);
+
+		// Non-empty draft + ask returns true -> allowed.
+		ask.mockClear();
+		ask.mockResolvedValue(true);
+		const allowed = await component.confirmDiscardIfDirty();
+		expect(ask).toHaveBeenCalledTimes(1);
+		expect(allowed).toBe(true);
+	});
+
+	it("produces a New-side anchor for a split/new-side (Add-only) selection", async () => {
+		render(CommentComposer, {
+			props: {
+				file: modifiedFile,
+				hunkIdx: 0,
+				// Split view only ever passes Add-origin indices (right column).
+				selectedLineIndices: new Set([1, 2]),
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "new side only" } });
+		await tick();
+		await fireEvent.click(screen.getByRole("button", { name: /submit/i }));
+		await tick();
+
+		const addCalls = mockedInvoke.mock.calls.filter(
+			(c) => c[0] === "add_comment",
+		);
+		expect(addCalls).toHaveLength(1);
+		const args = addCalls[0][1] as { anchor: { side: string } };
+		expect(args.anchor.side).toBe("New");
+	});
+});
