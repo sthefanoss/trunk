@@ -16,10 +16,10 @@ Requirements for v0.13. Each maps to a roadmap phase. Recipient of the generated
 
 ### Commit Selection
 
-- [ ] **SEL-01**: User can seed a review session from a commit range (base → tip)
-- [ ] **SEL-02**: User can add individual commits to the session from the graph context menu
-- [ ] **SEL-03**: User can remove a commit from the session
-- [ ] **SEL-04**: User can see the list of commits included in the session
+- [x] **SEL-01**: User can seed a review session from a commit range (base → tip)
+- [x] **SEL-02**: User can add individual commits to the session from the graph context menu
+- [x] **SEL-03**: User can remove a commit from the session
+- [x] **SEL-04**: User can see the list of commits included in the session
 
 ### Anchor Capture
 
@@ -85,10 +85,10 @@ Which phases cover which requirements. Phase numbers continue from v0.12 (last p
 | SESS-01 | Phase 65 | Complete |
 | SESS-02 | Phase 65 | Complete |
 | SESS-03 | Phase 65 | Complete |
-| SEL-01 | Phase 66 | Pending |
-| SEL-02 | Phase 66 | Pending |
-| SEL-03 | Phase 66 | Pending |
-| SEL-04 | Phase 66 | Pending |
+| SEL-01 | Phase 66 | Complete |
+| SEL-02 | Phase 66 | Complete |
+| SEL-03 | Phase 66 | Complete |
+| SEL-04 | Phase 66 | Complete |
 | ANCH-01 | Phase 67 | Pending |
 | ANCH-02 | Phase 68 | Pending |
 | ANCH-03 | Phase 69 | Pending |

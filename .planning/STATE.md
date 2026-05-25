@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
-status: executing
-stopped_at: Phase 66 context gathered
-last_updated: "2026-05-25T12:33:26.740Z"
+status: ready_to_plan
+stopped_at: Phase 66 complete (4/4) — ready to discuss Phase 67
+last_updated: 2026-05-25T13:31:39.863Z
 last_activity: 2026-05-25 -- Phase 66 execution started
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 8
-  completed_plans: 4
-  percent: 14
+  completed_phases: 12
+  total_plans: 157
+  completed_plans: 8
+  percent: 171
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 66 — commit-selection
+**Current focus:** Phase 67 — diff source anchor capture
 
 ## Current Position
 
-Phase: 66 (commit-selection) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 66
-Last activity: 2026-05-25 -- Phase 66 execution started
+Phase: 67
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-25
 
 Progress: [██████████] 100%
 
