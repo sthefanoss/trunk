@@ -1,16 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.12
-milestone_name: Better Diffs
-status: milestone_complete
-stopped_at: v0.12 Better Diffs shipped
-last_updated: "2026-05-14T05:35:00.000Z"
-last_activity: 2026-05-14
+milestone: v0.13
+milestone_name: Code Review Mode
+status: planning
+last_updated: "2026-05-25T07:35:52.835Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 14
-  completed_plans: 14
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: v0.12 shipped, ready for next milestone
-Last activity: 2026-05-14 - Completed quick task 260514-356: VSCode-style recent projects picker (Cmd/Ctrl+R)
-
-Progress: [░░░░░░░░░░] 0%
+Status: Defining requirements
+Last activity: 2026-05-25 — Milestone v0.13 started
 
 ## Performance Metrics
 

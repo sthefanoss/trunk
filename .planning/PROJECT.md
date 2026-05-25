@@ -115,6 +115,19 @@ A developer can open any Git repository, browse its full commit history as a vis
 
 (Defined in REQUIREMENTS.md for current milestone)
 
+## Current Milestone: v0.13 Code Review Mode
+
+**Goal:** Collect commit/file/line-anchored comments in a review session, then render one markdown file — framed for an AI coding agent — to copy or save.
+
+**Target features:**
+- Start/resume a per-repo review session; seed it from a commit range (base→tip) and hand-pick individual commits from the graph
+- Select a code range in either the diff view (reuse v0.7 line-selection) or the full-file-at-commit view (reuse v0.12 full-file view) and attach a comment
+- Manage comments: edit, delete, list in a session panel, jump-to-anchor; optional commit-level comment with no code anchor
+- Render one markdown doc — commit refs + code excerpts (diff-fenced for diff selections, language-fenced for full-file selections) + comments — framed as actionable AI review feedback
+- Output: copy-to-clipboard and save-to-file
+
+**Key context:** The doc's purpose is AI review — pasted or `@file`-referenced into an AI session, so format optimizes for an agent to act on. Session state persists per repo across restarts until the artifact is generated; the generated file is a static snapshot, never re-synced. No re-anchoring on history rewrite — sessions assume a stable range; render-time surfaces unresolvable anchors gracefully. No GitHub/GitLab posting — local markdown only.
+
 ## Current Milestone: v0.12 Better Diffs (SHIPPED 2026-03-30)
 
 **Goal:** Overhaul the diff viewer with professional-grade display and interaction options matching GitHub/GitKraken.
@@ -221,6 +234,13 @@ A developer can open any Git repository, browse its full commit history as a vis
 | Icon toggle buttons over segmented controls | Single button per mode, icon swap communicates state, no highlight | ✓ Good — saves horizontal space, consistent with display option toggles |
 | LazyStore-first-then-callback pattern | DiffPanel persists value before calling parent callback | ✓ Good — prevents stale reads when parent rebuilds diff options |
 
+| Review doc targets AI consumption (v0.13) | Spawned need is reviewing AI-written code; doc is pasted/@file-referenced into an AI session as actionable feedback | — Pending |
+| One active review session per repo, persisted until render (v0.13) | Resume across restarts while building the review; generated markdown is a one-shot static snapshot, never re-synced | — Pending |
+| No re-anchoring on history rewrite (v0.13) | Sessions assume a stable range and no concurrent git ops; render-time surfaces unresolvable anchors instead of crashing | — Pending |
+| Anchor = (commit, file, line-range, source) (v0.13) | source ∈ {diff, full_file}; renderer branches on source for diff-fenced vs language-fenced excerpts | — Pending |
+| Session storage in app data dir, keyed by repo (v0.13) | Not `.git/`, not the working tree — review drafts are private working state, not shared artifacts | — Pending |
+| Single comment per anchor, no threading (v0.13) | Edit/delete supported; optional commit-level comment with no code anchor; threading is overkill for personal AI-review use | — Pending |
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -239,4 +259,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-30 after v0.12 Better Diffs milestone shipped*
+*Last updated: 2026-05-25 after v0.13 Code Review Mode milestone started*
