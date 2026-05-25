@@ -45,6 +45,16 @@ pub struct SessionStatus {
     pub canonical_path: String,
 }
 
+/// A single commit in the review session, rendered by the panel (D-05) and
+/// consumed as a membership set by the graph (D-04/D-06). Serialize-default
+/// snake_case matches `GraphCommit`, whose fields it copies 1:1.
+#[derive(Debug, Serialize, Clone)]
+pub struct SessionCommit {
+    pub oid: String,
+    pub short_oid: String,
+    pub summary: String,
+}
+
 /// Look the repo up in `RepoState`'s map and canonicalize its `PathBuf`.
 /// Returns `not_open` when the path is not a currently-open repo (SESS-01).
 fn canonical_repo_path(
@@ -166,8 +176,14 @@ pub fn validate_range(
     }
     repo.merge_base(base, tip)
         .map_err(|_| TrunkError::new("unrelated_history", "These commits share no history"))?;
-    if !repo.graph_descendant_of(tip, base).map_err(TrunkError::from)? {
-        return Err(TrunkError::new("bad_range", "Base is not an ancestor of tip"));
+    if !repo
+        .graph_descendant_of(tip, base)
+        .map_err(TrunkError::from)?
+    {
+        return Err(TrunkError::new(
+            "bad_range",
+            "Base is not an ancestor of tip",
+        ));
     }
     Ok(())
 }
@@ -220,6 +236,50 @@ pub fn union_dedup(existing: &[String], incoming: Vec<String>) -> Vec<String> {
     let mut set: std::collections::HashSet<String> = existing.iter().cloned().collect();
     set.extend(incoming);
     set.into_iter().collect()
+}
+
+/// Order the session set by the full cached graph order, deduped, as the SEL-04
+/// list. OIDs present in the cached `graph` come first in graph order; any
+/// selected OID absent from the graph is appended via `repo.find_commit`, and an
+/// OID that even `find_commit` can't resolve is included with an `(unavailable)`
+/// summary rather than silently dropped (Phase 65 "never silently destroy").
+pub fn intersect_graph_order(
+    commits: &[String],
+    graph: &crate::git::types::GraphResult,
+    repo: &git2::Repository,
+) -> Vec<SessionCommit> {
+    let want: std::collections::HashSet<&String> = commits.iter().collect();
+    let mut out: Vec<SessionCommit> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for c in graph.commits.iter().filter(|c| want.contains(&c.oid)) {
+        if seen.insert(c.oid.clone()) {
+            out.push(SessionCommit {
+                oid: c.oid.clone(),
+                short_oid: c.short_oid.clone(),
+                summary: c.summary.clone(),
+            });
+        }
+    }
+
+    // Fallback: selected OIDs not in the cached graph (orphaned/force-pushed).
+    for oid_str in commits {
+        if !seen.insert(oid_str.clone()) {
+            continue;
+        }
+        let summary = git2::Oid::from_str(oid_str)
+            .ok()
+            .and_then(|oid| repo.find_commit(oid).ok())
+            .and_then(|c| c.summary().map(|s| s.to_owned()))
+            .unwrap_or_else(|| "(unavailable)".to_string());
+        out.push(SessionCommit {
+            oid: oid_str.clone(),
+            short_oid: oid_str.chars().take(7).collect(),
+            summary,
+        });
+    }
+
+    out
 }
 
 #[tauri::command]
@@ -448,8 +508,14 @@ mod tests {
         // [B..D] inclusive: both endpoints present, plus C between them.
         assert!(oids.contains(&t.b.to_string()), "base B must be included");
         assert!(oids.contains(&t.d.to_string()), "tip D must be included");
-        assert!(oids.contains(&t.c.to_string()), "intermediate C must be included");
-        assert!(!oids.contains(&t.a.to_string()), "A is below base, excluded");
+        assert!(
+            oids.contains(&t.c.to_string()),
+            "intermediate C must be included"
+        );
+        assert!(
+            !oids.contains(&t.a.to_string()),
+            "A is below base, excluded"
+        );
     }
 
     #[test]
@@ -470,7 +536,11 @@ mod tests {
         let t = make_repo();
         assert!(validate_range(&t.repo, t.c, t.c).is_ok());
         let oids = compute_range_oids(&t.repo, t.c, t.c).unwrap();
-        assert_eq!(oids, vec![t.c.to_string()], "base==tip yields exactly {{base}}");
+        assert_eq!(
+            oids,
+            vec![t.c.to_string()],
+            "base==tip yields exactly {{base}}"
+        );
     }
 
     #[test]
@@ -500,7 +570,10 @@ mod tests {
             oids.contains(&t.merge.to_string()),
             "merge commit must be selectable as tip"
         );
-        assert!(oids.contains(&t.side.to_string()), "merge brings in side branch");
+        assert!(
+            oids.contains(&t.side.to_string()),
+            "merge brings in side branch"
+        );
     }
 
     // ── Task 2: Set union / add / remove / dedup ─────────────────────────────
@@ -530,10 +603,17 @@ mod tests {
         // D-03: hand-picked commits survive a range seed; the range unions in;
         // overlapping oids are deduped.
         let existing = vec!["picked".to_string(), "shared".to_string()];
-        let incoming = vec!["shared".to_string(), "range1".to_string(), "range2".to_string()];
+        let incoming = vec![
+            "shared".to_string(),
+            "range1".to_string(),
+            "range2".to_string(),
+        ];
         let result = union_dedup(&existing, incoming);
         for oid in ["picked", "shared", "range1", "range2"] {
-            assert!(result.contains(&oid.to_string()), "union must contain {oid}");
+            assert!(
+                result.contains(&oid.to_string()),
+                "union must contain {oid}"
+            );
         }
         assert_eq!(result.len(), 4, "no duplicates after union");
     }
