@@ -106,6 +106,12 @@ None - plan executed exactly as written.
 - Phase 68 (full-file anchor) can reuse `add_comment`/`add_comment_inner` verbatim — the L-08 contract is locked by a Rust test asserting `Source::FullFile` persists unchanged.
 - The frontend (Plan 03/04) can `safeInvoke("add_comment", { path, text, anchor, cachedExcerpt })` and `safeInvoke("save_draft_comment", { path, text, anchor })`; both commands are registered.
 
+## Self-Check: PASSED
+- `src-tauri/src/commands/review.rs` — FOUND
+- `src-tauri/src/lib.rs` — FOUND
+- `67-02-SUMMARY.md` — FOUND
+- Commits `83655fe` (test), `48c26ad` (feat), `de46895` (docs) — FOUND
+
 ---
 *Phase: 67-diff-source-anchor-capture*
 *Completed: 2026-05-25*
