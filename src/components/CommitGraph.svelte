@@ -46,6 +46,8 @@ import type {
 	RefLabel,
 	RefType,
 	SearchResult,
+	SessionCommit,
+	SessionStatus,
 	StashEntry,
 } from "../lib/types.js";
 import CommitRow from "./CommitRow.svelte";
@@ -301,6 +303,41 @@ const searchCurrentOid = $derived(
 const searchDimmingActive = $derived(
 	searchOpen && searchQuery.length > 0 && searchResults.length > 0,
 );
+
+// Review selection state (Phase 66). sessionStatus carries the canonical_path so
+// the session-changed listener can filter to this repo (mirrors ReviewPanel).
+// sessionActive gates the context-menu review items — sourced from
+// get_review_session_status state === "active", NOT the panel-open flag (A1).
+let sessionStatus = $state<SessionStatus | null>(null);
+let sessionActive = $derived(sessionStatus?.state === "active");
+// Event-driven membership Set (Pitfall 5: reassign new Set(...) so reactivity fires).
+let sessionOids = $state<Set<string>>(new Set());
+// Transient D-01 range base — set by "Set as review base", cleared after the
+// range is added or cancelled (and whenever the session goes inactive).
+let pendingBase = $state<string | null>(null);
+
+async function reloadSession() {
+	try {
+		const status = await safeInvoke<SessionStatus>(
+			"get_review_session_status",
+			{ path: repoPath },
+		);
+		sessionStatus = status;
+		if (status.state === "active") {
+			const list = await safeInvoke<SessionCommit[]>("list_session_commits", {
+				path: repoPath,
+			});
+			sessionOids = new Set(list.map((c) => c.oid));
+		} else {
+			sessionOids = new Set();
+		}
+	} catch {
+		// No-session / inactive is a normal state — list_session_commits returns
+		// Err("no_session"). Reset to an empty set, never toast.
+		sessionStatus = null;
+		sessionOids = new Set();
+	}
+}
 
 async function loadStashMap() {
 	try {
@@ -1262,6 +1299,31 @@ $effect(() => {
 	});
 });
 
+// Review session: initial load on mount / repo change.
+$effect(() => {
+	untrack(() => reloadSession());
+});
+
+// Live coordination: reload sessionOids when a session-changed event arrives for
+// this repo's canonical path (mirrors ReviewPanel.svelte:81-93).
+$effect(() => {
+	let unlisten: (() => void) | undefined;
+	listen<string>("session-changed", (event) => {
+		if (sessionStatus && event.payload !== sessionStatus.canonical_path) return;
+		reloadSession();
+	}).then((fn) => {
+		unlisten = fn;
+	});
+	return () => {
+		unlisten?.();
+	};
+});
+
+// Clear the transient range base whenever the session goes inactive.
+$effect(() => {
+	if (!sessionActive) pendingBase = null;
+});
+
 $effect(() => {
 	// Access refreshSignal to create reactive dependency
 	if (refreshSignal !== undefined && refreshSignal > 0) {
@@ -1803,7 +1865,7 @@ $effect(() => {
         overlaySnippet={graphOverlay}
       >
         {#snippet renderItem(commit, index)}
-          <CommitRow {commit} rowIndex={index} onselect={commit.oid === '__wip__' ? () => onWipClick?.() : oncommitselect} oncontextmenu={handleRowContextMenu} {maxColumns} {columnWidths} {columnVisibility} selected={commit.oid === selectedCommitOid && commit.oid !== '__wip__'} rowHeight={displaySettings.rowHeight} isSearchMatch={searchMatchOids.has(commit.oid)} isCurrentMatch={commit.oid === searchCurrentOid} isSearchActive={searchOpen && searchQuery.length > 0 && searchResults.length > 0} />
+          <CommitRow {commit} rowIndex={index} onselect={commit.oid === '__wip__' ? () => onWipClick?.() : oncommitselect} oncontextmenu={handleRowContextMenu} {maxColumns} {columnWidths} {columnVisibility} selected={commit.oid === selectedCommitOid && commit.oid !== '__wip__'} rowHeight={displaySettings.rowHeight} isSearchMatch={searchMatchOids.has(commit.oid)} isCurrentMatch={commit.oid === searchCurrentOid} isSearchActive={searchOpen && searchQuery.length > 0 && searchResults.length > 0} inSession={sessionOids.has(commit.oid)} isPendingBase={pendingBase === commit.oid} />
         {/snippet}
       </VirtualList>
       {/key}
