@@ -55,7 +55,7 @@ Deferred to a later milestone. Tracked but not in the v0.13 roadmap.
 - **DOC-F1**: Live markdown preview pane before export
 - **DOC-F2**: Per-comment include/exclude toggle (omit from doc without deleting)
 - **DOC-F3**: GitHub-style suggestion/replacement blocks carrying a proposed edit
-- **DOC-F2b**: Auto-trim excerpts to the tightest meaningful subrange
+- **DOC-F4**: Auto-trim excerpts to the tightest meaningful subrange
 - **OUT-F1**: Configurable filename / output template
 - **OUT-F2**: Copy a single comment as a standalone prompt
 
