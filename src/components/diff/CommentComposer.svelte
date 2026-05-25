@@ -13,8 +13,14 @@ interface Props {
 	onclose: () => void;
 }
 
-let { file, hunkIdx, selectedLineIndices, commitOid, repoPath, onclose }: Props =
-	$props();
+let {
+	file,
+	hunkIdx,
+	selectedLineIndices,
+	commitOid,
+	repoPath,
+	onclose,
+}: Props = $props();
 
 let text = $state("");
 let submitting = $state(false);

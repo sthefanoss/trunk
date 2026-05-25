@@ -6,6 +6,7 @@ import {
 	splitInvisibles,
 	trailingWhitespaceStart,
 } from "../lib/diff-utils.js";
+import { safeInvoke } from "../lib/invoke.js";
 import type { CommitDetail, DiffLine, FileDiff } from "../lib/types.js";
 import DiffPanel from "./DiffPanel.svelte";
 
@@ -20,9 +21,18 @@ async function flushPrefs() {
 	await tick();
 }
 
-// Mock invoke and toast for hunk staging operations
+// Mock invoke and toast for hunk staging operations. The default implementation
+// returns an "active" review session for get_review_session_status so that
+// opening the comment composer works without an explicit per-test override;
+// everything else resolves to undefined. Tests that exercise the auto-start flow
+// override safeInvoke per case.
 vi.mock("../lib/invoke.js", () => ({
-	safeInvoke: vi.fn().mockResolvedValue(undefined),
+	safeInvoke: vi.fn((cmd: string) => {
+		if (cmd === "get_review_session_status") {
+			return Promise.resolve({ state: "active", canonical_path: "/repo" });
+		}
+		return Promise.resolve(undefined);
+	}),
 }));
 
 vi.mock("../lib/toast.svelte.js", () => ({
@@ -1563,5 +1573,100 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
 			"unsaved note",
 		);
+	});
+
+	// Auto-start a review session at the comment chokepoint (UAT fix). Override
+	// safeInvoke so get_review_session_status returns the desired state; assert
+	// which lifecycle command (if any) the composer-open path invokes.
+	function mockSessionState(state: "active" | "resume-available" | "none") {
+		// Clear accumulated call history so calledCommands() reflects only this
+		// test, then (re)install the command-aware implementation.
+		vi.mocked(safeInvoke).mockClear();
+		vi.mocked(safeInvoke).mockImplementation((cmd: string) => {
+			if (cmd === "get_review_session_status") {
+				return Promise.resolve({ state, canonical_path: "/repo" });
+			}
+			return Promise.resolve(undefined);
+		});
+	}
+
+	async function openComposerOnAddLine() {
+		await fireEvent.click(screen.getByText("const x = 2;"));
+		await tick();
+		await fireEvent.click(screen.getByRole("button", { name: /^Comment \(/ }));
+		// ensureActiveSession awaits status + start/resume before opening.
+		await new Promise((r) => setTimeout(r, 0));
+		await tick();
+	}
+
+	function calledCommands(): string[] {
+		return vi.mocked(safeInvoke).mock.calls.map((c) => c[0] as string);
+	}
+
+	it("auto-starts a session (start_review_session) when none is active, then the composer opens and add_comment succeeds", async () => {
+		mockSessionState("none");
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: nonMergeCommit,
+				onclose: vi.fn(),
+				diffKind: "commit",
+				repoPath: "/repo",
+			},
+		});
+		await flushPrefs();
+
+		await openComposerOnAddLine();
+
+		expect(calledCommands()).toContain("start_review_session");
+		expect(calledCommands()).not.toContain("resume_review_session");
+
+		// Composer opened; submit reaches add_comment.
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "first note" } });
+		await tick();
+		await fireEvent.click(screen.getByRole("button", { name: /submit/i }));
+		await tick();
+		expect(calledCommands()).toContain("add_comment");
+	});
+
+	it("resumes a saved session (resume_review_session, not start) when one is available", async () => {
+		mockSessionState("resume-available");
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: nonMergeCommit,
+				onclose: vi.fn(),
+				diffKind: "commit",
+				repoPath: "/repo",
+			},
+		});
+		await flushPrefs();
+
+		await openComposerOnAddLine();
+
+		expect(calledCommands()).toContain("resume_review_session");
+		expect(calledCommands()).not.toContain("start_review_session");
+		expect(screen.getByRole("textbox")).toBeTruthy();
+	});
+
+	it("does not start or resume when a session is already active", async () => {
+		mockSessionState("active");
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: nonMergeCommit,
+				onclose: vi.fn(),
+				diffKind: "commit",
+				repoPath: "/repo",
+			},
+		});
+		await flushPrefs();
+
+		await openComposerOnAddLine();
+
+		expect(calledCommands()).not.toContain("start_review_session");
+		expect(calledCommands()).not.toContain("resume_review_session");
+		expect(screen.getByRole("textbox")).toBeTruthy();
 	});
 });

@@ -24,6 +24,7 @@ import type {
 	DiffRequestOptions,
 	FileDiff,
 	LayoutMode,
+	SessionStatus,
 } from "../lib/types.js";
 import CommentComposer from "./diff/CommentComposer.svelte";
 import DiffToolbar from "./diff/DiffToolbar.svelte";
@@ -99,8 +100,49 @@ function closeComposer() {
 	clearSelection();
 }
 
-function handleCommentLines(filePath: string, hunkIndex: number) {
+// Auto-start a review session when the user goes to comment with none active.
+// The add_comment / save_draft_comment commands stay dumb writers (L-08); the
+// session is established here at the capture chokepoint so the composer never
+// opens onto a backend that returns no_session. start/resume emit
+// session-changed, so the review panel flips to "active" as visible feedback.
+async function ensureActiveSession(): Promise<boolean> {
+	let state: SessionStatus["state"];
+	try {
+		const status = await safeInvoke<SessionStatus>(
+			"get_review_session_status",
+			{ path: repoPath },
+		);
+		state = status.state;
+	} catch (e) {
+		showToast(
+			(e as TrunkError).message ?? "Failed to load review session",
+			"error",
+		);
+		return false;
+	}
+
+	if (state === "active") return true;
+
+	const command =
+		state === "resume-available"
+			? "resume_review_session"
+			: "start_review_session";
+	try {
+		await safeInvoke(command, { path: repoPath });
+		return true;
+	} catch (e) {
+		showToast(
+			(e as TrunkError).message ?? "Failed to start review session",
+			"error",
+		);
+		return false;
+	}
+}
+
+async function handleCommentLines(filePath: string, hunkIndex: number) {
 	if (isMerge) return;
+	const ready = await ensureActiveSession();
+	if (!ready) return;
 	composerFilePath = filePath;
 	composerHunkIdx = hunkIndex;
 	composerOpen = true;
