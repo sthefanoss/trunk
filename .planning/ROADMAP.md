@@ -213,7 +213,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 65-02-PLAN.md — Persistence module: atomic write, FNV-1a filename, corrupt/newer recovery
+- [x] 65-02-PLAN.md — Persistence module: atomic write, FNV-1a filename, corrupt/newer recovery
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
