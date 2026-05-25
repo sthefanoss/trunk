@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
-status: ready_to_plan
-stopped_at: Phase 66 complete (4/4) — ready to discuss Phase 67
-last_updated: 2026-05-25T13:31:39.863Z
-last_activity: 2026-05-25 -- Phase 66 execution started
+status: planning
+stopped_at: Phase 67 context gathered
+last_updated: "2026-05-25T13:54:14.115Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 7
-  completed_phases: 12
-  total_plans: 157
+  completed_phases: 2
+  total_plans: 8
   completed_plans: 8
-  percent: 171
+  percent: 29
 ---
 
 # Project State
@@ -133,7 +133,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-25T10:12:34.649Z
-Stopped at: Phase 66 context gathered
-Resume file: .planning/phases/66-commit-selection/66-CONTEXT.md
+Last session: 2026-05-25T13:54:14.102Z
+Stopped at: Phase 67 context gathered
+Resume file: .planning/phases/67-diff-source-anchor-capture/67-CONTEXT.md
 Next action: /gsd:plan-phase 65
