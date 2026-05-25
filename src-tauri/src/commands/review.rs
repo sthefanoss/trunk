@@ -276,6 +276,8 @@ pub async fn get_review_session_status(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use git2::{Oid, Repository, Signature};
+    use tempfile::TempDir;
 
     #[test]
     fn merge_active_requires_both_halves() {
@@ -291,5 +293,137 @@ mod tests {
     fn merge_none_when_no_file() {
         assert_eq!(merge_status(false, false), SessionState::None);
         assert_eq!(merge_status(false, true), SessionState::None);
+    }
+
+    // ── In-process test-repo helper (Wave 0) ─────────────────────────────────
+    // tempfile::TempDir + git2::Repository::init builds a known topology so the
+    // revwalk/validation helpers run against REAL commits (classical TDD: real
+    // collaborator, no mocks). The TempDir is returned alongside the repo so the
+    // caller keeps it alive for the test's duration (drop deletes the dir).
+
+    /// A deterministic signature so commits are reproducible (F.I.R.S.T.: no clock).
+    fn sig() -> Signature<'static> {
+        Signature::new("Test", "test@example.com", &git2::Time::new(0, 0)).unwrap()
+    }
+
+    /// Commit a single empty-tree commit with the given parents, returning its OID.
+    fn commit(repo: &Repository, message: &str, parents: &[Oid]) -> Oid {
+        let tree_oid = repo.treebuilder(None).unwrap().write().unwrap();
+        let tree = repo.find_tree(tree_oid).unwrap();
+        let parent_commits: Vec<_> = parents
+            .iter()
+            .map(|oid| repo.find_commit(*oid).unwrap())
+            .collect();
+        let parent_refs: Vec<&git2::Commit> = parent_commits.iter().collect();
+        let s = sig();
+        repo.commit(None, &s, &s, message, &tree, &parent_refs)
+            .unwrap()
+    }
+
+    /// A linear chain A→B→C→D plus a merge commit M (side branch off B, merged
+    /// into the tip) so range walks can exercise both linear and merge topologies.
+    struct TestRepo {
+        _dir: TempDir,
+        repo: Repository,
+        a: Oid, // root
+        b: Oid,
+        c: Oid,
+        d: Oid,
+        side: Oid,  // off B
+        merge: Oid, // merge of D and side
+    }
+
+    fn make_repo() -> TestRepo {
+        let dir = TempDir::new().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        let a = commit(&repo, "A (root)", &[]);
+        let b = commit(&repo, "B", &[a]);
+        let c = commit(&repo, "C", &[b]);
+        let d = commit(&repo, "D", &[c]);
+        let side = commit(&repo, "side off B", &[b]);
+        let merge = commit(&repo, "merge", &[d, side]);
+        TestRepo {
+            _dir: dir,
+            repo,
+            a,
+            b,
+            c,
+            d,
+            side,
+            merge,
+        }
+    }
+
+    /// A second, unrelated repository with its own root — for the
+    /// unrelated-history rejection case (merge_base across these errors).
+    fn make_unrelated_repo() -> (TempDir, Repository, Oid) {
+        let dir = TempDir::new().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        let root = commit(&repo, "unrelated root", &[]);
+        (dir, repo, root)
+    }
+
+    // ── Task 1: Range walk + validation ──────────────────────────────────────
+
+    #[test]
+    fn seed_range_inclusive() {
+        let t = make_repo();
+        let oids = compute_range_oids(&t.repo, t.b, t.d).unwrap();
+        // [B..D] inclusive: both endpoints present, plus C between them.
+        assert!(oids.contains(&t.b.to_string()), "base B must be included");
+        assert!(oids.contains(&t.d.to_string()), "tip D must be included");
+        assert!(oids.contains(&t.c.to_string()), "intermediate C must be included");
+        assert!(!oids.contains(&t.a.to_string()), "A is below base, excluded");
+    }
+
+    #[test]
+    fn seed_range_root_base() {
+        let t = make_repo();
+        // Root commit base: walk hides nothing, full ancestry through tip included.
+        let oids = compute_range_oids(&t.repo, t.a, t.d).unwrap();
+        for oid in [t.a, t.b, t.c, t.d] {
+            assert!(
+                oids.contains(&oid.to_string()),
+                "root-base range must include {oid}"
+            );
+        }
+    }
+
+    #[test]
+    fn seed_range_base_eq_tip() {
+        let t = make_repo();
+        assert!(validate_range(&t.repo, t.c, t.c).is_ok());
+        let oids = compute_range_oids(&t.repo, t.c, t.c).unwrap();
+        assert_eq!(oids, vec![t.c.to_string()], "base==tip yields exactly {{base}}");
+    }
+
+    #[test]
+    fn seed_range_rejects_non_ancestor() {
+        let t = make_repo();
+        // side is NOT an ancestor of D (it forks off B onto its own line).
+        let err = validate_range(&t.repo, t.side, t.d).unwrap_err();
+        assert_eq!(err.code, "bad_range");
+    }
+
+    #[test]
+    fn seed_range_rejects_unrelated() {
+        let t = make_repo();
+        let (_other_dir, _other_repo, other_root) = make_unrelated_repo();
+        // other_root lives in a different repo, so it shares no history with D.
+        let err = validate_range(&t.repo, other_root, t.d).unwrap_err();
+        assert_eq!(err.code, "unrelated_history");
+    }
+
+    #[test]
+    fn merge_commit_selectable() {
+        let t = make_repo();
+        // D-08: a merge commit can be the tip and appears in the computed range,
+        // with no is_merge gate filtering it out.
+        let oids = compute_range_oids(&t.repo, t.b, t.merge).unwrap();
+        assert!(
+            oids.contains(&t.merge.to_string()),
+            "merge commit must be selectable as tip"
+        );
+        assert!(oids.contains(&t.side.to_string()), "merge brings in side branch");
     }
 }
