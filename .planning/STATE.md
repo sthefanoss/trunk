@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
 status: executing
-stopped_at: Phase 68 context gathered
-last_updated: "2026-05-25T20:50:57.557Z"
-last_activity: 2026-05-25 -- Phase 68 planning complete
+stopped_at: Completed 68-01-PLAN.md (full-file capture adapter)
+last_updated: "2026-05-25T21:02:22.740Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 43
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 68 — full file source anchor capture
+**Current focus:** Phase 68 — full-file-source-anchor-capture
 
 ## Current Position
 
-Phase: 68
-Plan: Not started
+Phase: 68 (full-file-source-anchor-capture) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 68 planning complete
+Last activity: 2026-05-25
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 | Phase 65 P03 | ~12min | 3 tasks | 6 files |
 | Phase 65 P04 | ~10min | 2 tasks | 3 files |
 | Phase 67 P04 | 25min | 2 tasks | 7 files |
+| Phase 68 P01 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,7 @@ Progress: [██████████] 100%
 - [Phase 65]: ReviewPanel is a D-12 throwaway 3-state lifecycle stub (Start/Resume/Discard/End), replaced by the real panel in Phase 69.
 - [Phase 65]: Derived state var renamed to sessionState — naming it 'state' shadows the Svelte $state rune and breaks svelte-check.
 - [Phase 67]: Auto-start a review session at the comment chokepoint (DiffPanel.ensureActiveSession) when none is active; add_comment/save_draft_comment stay dumb writers (L-08), the Comment affordance stays enabled, only merge commits disable it (D-04)
+- [Phase 68]: buildFullFileAnchor is a sibling pure adapter (src/lib/full-file-anchor.ts), not an extension of diff-anchor — once D-02/D-04 diverge they share no logic (no side resolution, no diff prefixing); side=New/source=FullFile constants, new-side coords only, plain-content excerpt, gap marker N=next-prev-1
 
 ### Pending Todos
 
@@ -135,7 +137,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-25T18:04:45.366Z
-Stopped at: Phase 68 context gathered
-Resume file: .planning/phases/68-full-file-source-anchor-capture/68-CONTEXT.md
+Last session: 2026-05-25T21:02:22.728Z
+Stopped at: Completed 68-01-PLAN.md (full-file capture adapter)
+Resume file: None
 Next action: Human runs `just dev` and verifies the attach flow (steps 1-8); type "approved" to resume Plan 04 completion (SUMMARY + state advance)
