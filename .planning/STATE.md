@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
-status: executing
-stopped_at: Completed 68-01-PLAN.md (full-file capture adapter)
-last_updated: "2026-05-25T21:02:22.740Z"
+status: verifying
+stopped_at: Completed 68-02-PLAN.md (full-file selection + composer wiring)
+last_updated: "2026-05-25T23:00:02.789Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 13
-  percent: 43
+  completed_plans: 14
+  percent: 57
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 Phase: 68 (full-file-source-anchor-capture) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-25
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [█████████░] 93%
 | Phase 65 P04 | ~10min | 2 tasks | 3 files |
 | Phase 67 P04 | 25min | 2 tasks | 7 files |
 | Phase 68 P01 | 6min | 2 tasks | 2 files |
+| Phase 68 P02 | 6min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Progress: [█████████░] 93%
 - [Phase 65]: Derived state var renamed to sessionState — naming it 'state' shadows the Svelte $state rune and breaks svelte-check.
 - [Phase 67]: Auto-start a review session at the comment chokepoint (DiffPanel.ensureActiveSession) when none is active; add_comment/save_draft_comment stay dumb writers (L-08), the Comment affordance stays enabled, only merge commits disable it (D-04)
 - [Phase 68]: buildFullFileAnchor is a sibling pure adapter (src/lib/full-file-anchor.ts), not an extension of diff-anchor — once D-02/D-04 diverge they share no logic (no side resolution, no diff prefixing); side=New/source=FullFile constants, new-side coords only, plain-content excerpt, gap marker N=next-prev-1
+- [Phase 68]: 68-02: FullFileView owns selection state (anchorIndex/focusIndex) and exports clearSelection(); host receives flat indices on the affordance click — reconciles the plan's ownership ambiguity
+- [Phase 68]: 68-02: CommentComposer reused via an optional injected captured result (lower-coupling seam over a source mode); diff-path buildDiffAnchor fallback intact
+- [Phase 68]: 68-02: merge commits keep the full-file Comment affordance ENABLED (L-05) — HunkView isMerge disable not copied
 
 ### Pending Todos
 
@@ -137,7 +141,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-25T21:02:22.728Z
-Stopped at: Completed 68-01-PLAN.md (full-file capture adapter)
+Last session: 2026-05-25T23:00:02.780Z
+Stopped at: Completed 68-02-PLAN.md (full-file selection + composer wiring)
 Resume file: None
 Next action: Human runs `just dev` and verifies the attach flow (steps 1-8); type "approved" to resume Plan 04 completion (SUMMARY + state advance)

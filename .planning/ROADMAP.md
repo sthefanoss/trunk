@@ -188,7 +188,7 @@ Built in strict dependency order: lock the anchor schema and persistence first (
 - [x] **Phase 65: Data Model + Persistence + Session Lifecycle** — Anchor schema, per-repo JSON store, start/resume/end a session (completed 2026-05-25)
 - [x] **Phase 66: Commit Selection** — Seed from a baseâtip range and hand-pick commits from the graph (completed 2026-05-25)
 - [x] **Phase 67: Diff-Source Anchor Capture** — Comment on a diff line selection with a stable source-line anchor (completed 2026-05-25)
-- [ ] **Phase 68: Full-File-Source Anchor Capture** — Comment on a full-file-at-commit line selection
+- [x] **Phase 68: Full-File-Source Anchor Capture** — Comment on a full-file-at-commit line selection (completed 2026-05-25)
 - [ ] **Phase 69: Comment Management UI** — Review panel: list, edit, delete, jump-to-anchor, commit-level comments
 - [ ] **Phase 70: Excerpt Resolution + Markdown Render** — Generate one AI-framed markdown doc with resolved excerpts
 - [ ] **Phase 71: Output (Clipboard + Save-to-File)** — Copy the doc or save it via a native dialog
@@ -299,7 +299,7 @@ Plans:
 
 **Plans**: 2 plans
 - [x] 68-01-PLAN.md — Pure full-file capture adapter `buildFullFileAnchor` (TDD, V1–V4)
-- [ ] 68-02-PLAN.md — Full-file selection + Comment affordance + composer wiring + restart-survival (V5–V10)
+- [x] 68-02-PLAN.md — Full-file selection + Comment affordance + composer wiring + restart-survival (V5–V10)
 **UI hint**: yes
 **Notes:**
 
