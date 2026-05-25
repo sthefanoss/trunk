@@ -14,9 +14,11 @@
 use crate::error::TrunkError;
 use crate::git::review_store::{self, LoadOutcome};
 use crate::git::types::ReviewSession;
+use crate::state::{RepoState, ReviewSessionsState};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// The three review-session states the frontend renders (D-12). Serializes
 /// kebab-case to match the stub strings `active` / `resume-available` / `none`.
@@ -124,4 +126,170 @@ pub fn get_review_session_status_inner(
         file_exists,
         canonical_path: canonical.to_string_lossy().into_owned(),
     })
+}
+
+/// Derive the final three-state status from disk presence + in-memory presence.
+/// This is the merge `_inner` structurally cannot do (it has no Tauri state).
+/// `Active` is produced ONLY here, when both halves are present.
+fn merge_status(file_exists: bool, in_memory_present: bool) -> SessionState {
+    match (file_exists, in_memory_present) {
+        (true, true) => SessionState::Active,
+        (true, false) => SessionState::ResumeAvailable,
+        (false, _) => SessionState::None,
+    }
+}
+
+/// Resolve `app_data_dir`, JSON-stringifying the error like the other commands.
+fn resolve_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path().app_data_dir().map_err(|e| {
+        serde_json::to_string(&TrunkError::new("app_data_dir", e.to_string())).unwrap()
+    })
+}
+
+#[tauri::command]
+pub async fn start_review_session(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let (canonical, session) = tauri::async_runtime::spawn_blocking(move || {
+        start_review_session_inner(&data_dir, &path, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    // Disk-first ordering (D-10): _inner already wrote the file → in-memory → emit.
+    sessions
+        .0
+        .lock()
+        .unwrap()
+        .insert(canonical.clone(), session);
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn resume_review_session(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let data_dir_for_save = data_dir.clone();
+    let (canonical, outcome) = tauri::async_runtime::spawn_blocking(move || {
+        resume_review_session_inner(&data_dir, &path, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    match outcome {
+        LoadOutcome::Loaded(session) => {
+            sessions
+                .0
+                .lock()
+                .unwrap()
+                .insert(canonical.clone(), session);
+        }
+        LoadOutcome::None => {
+            // No file to resume — nothing to load, nothing to insert.
+        }
+        LoadOutcome::RecoveredCorrupt => {
+            // D-15: the corrupt file was quarantined; start a fresh session, persist
+            // it (disk-first), cache it, and let the frontend toast the warning.
+            let fresh = ReviewSession {
+                schema_version: 1,
+                commits: vec![],
+                comments: vec![],
+                draft_comment: None,
+            };
+            review_store::save_session(&data_dir_for_save, &canonical, &fresh)
+                .map_err(|e| serde_json::to_string(&e).unwrap())?;
+            sessions.0.lock().unwrap().insert(canonical.clone(), fresh);
+        }
+        LoadOutcome::RefusedNewer => {
+            // D-16: a newer-schema file is left untouched; do NOT create a fresh
+            // session, so a downgrade cannot wipe newer data.
+            return Err(serde_json::to_string(&TrunkError::new(
+                "newer_version",
+                "This review session was written by a newer version of Trunk and cannot be opened",
+            ))
+            .unwrap());
+        }
+    }
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn end_review_session(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let canonical = tauri::async_runtime::spawn_blocking(move || {
+        end_review_session_inner(&data_dir, &path, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    // Disk-first ordering (D-10): _inner deleted the file → drop in-memory → emit.
+    sessions.0.lock().unwrap().remove(&canonical);
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_review_session_status(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<SessionStatus, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let mut status = tauri::async_runtime::spawn_blocking(move || {
+        get_review_session_status_inner(&data_dir, &path, &state_map)
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    // THREE-STATE MERGE: _inner returned the disk half; promote to Active here by
+    // checking the canonical key in the in-memory map (the only place Active is born).
+    let canonical = PathBuf::from(&status.canonical_path);
+    let in_memory_present = sessions.0.lock().unwrap().contains_key(&canonical);
+    status.state = merge_status(status.file_exists, in_memory_present);
+    Ok(status)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_active_requires_both_halves() {
+        assert_eq!(merge_status(true, true), SessionState::Active);
+    }
+
+    #[test]
+    fn merge_resume_available_when_file_only() {
+        assert_eq!(merge_status(true, false), SessionState::ResumeAvailable);
+    }
+
+    #[test]
+    fn merge_none_when_no_file() {
+        assert_eq!(merge_status(false, false), SessionState::None);
+        assert_eq!(merge_status(false, true), SessionState::None);
+    }
 }

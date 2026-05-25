@@ -22,6 +22,11 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+F")
                 .build(app)?;
 
+            // Temporary trigger for the review-session stub (D-12); replaced by the
+            // real panel in Phase 69. Mirrors the find → search-toggle precedent.
+            let review_item =
+                MenuItemBuilder::with_id("review-toggle", "Start/End Code Review").build(app)?;
+
             let app_menu = SubmenuBuilder::new(app, "Trunk")
                 .about(None)
                 .separator()
@@ -40,7 +45,10 @@ pub fn run() {
                 .item(&find)
                 .build()?;
 
-            let view_menu = SubmenuBuilder::new(app, "View").fullscreen().build()?;
+            let view_menu = SubmenuBuilder::new(app, "View")
+                .item(&review_item)
+                .fullscreen()
+                .build()?;
 
             let window_menu = SubmenuBuilder::new(app, "Window").minimize().build()?;
 
@@ -56,6 +64,8 @@ pub fn run() {
             app.on_menu_event(|app, event| {
                 if event.id().as_ref() == "find" {
                     let _ = app.emit("search-toggle", ());
+                } else if event.id().as_ref() == "review-toggle" {
+                    let _ = app.emit("review-toggle", ());
                 }
             });
 
@@ -111,6 +121,10 @@ pub fn run() {
             commands::stash::stash_pop,
             commands::stash::stash_apply,
             commands::stash::stash_drop,
+            commands::review::start_review_session,
+            commands::review::resume_review_session,
+            commands::review::end_review_session,
+            commands::review::get_review_session_status,
             commands::commit_actions::checkout_commit,
             commands::commit_actions::create_tag,
             commands::commit_actions::delete_tag,

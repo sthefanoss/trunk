@@ -1,8 +1,18 @@
 use crate::error::TrunkError;
 use crate::git::{graph, repository};
-use crate::state::{kill_process, CommitCache, RepoState, RunningOp};
+use crate::state::{kill_process, CommitCache, RepoState, ReviewSessionsState, RunningOp};
 use crate::watcher::{self, WatcherState};
 use tauri::{AppHandle, State};
+
+/// Drop ONLY the in-memory session entry for `path` (canonical-keyed). The file
+/// on disk is left untouched so resume works on reopen — only `end_review_session`
+/// hard-deletes (D-13/D-14). Best-effort: if the path no longer canonicalizes
+/// (repo dir gone), there is nothing to remove.
+fn drop_in_memory_session(path: &str, sessions: &State<'_, ReviewSessionsState>) {
+    if let Ok(canonical) = std::fs::canonicalize(path) {
+        sessions.0.lock().unwrap().remove(&canonical);
+    }
+}
 
 #[tauri::command]
 pub async fn open_repo(
@@ -44,10 +54,12 @@ pub async fn close_repo(
     state: State<'_, RepoState>,
     cache: State<'_, CommitCache>,
     watcher_state: State<'_, WatcherState>,
+    sessions: State<'_, ReviewSessionsState>,
 ) -> Result<(), String> {
     state.0.lock().unwrap().remove(&path);
     cache.0.lock().unwrap().remove(&path);
     watcher::stop_watcher(&path, &watcher_state);
+    drop_in_memory_session(&path, &sessions);
     Ok(())
 }
 
@@ -58,6 +70,7 @@ pub async fn force_close_repo(
     cache: State<'_, CommitCache>,
     watcher_state: State<'_, WatcherState>,
     running: State<'_, RunningOp>,
+    sessions: State<'_, ReviewSessionsState>,
 ) -> Result<(), String> {
     // Cancel running remote op first (D-03)
     {
@@ -70,5 +83,6 @@ pub async fn force_close_repo(
     state.0.lock().unwrap().remove(&path);
     cache.0.lock().unwrap().remove(&path);
     watcher::stop_watcher(&path, &watcher_state);
+    drop_in_memory_session(&path, &sessions);
     Ok(())
 }

@@ -172,8 +172,7 @@ fn start_rejects_when_session_exists() {
     let ctx = TestContext::new_empty();
     start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
 
-    let err =
-        start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap_err();
+    let err = start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap_err();
 
     assert_eq!(err.code, "session_exists");
 }
