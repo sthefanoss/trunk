@@ -314,3 +314,14 @@ export interface ReviewSession {
 	comments: Comment[];
 	draft_comment: DraftComment | null;
 }
+
+// Session lifecycle status (mirrors src-tauri/src/commands/review.rs Plan 65-03).
+// SessionState serializes kebab-case (unlike the PascalCase on-disk enums above):
+// it's a transient IPC enum, not part of the persisted schema.
+export type SessionState = "active" | "resume-available" | "none";
+
+export interface SessionStatus {
+	state: SessionState;
+	file_exists: boolean;
+	canonical_path: string;
+}

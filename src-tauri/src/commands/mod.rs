@@ -9,5 +9,6 @@ pub mod merge_editor;
 pub mod operation_state;
 pub mod remote;
 pub mod repo;
+pub mod review;
 pub mod staging;
 pub mod stash;
