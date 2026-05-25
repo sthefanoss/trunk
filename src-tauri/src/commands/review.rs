@@ -201,6 +201,27 @@ pub fn compute_range_oids(
         .collect()
 }
 
+/// Add `oid` to the selection if absent — idempotent (SEL-02, D-06).
+pub fn apply_add(commits: &mut Vec<String>, oid: &str) {
+    if !commits.iter().any(|c| c == oid) {
+        commits.push(oid.to_string());
+    }
+}
+
+/// Remove every occurrence of `oid` from the selection; missing is a no-op (SEL-03).
+pub fn apply_remove(commits: &mut Vec<String>, oid: &str) {
+    commits.retain(|c| c != oid);
+}
+
+/// Union `incoming` into `existing`, preserving hand-picked commits and deduping
+/// (D-03). Store order is irrelevant — `intersect_graph_order` re-imposes graph
+/// order on read, so the set is the only thing that matters here.
+pub fn union_dedup(existing: &[String], incoming: Vec<String>) -> Vec<String> {
+    let mut set: std::collections::HashSet<String> = existing.iter().cloned().collect();
+    set.extend(incoming);
+    set.into_iter().collect()
+}
+
 #[tauri::command]
 pub async fn start_review_session(
     path: String,
