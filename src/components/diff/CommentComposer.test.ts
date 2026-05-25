@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { safeInvoke } from "../../lib/invoke.js";
-import type { FileDiff } from "../../lib/types.js";
+import type { Anchor, FileDiff } from "../../lib/types.js";
 import CommentComposer from "./CommentComposer.svelte";
 
 // Shared Tauri mock (provides plugin-dialog `ask`, etc.)
@@ -243,6 +243,129 @@ describe("CommentComposer", () => {
 		const allowed = await component.confirmDiscardIfDirty();
 		expect(ask).toHaveBeenCalledTimes(1);
 		expect(allowed).toBe(true);
+	});
+
+	it("uses the injected captured FullFile result for the preview without calling buildDiffAnchor", () => {
+		const capturedAnchor: Anchor = {
+			commit_oid: "abc123",
+			file_path: "src/main.ts",
+			source: "FullFile",
+			side: "New",
+			start_line: 40,
+			end_line: 42,
+		};
+		// No file/hunkIdx/selectedLineIndices — the full-file host passes only the
+		// captured result + commitOid + repoPath.
+		render(CommentComposer, {
+			props: {
+				captured: {
+					anchor: capturedAnchor,
+					cachedExcerpt: "line forty\nline forty-one\nline forty-two",
+				},
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		expect(screen.getByText("Comments on lines 40-42")).toBeTruthy();
+	});
+
+	it("submits via add_comment with the injected FullFile anchor + cachedExcerpt (V7)", async () => {
+		const capturedAnchor: Anchor = {
+			commit_oid: "abc123",
+			file_path: "src/main.ts",
+			source: "FullFile",
+			side: "New",
+			start_line: 40,
+			end_line: 42,
+		};
+		const onclose = vi.fn();
+		render(CommentComposer, {
+			props: {
+				captured: {
+					anchor: capturedAnchor,
+					cachedExcerpt: "line forty\nline forty-one\nline forty-two",
+				},
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose,
+			},
+		});
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "full file note" } });
+		await tick();
+
+		await fireEvent.click(screen.getByRole("button", { name: /submit/i }));
+		await tick();
+
+		const addCalls = mockedInvoke.mock.calls.filter(
+			(c) => c[0] === "add_comment",
+		);
+		expect(addCalls).toHaveLength(1);
+		const args = addCalls[0][1] as {
+			path: string;
+			text: string;
+			anchor: { source: string; side: string; start_line: number };
+			cachedExcerpt: string;
+		};
+		expect(args.path).toBe("/repo");
+		expect(args.text).toBe("full file note");
+		expect(args.anchor.source).toBe("FullFile");
+		expect(args.anchor.side).toBe("New");
+		expect(args.anchor.start_line).toBe(40);
+		expect(args.cachedExcerpt).toBe(
+			"line forty\nline forty-one\nline forty-two",
+		);
+		expect(onclose).toHaveBeenCalledTimes(1);
+	});
+
+	it("persists a draft via save_draft_comment with the injected anchor on the debounce (V8)", async () => {
+		vi.useFakeTimers();
+		const capturedAnchor: Anchor = {
+			commit_oid: "abc123",
+			file_path: "src/main.ts",
+			source: "FullFile",
+			side: "New",
+			start_line: 40,
+			end_line: 42,
+		};
+		render(CommentComposer, {
+			props: {
+				captured: {
+					anchor: capturedAnchor,
+					cachedExcerpt: "line forty",
+				},
+				commitOid: "abc123",
+				repoPath: "/repo",
+				onclose: () => {},
+			},
+		});
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: "draft full file" } });
+
+		expect(
+			mockedInvoke.mock.calls.filter((c) => c[0] === "save_draft_comment"),
+		).toHaveLength(0);
+
+		await vi.advanceTimersByTimeAsync(300);
+		await tick();
+
+		const draftCalls = mockedInvoke.mock.calls.filter(
+			(c) => c[0] === "save_draft_comment",
+		);
+		expect(draftCalls).toHaveLength(1);
+		const args = draftCalls[0][1] as {
+			path: string;
+			text: string;
+			anchor: { source: string; start_line: number };
+		};
+		expect(args.path).toBe("/repo");
+		expect(args.text).toBe("draft full file");
+		expect(args.anchor.source).toBe("FullFile");
+		expect(args.anchor.start_line).toBe(40);
 	});
 
 	it("produces a New-side anchor for a split/new-side (Add-only) selection", async () => {
