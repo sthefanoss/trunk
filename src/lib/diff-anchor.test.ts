@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { DiffLine, DiffStatus, FileDiff } from "./types.js";
 import { buildDiffAnchor } from "./diff-anchor.js";
+import type { DiffLine, DiffStatus, FileDiff } from "./types.js";
 
 function addLine(newLineno: number, content: string): DiffLine {
 	return {
