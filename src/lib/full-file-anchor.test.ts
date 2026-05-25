@@ -143,8 +143,6 @@ describe("buildFullFileAnchor", () => {
 
 		expect(anchor.start_line).toBe(5);
 		expect(anchor.end_line).toBe(50);
-		expect(cachedExcerpt).toBe(
-			"before-gap\n… 44 lines unchanged …\nafter-gap",
-		);
+		expect(cachedExcerpt).toBe("before-gap\n… 44 lines unchanged …\nafter-gap");
 	});
 });
