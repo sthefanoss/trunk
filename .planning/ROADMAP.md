@@ -250,8 +250,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 66-02-PLAN.md — Four thin commands (seed/add/remove/list) with mutex-serialized RMW + lib.rs registration
-- [ ] 66-03-PLAN.md — CommitRow in-session/pending-base markers + ReviewPanel minimal commit list with per-row remove
+- [x] 66-02-PLAN.md — Four thin commands (seed/add/remove/list) with mutex-serialized RMW + lib.rs registration
+- [x] 66-03-PLAN.md — CommitRow in-session/pending-base markers + ReviewPanel minimal commit list with per-row remove
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
