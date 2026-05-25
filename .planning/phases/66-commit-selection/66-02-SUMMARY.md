@@ -100,6 +100,12 @@ None - no external service configuration required.
 - Frontend can branch on `no_session` vs `not_open` for the D-06 toggle gating (Pitfall 4) and the panel empty state.
 - Concurrency is proven safe (T-66-02 mitigated and tested), so rapid graph clicks are correct.
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/66-commit-selection/66-02-SUMMARY.md`
+- FOUND: `src-tauri/src/commands/review.rs`
+- FOUND commits: `c0d7633` (test), `f47f405` (feat), `c80ada4` (feat), `1b05218` (docs)
+
 ---
 *Phase: 66-commit-selection*
 *Completed: 2026-05-25*
