@@ -128,6 +128,12 @@ None - no external service configuration required.
 - No blockers. The Vitest guard-lift behavior is fully exercised in Plan 04's component tests per the plan (this plan is the enabler).
 - Note for the orchestrator: worktree `node_modules` linking is needed for in-worktree Vitest (see deferred-items.md).
 
+## Self-Check: PASSED
+
+All five task files + SUMMARY.md + deferred-items.md exist in the worktree; all three
+commits (`c50506a`, `2634815`, `ff78fc1`) are present in the worktree branch history;
+worktree status is clean.
+
 ---
 *Phase: 67-diff-source-anchor-capture*
 *Completed: 2026-05-25*
