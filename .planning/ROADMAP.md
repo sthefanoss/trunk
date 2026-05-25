@@ -297,7 +297,9 @@ Plans:
   1. User can select a line range in the full-file-at-commit view and attach a comment to it.
   2. A comment attached this way records the file's absolute (1-based) line range at that commit and survives an app restart.
 
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 68-01-PLAN.md — Pure full-file capture adapter `buildFullFileAnchor` (TDD, V1–V4)
+- [ ] 68-02-PLAN.md — Full-file selection + Comment affordance + composer wiring + restart-survival (V5–V10)
 **UI hint**: yes
 **Notes:**
 
