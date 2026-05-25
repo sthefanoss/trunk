@@ -10,9 +10,9 @@ Requirements for v0.13. Each maps to a roadmap phase. Recipient of the generated
 
 ### Session
 
-- [ ] **SESS-01**: User can start a code review session for the current repository
-- [ ] **SESS-02**: User can resume an in-progress review session after restarting the app (session state persists per repo)
-- [ ] **SESS-03**: User can end and clear the active review session
+- [x] **SESS-01**: User can start a code review session for the current repository
+- [x] **SESS-02**: User can resume an in-progress review session after restarting the app (session state persists per repo)
+- [x] **SESS-03**: User can end and clear the active review session
 
 ### Commit Selection
 
@@ -82,9 +82,9 @@ Which phases cover which requirements. Phase numbers continue from v0.12 (last p
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SESS-01 | Phase 65 | Pending |
-| SESS-02 | Phase 65 | Pending |
-| SESS-03 | Phase 65 | Pending |
+| SESS-01 | Phase 65 | Complete |
+| SESS-02 | Phase 65 | Complete |
+| SESS-03 | Phase 65 | Complete |
 | SEL-01 | Phase 66 | Pending |
 | SEL-02 | Phase 66 | Pending |
 | SEL-03 | Phase 66 | Pending |

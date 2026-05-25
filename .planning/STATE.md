@@ -4,13 +4,13 @@ milestone: v0.13
 milestone_name: Code Review Mode
 status: executing
 stopped_at: Phase 65 context gathered
-last_updated: "2026-05-25T09:04:38.680Z"
-last_activity: 2026-05-25 -- Phase 65 planning complete
+last_updated: "2026-05-25T09:17:09.573Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 65 — Data Model + Persistence + Session Lifecycle
+**Current focus:** Phase 65 — data-model-persistence-session-lifecycle
 
 ## Current Position
 
-Phase: 65 of 71 (Data Model + Persistence + Session Lifecycle)
-Plan: — (not yet planned)
+Phase: 65 (data-model-persistence-session-lifecycle) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 65 planning complete
+Last activity: 2026-05-25
 
-Progress: [░░░░░░░░░░] 0% (0 of 7 phases complete)
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 7 phases complete)
 | Phase 63 P03 | 11min | 2 tasks | 4 files |
 | Phase 64 P01 | 7min | 2 tasks | 9 files |
 | Phase 64 P02 | 10min | 2 tasks | 3 files |
+| Phase 65 P01 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 7 phases complete)
 - [Phase 64]: Two independent scroll panels with syncScroll for vertical sync, independent horizontal scroll per panel
 - [Phase 64]: Hunk headers in split view: left panel shows header text, right panel shows staging buttons
 - [Phase 64]: Line selection only on right panel Add lines using original lineIdx from PairedRow for correct staging indices
+- [Phase 65]: Review-session DTOs derive Deserialize and serialize PascalCase enums (Source/Side) with no rename_all; struct fields snake_case. Frozen keystone schema for phases 66/67/68/70.
 
 ### Pending Todos
 
@@ -122,7 +124,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-25T08:19:46.151Z
+Last session: 2026-05-25T09:16:58.789Z
 Stopped at: Phase 65 context gathered
-Resume file: .planning/phases/65-data-model-persistence-session-lifecycle/65-CONTEXT.md
+Resume file: None
 Next action: /gsd:plan-phase 65

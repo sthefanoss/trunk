@@ -209,7 +209,7 @@ Built in strict dependency order: lock the anchor schema and persistence first (
 Plans:
 **Wave 1**
 
-- [ ] 65-01-PLAN.md — Keystone schema: Rust DTOs + TS mirror + serde-shape test
+- [x] 65-01-PLAN.md — Keystone schema: Rust DTOs + TS mirror + serde-shape test
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
