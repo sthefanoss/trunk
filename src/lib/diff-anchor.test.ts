@@ -88,8 +88,10 @@ describe("buildDiffAnchor", () => {
 	});
 
 	it("resolves a mixed Add+Delete selection to New, drops Delete linenos from the range, keeps them in the excerpt", () => {
+		// Delete's old_lineno (99) sits OUTSIDE the Add range so a buggy impl that
+		// folded it in (e.g. new_lineno ?? old_lineno) would widen the range to 16..99.
 		const lines = [
-			deleteLine(16, "old-line"),
+			deleteLine(99, "old-line"),
 			addLine(16, "new-line-a"),
 			addLine(17, "new-line-b"),
 		];
@@ -103,8 +105,8 @@ describe("buildDiffAnchor", () => {
 		);
 
 		expect(anchor.side).toBe("New");
-		// Range is min..max of the Add lines' new_lineno only — the Delete's old_lineno (16)
-		// must not widen the range; 16..17 here comes from the Add lines.
+		// Range is min..max of the Add lines' new_lineno only — the Delete's old_lineno (99)
+		// must not widen the range; 16..17 comes from the Add lines alone.
 		expect(anchor.start_line).toBe(16);
 		expect(anchor.end_line).toBe(17);
 		// Excerpt still carries the dropped `-` line.
@@ -180,16 +182,22 @@ describe("buildDiffAnchor", () => {
 		expect(anchor.file_path).toBe("src/copied-new-path.ts");
 	});
 
-	it("treats Untracked/Unknown like Modified — side derived from selected origins", () => {
-		const untrackedLines = [deleteLine(8, "del")];
-		const untracked = file("Untracked", "src/untracked.ts", untrackedLines);
-		const untrackedResult = buildDiffAnchor(OID, untracked, 0, new Set([0]));
-		expect(untrackedResult.anchor.side).toBe("Old");
+	it("treats an Untracked file like Modified — side derived from selected origins", () => {
+		const lines = [deleteLine(8, "del")];
+		const f = file("Untracked", "src/untracked.ts", lines);
 
-		const unknownLines = [addLine(9, "add")];
-		const unknown = file("Unknown", "src/unknown.ts", unknownLines);
-		const unknownResult = buildDiffAnchor(OID, unknown, 0, new Set([0]));
-		expect(unknownResult.anchor.side).toBe("New");
+		const { anchor } = buildDiffAnchor(OID, f, 0, new Set([0]));
+
+		expect(anchor.side).toBe("Old");
+	});
+
+	it("treats an Unknown file like Modified — side derived from selected origins", () => {
+		const lines = [addLine(9, "add")];
+		const f = file("Unknown", "src/unknown.ts", lines);
+
+		const { anchor } = buildDiffAnchor(OID, f, 0, new Set([0]));
+
+		expect(anchor.side).toBe("New");
 	});
 
 	it("assembles cachedExcerpt as origin-prefixed diff-format lines over the contiguous index span", () => {
