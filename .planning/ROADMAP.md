@@ -275,9 +275,9 @@ Plans:
   3. A selection spanning added and deleted lines attaches without error and records which side it targets.
 
 **Plans**: 4 plans
-- [ ] 67-01-PLAN.md — Pure TS capture-time adapter (indices -> {anchor, cachedExcerpt})
-- [ ] 67-02-PLAN.md — Shared add_comment + save_draft_comment Tauri commands
-- [ ] 67-03-PLAN.md — Thread commitDetail, lift 3 commit-diff selection guards, request DTOs
+- [x] 67-01-PLAN.md — Pure TS capture-time adapter (indices -> {anchor, cachedExcerpt})
+- [x] 67-02-PLAN.md — Shared add_comment + save_draft_comment Tauri commands
+- [x] 67-03-PLAN.md — Thread commitDetail, lift 3 commit-diff selection guards, request DTOs
 - [ ] 67-04-PLAN.md — Inline CommentComposer + Comment affordance (D-01..D-04) + UAT
 **UI hint**: yes
 **Notes:**
