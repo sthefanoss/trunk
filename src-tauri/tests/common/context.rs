@@ -4,6 +4,7 @@ use trunk_lib::git::types::GraphResult;
 
 pub struct TestContext {
     _dir: tempfile::TempDir,
+    _data_dir: tempfile::TempDir,
     pub(crate) path: String,
     pub(crate) state_map: HashMap<String, PathBuf>,
     pub(crate) cache_map: HashMap<String, GraphResult>,
@@ -18,6 +19,7 @@ impl TestContext {
     /// Create a minimal context with an empty git repo (no commits)
     pub fn new_empty() -> Self {
         let dir = tempfile::tempdir().expect("failed to create tempdir");
+        let data_dir = tempfile::tempdir().expect("failed to create data_dir tempdir");
         let repo = git2::Repository::init(dir.path()).expect("failed to init repo");
 
         let mut cfg = repo.config().expect("failed to get config");
@@ -32,6 +34,7 @@ impl TestContext {
 
         TestContext {
             _dir: dir,
+            _data_dir: data_dir,
             path,
             state_map,
             cache_map: HashMap::new(),
@@ -46,6 +49,12 @@ impl TestContext {
     /// Filesystem path to the temporary repo
     pub fn repo_path(&self) -> &Path {
         self._dir.path()
+    }
+
+    /// Temporary directory standing in for app_data_dir in persistence tests.
+    /// Threaded into review_store / review _inner functions as the `data_dir` arg.
+    pub fn data_dir(&self) -> &Path {
+        self._data_dir.path()
     }
 
     /// Open a fresh git2::Repository handle
@@ -69,8 +78,10 @@ impl TestContext {
         path: String,
         state_map: HashMap<String, PathBuf>,
     ) -> Self {
+        let data_dir = tempfile::tempdir().expect("failed to create data_dir tempdir");
         TestContext {
             _dir: dir,
+            _data_dir: data_dir,
             path,
             state_map,
             cache_map: HashMap::new(),
