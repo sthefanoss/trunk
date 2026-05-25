@@ -129,4 +129,87 @@ describe("CommitRow", () => {
 		});
 		expect(screen.queryByText("xyz9876")).toBeNull();
 	});
+
+	it("applies a theme-variable marker when inSession is true", () => {
+		const commit = makeCommit({ oid: "abc1234567" });
+		render(CommitRow, {
+			props: {
+				commit,
+				rowIndex: 0,
+				columnWidths: defaultWidths,
+				columnVisibility: allVisible,
+				inSession: true,
+			},
+		});
+		const row = screen.getByTestId("commit-row");
+		const style = row.getAttribute("style") ?? "";
+		expect(style).toContain("var(--color-review-row)");
+		// The marker must not hardcode a literal color.
+		expect(style).not.toMatch(/inset[^;]*(rgb|#[0-9a-fA-F])/);
+	});
+
+	it("does not apply the in-session marker when inSession is false", () => {
+		const commit = makeCommit({ oid: "abc1234567" });
+		render(CommitRow, {
+			props: {
+				commit,
+				rowIndex: 0,
+				columnWidths: defaultWidths,
+				columnVisibility: allVisible,
+				inSession: false,
+			},
+		});
+		const style = screen.getByTestId("commit-row").getAttribute("style") ?? "";
+		expect(style).not.toContain("var(--color-review-row)");
+	});
+
+	it("applies a distinct theme-variable marker when isPendingBase is true", () => {
+		const commit = makeCommit({ oid: "abc1234567" });
+		render(CommitRow, {
+			props: {
+				commit,
+				rowIndex: 0,
+				columnWidths: defaultWidths,
+				columnVisibility: allVisible,
+				isPendingBase: true,
+			},
+		});
+		const row = screen.getByTestId("commit-row");
+		const style = row.getAttribute("style") ?? "";
+		expect(style).toContain("var(--color-review-pending-base)");
+		expect(style).not.toContain("var(--color-review-row)");
+		expect(style).not.toMatch(/inset[^;]*(rgb|#[0-9a-fA-F])/);
+	});
+
+	it("does not apply the pending-base marker when isPendingBase is false", () => {
+		const commit = makeCommit({ oid: "abc1234567" });
+		render(CommitRow, {
+			props: {
+				commit,
+				rowIndex: 0,
+				columnWidths: defaultWidths,
+				columnVisibility: allVisible,
+				isPendingBase: false,
+			},
+		});
+		const style = screen.getByTestId("commit-row").getAttribute("style") ?? "";
+		expect(style).not.toContain("var(--color-review-pending-base)");
+	});
+
+	it("combines both markers when inSession and isPendingBase are both true", () => {
+		const commit = makeCommit({ oid: "abc1234567" });
+		render(CommitRow, {
+			props: {
+				commit,
+				rowIndex: 0,
+				columnWidths: defaultWidths,
+				columnVisibility: allVisible,
+				inSession: true,
+				isPendingBase: true,
+			},
+		});
+		const style = screen.getByTestId("commit-row").getAttribute("style") ?? "";
+		expect(style).toContain("var(--color-review-row)");
+		expect(style).toContain("var(--color-review-pending-base)");
+	});
 });
