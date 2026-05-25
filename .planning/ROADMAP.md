@@ -274,7 +274,11 @@ Plans:
   2. A comment attached to a diff selection still points at the correct code after the diff is re-fetched (e.g. context-line or whitespace-ignore toggle) and after an app restart.
   3. A selection spanning added and deleted lines attaches without error and records which side it targets.
 
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 67-01-PLAN.md — Pure TS capture-time adapter (indices -> {anchor, cachedExcerpt})
+- [ ] 67-02-PLAN.md — Shared add_comment + save_draft_comment Tauri commands
+- [ ] 67-03-PLAN.md — Thread commitDetail, lift 3 commit-diff selection guards, request DTOs
+- [ ] 67-04-PLAN.md — Inline CommentComposer + Comment affordance (D-01..D-04) + UAT
 **UI hint**: yes
 **Notes:**
 
