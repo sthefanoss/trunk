@@ -1,8 +1,13 @@
 mod common;
 
 use common::context::TestContext;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use trunk_lib::commands::review::{
+    end_review_session_inner, get_review_session_status_inner, resume_review_session_inner,
+    start_review_session_inner, SessionState,
+};
 use trunk_lib::git::review_store::{load_session, save_session, LoadOutcome};
 use trunk_lib::git::types::ReviewSession;
 
@@ -127,4 +132,131 @@ fn newer_version_refused() {
         before, after,
         "a refused newer-version file must be left byte-identical"
     );
+}
+
+// ── Lifecycle _inner tests (Plan 65-03) ──────────────────────────────────────
+// These exercise the testability wedge: each _inner takes data_dir + a plain
+// state_map, with NO Tauri state, so the 3-state status merge that needs the
+// in-memory ReviewSessionsState lives only in the thin command (tested via the
+// disk half here).
+
+#[test]
+fn start_creates_session() {
+    let ctx = TestContext::new_empty();
+
+    let (canonical, session) =
+        start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    assert_eq!(session.schema_version, 1);
+    assert!(session.commits.is_empty());
+    assert!(session.comments.is_empty());
+    assert!(session.draft_comment.is_none());
+    assert!(
+        load_matches_loaded(ctx.data_dir(), &canonical),
+        "the session file should now exist on disk after start"
+    );
+}
+
+#[test]
+fn start_rejects_closed_repo() {
+    let ctx = TestContext::new_empty();
+    let empty: HashMap<String, PathBuf> = HashMap::new();
+
+    let err = start_review_session_inner(ctx.data_dir(), ctx.path(), &empty).unwrap_err();
+
+    assert_eq!(err.code, "not_open");
+}
+
+#[test]
+fn start_rejects_when_session_exists() {
+    let ctx = TestContext::new_empty();
+    start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    let err =
+        start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap_err();
+
+    assert_eq!(err.code, "session_exists");
+}
+
+#[test]
+fn resume_after_restart() {
+    let ctx = TestContext::new_empty();
+    start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    // A fresh process has no in-memory state — resume loads from disk.
+    let (_canonical, outcome) =
+        resume_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    assert!(
+        matches!(outcome, LoadOutcome::Loaded(_)),
+        "resume after a start must load the same session from disk"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_resumes_same_session() {
+    use std::os::unix::fs::symlink;
+
+    let ctx = TestContext::new_empty();
+    start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    // Create a symlink pointing at the real repo dir and open via that path.
+    let link_dir = tempfile::tempdir().unwrap();
+    let link_path = link_dir.path().join("repo-alias");
+    symlink(ctx.repo_path(), &link_path).unwrap();
+    let link_str = link_path.display().to_string();
+    let mut alias_map: HashMap<String, PathBuf> = HashMap::new();
+    alias_map.insert(link_str.clone(), link_path.clone());
+
+    let (alias_canonical, outcome) =
+        resume_review_session_inner(ctx.data_dir(), &link_str, &alias_map).unwrap();
+
+    let real_canonical = ctx.repo_path().canonicalize().unwrap();
+    assert_eq!(
+        alias_canonical, real_canonical,
+        "the symlink path must canonicalize to the real repo path"
+    );
+    assert!(
+        matches!(outcome, LoadOutcome::Loaded(_)),
+        "opening via a symlink resumes the SAME session (canonical-path keying, crit #3)"
+    );
+}
+
+#[test]
+fn end_clears_session() {
+    let ctx = TestContext::new_empty();
+    start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    end_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    let status =
+        get_review_session_status_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+    assert!(!status.file_exists, "the file must be gone after end");
+    assert_eq!(
+        status.state,
+        SessionState::None,
+        "the disk-only view reports None once the file is deleted"
+    );
+}
+
+#[test]
+fn status_inner_never_reports_active() {
+    let ctx = TestContext::new_empty();
+    start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+
+    // _inner sees only disk: a present file is ResumeAvailable, never Active.
+    // Promotion to Active is the thin command's job after locking the in-memory map.
+    let status =
+        get_review_session_status_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
+    assert!(status.file_exists);
+    assert_eq!(status.state, SessionState::ResumeAvailable);
+}
+
+/// True when a session round-trips back as `Loaded` for the canonical path.
+fn load_matches_loaded(data_dir: &Path, canonical: &Path) -> bool {
+    matches!(
+        load_session(data_dir, canonical),
+        Ok(LoadOutcome::Loaded(_))
+    )
 }
