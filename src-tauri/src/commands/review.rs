@@ -382,6 +382,15 @@ pub struct SaveDraftCommentRequest {
     pub anchor: Option<crate::git::types::Anchor>,
 }
 
+/// Argument bundle for `add_commit_comment_inner` (the testable core). A
+/// commit-level note (ANCH-03) is tied to a `commit_oid` with NO code anchor — the
+/// sibling of `AddCommentRequest`, not an extension of it (RESEARCH Open Question 2).
+#[derive(Debug)]
+pub struct AddCommitCommentRequest {
+    pub commit_oid: String,
+    pub text: String,
+}
+
 /// Submit a comment: push the fully-formed `Comment` (the `Anchor` already carries
 /// source/side from the TS adapter — L-08 dumb writer) and clear the single draft
 /// slot so the composer never reopens with stale text. The push + clear + save run
@@ -403,6 +412,56 @@ fn add_comment_inner(
         });
         session.draft_comment = None;
     })
+}
+
+/// Add a commit-level note (ANCH-03): push a `Comment` tied to `commit_oid` with NO
+/// code anchor and NO cached excerpt, distinguishable from line-anchored comments so
+/// render/jump can branch (D-01). Unlike `add_comment_inner`, it does NOT clear the
+/// draft slot — a commit-level note is independent of the diff composer.
+fn add_commit_comment_inner(
+    data_dir: &Path,
+    canonical: &Path,
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    req: AddCommitCommentRequest,
+) -> Result<(), TrunkError> {
+    mutate_session_rmw(data_dir, canonical, sessions, |session| {
+        session.comments.push(Comment {
+            id: uuid::Uuid::new_v4().to_string(),
+            text: req.text,
+            anchor: None,
+            cached_excerpt: None,
+            commit_oid: Some(req.commit_oid),
+        });
+    })
+}
+
+/// Update a comment's text by stable `id` (CMT-02, D-03). Targets by uuid, never by
+/// list position, so a concurrent tab reordering the list cannot misfire (T-69-05).
+/// A missing id returns a `not_found` `TrunkError` and mutates nothing.
+///
+/// `mutate_session_rmw`'s closure is infallible, so presence is captured into a flag
+/// inside the single critical section (no TOCTOU) and the error surfaced after.
+fn edit_comment_inner(
+    data_dir: &Path,
+    canonical: &Path,
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    id: &str,
+    text: String,
+) -> Result<(), TrunkError> {
+    let mut found = false;
+    mutate_session_rmw(data_dir, canonical, sessions, |session| {
+        if let Some(comment) = session.comments.iter_mut().find(|c| c.id == id) {
+            comment.text = text;
+            found = true;
+        }
+    })?;
+    if !found {
+        return Err(TrunkError::new(
+            "not_found",
+            format!("no comment with id {id}"),
+        ));
+    }
+    Ok(())
 }
 
 /// Write/replace the single draft-comment slot (per-keystroke). `DraftComment` has
