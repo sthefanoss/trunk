@@ -67,6 +67,18 @@ interface CommitGroup {
 	comments: Comment[];
 }
 
+// Within a group, commit-level comments (anchor === null) sort before
+// line-anchored ones — they're notes about the commit as a whole, so they read
+// as the lede. Array.prototype.sort is stable on modern engines, so capture
+// order is preserved within each class.
+function sortGroupComments(list: Comment[]): Comment[] {
+	return list.slice().sort((a, b) => {
+		if (a.anchor === null && b.anchor !== null) return -1;
+		if (a.anchor !== null && b.anchor === null) return 1;
+		return 0;
+	});
+}
+
 // Group comments by commit in the session's commit order; comments on commits
 // no longer in the session (e.g. CommitGone) get a fallback group keyed by oid
 // so nothing is dropped (D-08).
@@ -86,7 +98,7 @@ const groups = $derived.by<CommitGroup[]>(() => {
 			oid: commit.oid,
 			shortOid: commit.short_oid,
 			summary: commit.summary,
-			comments: byOid.get(commit.oid) ?? [],
+			comments: sortGroupComments(byOid.get(commit.oid) ?? []),
 		});
 		seen.add(commit.oid);
 	}
@@ -102,7 +114,7 @@ const groups = $derived.by<CommitGroup[]>(() => {
 			oid,
 			shortOid: oid.slice(0, 7),
 			summary: "",
-			comments: list,
+			comments: sortGroupComments(list),
 		});
 	}
 	return result;

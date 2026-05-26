@@ -429,6 +429,39 @@ describe("ReviewPanel", () => {
 			expect(onJumpToCommit).toHaveBeenCalledWith(COMMIT_A);
 		});
 
+		it("orders commit-level comments before line-anchored within the same commit group", async () => {
+			installReads({
+				commits: [commits[0]],
+				comments: [
+					lineAnchoredComment("L1", COMMIT_A, "line note one"),
+					commitLevelComment("C1", COMMIT_A, "commit note one"),
+					lineAnchoredComment("L2", COMMIT_A, "line note two"),
+					commitLevelComment("C2", COMMIT_A, "commit note two"),
+				],
+				resolutions: [
+					resolvable("L1"),
+					resolvable("C1"),
+					resolvable("L2"),
+					resolvable("C2"),
+				],
+			});
+			const { container } = render(ReviewPanel, {
+				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			});
+			await flush();
+
+			const order = Array.from(
+				container.querySelectorAll(".comment-card-text"),
+			).map((el) => el.textContent);
+			// Both commit-level first (capture-order stable), then both line-anchored.
+			expect(order).toEqual([
+				"commit note one",
+				"commit note two",
+				"line note one",
+				"line note two",
+			]);
+		});
+
 		it("classifies diff-source excerpt lines by their +/-/space prefix", async () => {
 			const commentWithDiff: Comment = {
 				id: "c1",
