@@ -4,13 +4,13 @@ milestone: v0.13
 milestone_name: Code Review Mode
 status: executing
 stopped_at: Completed 69-02-PLAN.md
-last_updated: "2026-05-26T00:57:27.247Z"
+last_updated: "2026-05-26T01:02:28.463Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
   percent: 57
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 ## Current Position
 
 Phase: 69 (comment-management-ui) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-05-26
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 84%
 | Phase 68 P02 | 6min | 2 tasks | 5 files |
 | Phase 69 P01 | 18min | 2 tasks | 7 files |
 | Phase 69 P02 | 12min | 2 tasks | 2 files |
+| Phase 69 P04 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,8 @@ Progress: [████████░░] 84%
 - [Phase 69]: line-anchored comments mint a real uuid id at WRITE time (add_comment_inner), not empty, so edit/delete-by-id never misses before a reload
 - [Phase ?]: 69-02: edit_comment surfaces not_found via a found-flag captured inside the infallible mutate_session_rmw closure (no helper signature change, no TOCTOU)
 - [Phase ?]: 69-02: comment edit/delete target by stable uuid id (D-03), not list position — multi-tab-safe; missing id -> not_found (edit) / no-op (delete)
+- [Phase ?]: 69-04: TS Comment DTO mirrors Rust v2 wire shape (id, commit_oid?); OrphanReason/CommentResolution added ahead of their 69-03 backend
+- [Phase ?]: 69-04: review-session.svelte.ts rune owns center-pane Review state (rightPaneMode panel|diff, reviewActive) + a RepoView-decoupled jumpTo(comment, deps) via injected JumpDeps callbacks (D-07/D-08)
 
 ### Pending Todos
 
@@ -148,7 +151,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T00:57:24.001Z
+Last session: 2026-05-26T01:02:16.384Z
 Stopped at: Completed 69-02-PLAN.md
 Resume file: None
 Next action: Human runs `just dev` and verifies the attach flow (steps 1-8); type "approved" to resume Plan 04 completion (SUMMARY + state advance)

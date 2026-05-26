@@ -29,10 +29,10 @@ Requirements for v0.13. Each maps to a roadmap phase. Recipient of the generated
 
 ### Comment Management
 
-- [ ] **CMT-01**: User can view all comments in the active session in a review panel
+- [x] **CMT-01**: User can view all comments in the active session in a review panel
 - [x] **CMT-02**: User can edit a comment's text
 - [x] **CMT-03**: User can delete a comment, with confirmation
-- [ ] **CMT-04**: User can jump from a comment to its anchored code location
+- [x] **CMT-04**: User can jump from a comment to its anchored code location
 
 ### Markdown Render
 
@@ -92,10 +92,10 @@ Which phases cover which requirements. Phase numbers continue from v0.12 (last p
 | ANCH-01 | Phase 67 | Complete |
 | ANCH-02 | Phase 68 | Complete |
 | ANCH-03 | Phase 69 | Complete |
-| CMT-01 | Phase 69 | Pending |
+| CMT-01 | Phase 69 | Complete |
 | CMT-02 | Phase 69 | Complete |
 | CMT-03 | Phase 69 | Complete |
-| CMT-04 | Phase 69 | Pending |
+| CMT-04 | Phase 69 | Complete |
 | DOC-01 | Phase 70 | Pending |
 | DOC-02 | Phase 70 | Pending |
 | DOC-03 | Phase 70 | Pending |
