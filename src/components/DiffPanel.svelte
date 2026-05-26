@@ -264,6 +264,33 @@ function scrollToHunk(index: number) {
 	setTimeout(() => el?.classList.remove("hunk-highlight"), 600);
 }
 
+// Jump-to-range (Phase 69 / D-07): scroll to and transiently highlight the hunk
+// that contains a comment's anchored new-side line range. The review panel jump
+// resolves to a single rendered file; we locate the hunk whose new-line span
+// covers `startLine` (in hunk view the hunk wrapper is the scroll target). This
+// is best-effort — if the line isn't currently rendered (e.g. full-file mode or
+// no matching hunk), it falls back to the first hunk so the file is at least
+// brought into view rather than leaving the user stranded.
+export function scrollToLine(startLine: number, _endLine: number) {
+	const keys = Object.keys(hunkElements);
+	if (keys.length === 0) return;
+	let targetKey: string | null = null;
+	for (const fd of fileDiffs) {
+		for (let hunkIdx = 0; hunkIdx < fd.hunks.length; hunkIdx++) {
+			const hunk = fd.hunks[hunkIdx];
+			const start = hunk.new_start;
+			const end = hunk.new_start + hunk.new_lines - 1;
+			if (startLine >= start && startLine <= end) {
+				targetKey = `${fd.path}-${hunkIdx}`;
+				break;
+			}
+		}
+		if (targetKey !== null) break;
+	}
+	const index = targetKey !== null ? keys.indexOf(targetKey) : 0;
+	scrollToHunk(index >= 0 ? index : 0);
+}
+
 function toggleFileCollapsed(path: string) {
 	const next = new Set(collapsedFiles);
 	if (next.has(path)) next.delete(path);
