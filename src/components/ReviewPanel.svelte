@@ -5,7 +5,7 @@
 // and jump-to-anchor with read-only orphan rows (D-07 / D-08). The panel lives
 // in the center pane (UI-SPEC:133); jump is driven by the host via onJump.
 
-import { CornerDownRight, MessageSquarePlus } from "@lucide/svelte";
+import { MessageSquarePlus } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { showToast } from "../lib/toast.svelte.js";
@@ -421,41 +421,42 @@ $effect(() => {
                     </div>
                   {:else}
                     <div class="flex items-start" style="gap: 8px;">
-                      <!-- Jump affordance: resolvable line-anchored only (D-07);
-                           disabled/absent for commit-level + orphaned (D-08) -->
-                      {#if isJumpable(comment)}
-                        <button
-                          type="button"
-                          aria-label="Jump to code"
-                          onclick={() => onJump(comment)}
-                          class="jump-btn"
-                          style="
-                            background: transparent;
-                            color: var(--color-text-muted);
-                            border: none;
-                            cursor: pointer;
-                            padding: 0;
-                            flex-shrink: 0;
-                            display: flex;
-                            align-items: center;
-                          "
-                        >
-                          <CornerDownRight size={14} />
-                        </button>
-                      {/if}
                       <div class="flex flex-col" style="gap: 2px; flex: 1; min-width: 0;">
                         <!-- Comment text stays at full --color-text even for orphans -->
                         <span style="white-space: pre-wrap; word-break: break-word;">{comment.text}</span>
+                        <!-- Line ref doubles as the jump affordance for resolvable
+                             line-anchored comments (D-07); plain dimmed text for
+                             commit-level (no anchor — skipped) and orphans (D-08). -->
                         {#if comment.anchor !== null}
-                          <span
-                            class="font-mono"
-                            style="
-                              font-size: 11px;
-                              line-height: 1.4;
-                              color: var(--color-text-muted);
-                              opacity: {isOrphan(comment) ? 'var(--opacity-dimmed)' : '1'};
-                            "
-                          >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</span>
+                          {#if isJumpable(comment)}
+                            <button
+                              type="button"
+                              aria-label="Jump to code"
+                              onclick={() => onJump(comment)}
+                              class="jump-ref font-mono"
+                              style="
+                                background: transparent;
+                                border: none;
+                                padding: 0;
+                                cursor: pointer;
+                                text-align: left;
+                                font-size: 11px;
+                                line-height: 1.4;
+                                color: var(--color-text-muted);
+                                font-family: inherit;
+                              "
+                            >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</button>
+                          {:else}
+                            <span
+                              class="font-mono"
+                              style="
+                                font-size: 11px;
+                                line-height: 1.4;
+                                color: var(--color-text-muted);
+                                opacity: {isOrphan(comment) ? 'var(--opacity-dimmed)' : '1'};
+                              "
+                            >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</span>
+                          {/if}
                         {/if}
                         {#if comment.cached_excerpt}
                           <span
@@ -516,8 +517,9 @@ $effect(() => {
 </div>
 
 <style>
-  .jump-btn:hover,
-  .jump-btn:focus-visible {
+  .jump-ref:hover,
+  .jump-ref:focus-visible {
     color: var(--color-accent);
+    text-decoration: underline;
   }
 </style>
