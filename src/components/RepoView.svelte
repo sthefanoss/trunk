@@ -95,11 +95,15 @@ let diffPanelRef = $state<{
 } | null>(null);
 
 // Bind the panel's jump affordance to the rune, wiring the existing RepoView
-// machinery as the rune's navigation seams.
+// machinery as the rune's navigation seams. The rune uses the IDEMPOTENT
+// variants — handleCommitSelect/handleCommitFileSelect are toggles for graph
+// and CommitDetail clicks (clicking the selected row clears it). The jump
+// gesture must never clear the very target it's about to scroll to, otherwise
+// the panel→diff swap lands on a blank diff with no selection (CR-03 / WR-04).
 function handleReviewJump(comment: Comment) {
 	reviewSession.jumpTo(comment, {
-		selectCommit: handleCommitSelect,
-		selectFile: handleCommitFileSelect,
+		selectCommit: selectCommitIdempotent,
+		selectFile: selectCommitFileIdempotent,
 		scrollToRange: (startLine, endLine, side) => {
 			// The panel→diff swap destroys ReviewPanel and mounts a fresh DiffPanel;
 			// diffPanelRef is bound during that render. Poll a few frames until it's
@@ -117,9 +121,11 @@ function handleReviewJump(comment: Comment) {
 }
 
 // Commit-header click in the review panel: select the commit (loads detail)
-// and scroll the graph to it. Panel stays open — no view swap.
+// and scroll the graph to it. Panel stays open — no view swap. Uses the
+// idempotent variant so re-clicking the currently-selected commit's header
+// does not toggle it off (CR-03's sister path).
 async function handleReviewJumpToCommit(oid: string) {
-	await handleCommitSelect(oid);
+	await selectCommitIdempotent(oid);
 	await commitGraphRef?.scrollToOid(oid);
 }
 
@@ -334,11 +340,12 @@ async function handleFileSelect(
 	}
 }
 
-async function handleCommitSelect(oid: string) {
-	if (selectedCommitOid === oid) {
-		clearCommit();
-		return;
-	}
+// Idempotent selection — never clears, never toggles. Loads commit detail
+// for `oid` (or no-ops if already selected with detail loaded). This is the
+// seam the review-panel jump binds to (CR-03): the jump gesture must never
+// clear the very target it's about to scroll to.
+async function selectCommitIdempotent(oid: string) {
+	if (selectedCommitOid === oid && commitDetail !== null) return;
 	// Switching to commit view -- close any open staging diff
 	clearStagingDiff();
 	selectedCommitFile = null;
@@ -369,6 +376,17 @@ async function handleCommitSelect(oid: string) {
 	}
 }
 
+// Toggle wrapper for graph clicks: re-clicking the selected commit clears it.
+// Keep this for the CommitGraph / CommitDetail close gestures; the rune uses
+// `selectCommitIdempotent` directly.
+async function handleCommitSelect(oid: string) {
+	if (selectedCommitOid === oid) {
+		clearCommit();
+		return;
+	}
+	await selectCommitIdempotent(oid);
+}
+
 /** Resolve a ref name or OID to a commit OID, select it, and scroll the graph to it (GRAPH-03). */
 async function handleRefNavigate(refNameOrOid: string) {
 	if (!repoPath) return;
@@ -397,11 +415,12 @@ async function handleRefNavigate(refNameOrOid: string) {
 	await commitGraphRef?.scrollToOid(oid);
 }
 
-async function handleCommitFileSelect(path: string) {
-	if (selectedCommitFile === path) {
-		clearCommitFileDiff();
-		return;
-	}
+// Idempotent file selection — never clears, never toggles. Loads the diff
+// for `path` (or no-ops if already loaded). This is the seam the rune binds
+// to (WR-04): the jump gesture must never clear the file it's about to scroll
+// into, otherwise rightPaneMode='diff' lands on a view with no selected file.
+async function selectCommitFileIdempotent(path: string) {
+	if (selectedCommitFile === path) return;
 	selectedCommitFile = path;
 	if (!repoPath || !selectedCommitOid) return;
 	try {
@@ -419,6 +438,16 @@ async function handleCommitFileSelect(path: string) {
 	} catch {
 		// Keep the lightweight entry — DiffPanel will show empty diff
 	}
+}
+
+// Toggle wrapper for CommitDetail file clicks: re-clicking the selected file
+// clears it. The rune uses `selectCommitFileIdempotent` directly.
+async function handleCommitFileSelect(path: string) {
+	if (selectedCommitFile === path) {
+		clearCommitFileDiff();
+		return;
+	}
+	await selectCommitFileIdempotent(path);
 }
 
 async function refetchFileDiff(
