@@ -36,10 +36,10 @@ Requirements for v0.13. Each maps to a roadmap phase. Recipient of the generated
 
 ### Markdown Render
 
-- [ ] **DOC-01**: User can generate one markdown document from the session (commit refs + code excerpts + comments)
-- [ ] **DOC-02**: Excerpts render diff-fenced for diff-source comments and language-fenced for full-file-source comments, with fence length computed to avoid backtick collisions
-- [ ] **DOC-03**: Comments group by file and order by line, each under a `path:Lstart-Lend (sha)` location heading; commit-level comments render in a trailing section
-- [ ] **DOC-04**: Comments whose anchor can no longer be resolved render in a dedicated "unresolvable" section, never silently dropped and never crashing the render
+- [x] **DOC-01**: User can generate one markdown document from the session (commit refs + code excerpts + comments)
+- [x] **DOC-02**: Excerpts render diff-fenced for diff-source comments and language-fenced for full-file-source comments, with fence length computed to avoid backtick collisions
+- [x] **DOC-03**: Comments group by file and order by line, each under a `path:Lstart-Lend (sha)` location heading; commit-level comments render in a trailing section
+- [x] **DOC-04**: Comments whose anchor can no longer be resolved render in a dedicated "unresolvable" section, never silently dropped and never crashing the render
 
 ### Output
 
@@ -96,10 +96,10 @@ Which phases cover which requirements. Phase numbers continue from v0.12 (last p
 | CMT-02 | Phase 69 | Complete |
 | CMT-03 | Phase 69 | Complete |
 | CMT-04 | Phase 69 | Complete |
-| DOC-01 | Phase 70 | Pending |
-| DOC-02 | Phase 70 | Pending |
-| DOC-03 | Phase 70 | Pending |
-| DOC-04 | Phase 70 | Pending |
+| DOC-01 | Phase 70 | Complete |
+| DOC-02 | Phase 70 | Complete |
+| DOC-03 | Phase 70 | Complete |
+| DOC-04 | Phase 70 | Complete |
 | OUT-01 | Phase 71 | Pending |
 | OUT-02 | Phase 71 | Pending |
 
