@@ -2299,7 +2299,10 @@ mod tests {
 
         let out = resolve_all(&comments, &t.repo);
 
-        assert_eq!(find(&out, "inverted").reason, Some(OrphanReason::LineOutOfRange));
+        assert_eq!(
+            find(&out, "inverted").reason,
+            Some(OrphanReason::LineOutOfRange)
+        );
         assert!(!find(&out, "inverted").resolvable);
     }
 
