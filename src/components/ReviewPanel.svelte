@@ -285,15 +285,23 @@ $effect(() => {
 });
 
 // Live coordination: reload on session-changed for this repo's canonical path.
+// Track cancellation explicitly: if the effect tears down before listen()
+// resolves, the cleanup runs with `unlisten === undefined` and the listener
+// the promise eventually delivers leaks. Each remount adds another leaked
+// listener. Setting `cancelled` lets the .then handler dispose immediately
+// when the listener finally arrives (WR-03).
 $effect(() => {
 	let unlisten: (() => void) | undefined;
+	let cancelled = false;
 	listen<string>("session-changed", (event) => {
 		if (canonicalPath && event.payload !== canonicalPath) return;
 		reload();
 	}).then((fn) => {
-		unlisten = fn;
+		if (cancelled) fn();
+		else unlisten = fn;
 	});
 	return () => {
+		cancelled = true;
 		unlisten?.();
 	};
 });
