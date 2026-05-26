@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
 status: executing
-stopped_at: Completed 69-01-PLAN.md (review schema v2)
-last_updated: "2026-05-26T00:47:51.360Z"
+stopped_at: Completed 69-02-PLAN.md
+last_updated: "2026-05-26T00:57:27.247Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 57
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 ## Current Position
 
 Phase: 69 (comment-management-ui) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-26
 
-Progress: [████████░░] 79%
+Progress: [████████░░] 84%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [████████░░] 79%
 | Phase 68 P01 | 6min | 2 tasks | 2 files |
 | Phase 68 P02 | 6min | 2 tasks | 5 files |
 | Phase 69 P01 | 18min | 2 tasks | 7 files |
+| Phase 69 P02 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Progress: [████████░░] 79%
 - [Phase 69]: Review schema v2 — Comment gains stable id: String (#[serde(default)] empty-string sentinel) + commit_oid: Option<String>; CURRENT_SCHEMA_VERSION=2 (D-04, one bump for both)
 - [Phase 69]: v1->v2 lazy load-path migration backfills uuid ids and re-saves via the atomic writer; version-gate stays BEFORE from_value/migration so D-16 (refuse newer untouched) and D-15 (corrupt quarantine) both hold
 - [Phase 69]: line-anchored comments mint a real uuid id at WRITE time (add_comment_inner), not empty, so edit/delete-by-id never misses before a reload
+- [Phase ?]: 69-02: edit_comment surfaces not_found via a found-flag captured inside the infallible mutate_session_rmw closure (no helper signature change, no TOCTOU)
+- [Phase ?]: 69-02: comment edit/delete target by stable uuid id (D-03), not list position — multi-tab-safe; missing id -> not_found (edit) / no-op (delete)
 
 ### Pending Todos
 
@@ -145,7 +148,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T00:47:41.095Z
-Stopped at: Phase 69 UI-SPEC approved
+Last session: 2026-05-26T00:57:24.001Z
+Stopped at: Completed 69-02-PLAN.md
 Resume file: None
 Next action: Human runs `just dev` and verifies the attach flow (steps 1-8); type "approved" to resume Plan 04 completion (SUMMARY + state advance)
