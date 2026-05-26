@@ -86,11 +86,14 @@ function orphan(
 }
 
 // Install the dispatcher: reads return the supplied fixtures; writes resolve
-// undefined. Per-test overrides extend `extra`.
+// undefined. Per-test overrides extend `extra`. `generateDoc` routes the Phase
+// 70 generate_review_doc IPC to a fixture string (the safeInvoke wrapper
+// returns it; the panel's rune-call then drives the preview swap).
 function installReads(opts: {
 	commits?: SessionCommit[];
 	comments?: Comment[];
 	resolutions?: CommentResolution[];
+	generateDoc?: string;
 }) {
 	vi.mocked(safeInvoke).mockReset();
 	vi.mocked(safeInvoke).mockImplementation((cmd: string) => {
@@ -101,6 +104,8 @@ function installReads(opts: {
 				return Promise.resolve(opts.comments ?? []);
 			case "resolve_session_comments":
 				return Promise.resolve(opts.resolutions ?? []);
+			case "generate_review_doc":
+				return Promise.resolve(opts.generateDoc ?? "# stub\n");
 			default:
 				return Promise.resolve(undefined);
 		}
@@ -618,6 +623,94 @@ describe("ReviewPanel", () => {
 			expect(screen.getByText("commit gone")).toBeInTheDocument();
 			expect(screen.getByText("line out of range")).toBeInTheDocument();
 			expect(screen.getByText("file gone")).toBeInTheDocument();
+		});
+	});
+
+	// Phase 70 D-01 / D-02 / DOC-01: the Generate button + preview swap.
+	// The rune is exercised through the panel — only safeInvoke is mocked, so
+	// these tests verify the integration ReviewPanel↔rune↔IPC end-to-end.
+	describe("Generate / preview", () => {
+		it("generate button is disabled when no comments", async () => {
+			installReads({ commits, comments: [], resolutions: [] });
+			render(ReviewPanel, {
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
+			});
+			await flush();
+
+			const generateBtn = screen.getByRole("button", { name: /generate/i });
+			expect(generateBtn).toBeDisabled();
+			// The D-01 LOCKED tooltip drives the affordance when disabled.
+			expect(generateBtn.getAttribute("title")).toBe(
+				"Add at least one comment to generate",
+			);
+		});
+
+		it("generate click invokes generate_review_doc and swaps to preview", async () => {
+			installReads({
+				commits,
+				comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
+				resolutions: [resolvable("c1")],
+				generateDoc: "# Code review: trunk\n\nfoo",
+			});
+			render(ReviewPanel, {
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
+			});
+			await flush();
+
+			const generateBtn = screen.getByRole("button", { name: /generate/i });
+			expect(generateBtn).not.toBeDisabled();
+			await fireEvent.click(generateBtn);
+			await flush();
+
+			expect(calledCommands()).toContain("generate_review_doc");
+			expect(callArgs("generate_review_doc")?.path).toBe("/repo");
+			// The preview view replaces the list — the markdown body is in the DOM.
+			expect(
+				await screen.findByText(/# Code review: trunk/),
+			).toBeInTheDocument();
+		});
+
+		it("back to comments returns to list view", async () => {
+			installReads({
+				commits,
+				comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
+				resolutions: [resolvable("c1")],
+				generateDoc: "# Code review: trunk\n\nfoo",
+			});
+			render(ReviewPanel, {
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
+			});
+			await flush();
+
+			// Drive into preview first.
+			await fireEvent.click(screen.getByRole("button", { name: /generate/i }));
+			await flush();
+			expect(
+				await screen.findByText(/# Code review: trunk/),
+			).toBeInTheDocument();
+
+			// Click the back affordance inside the preview header.
+			await fireEvent.click(screen.getByRole("button", { name: /back/i }));
+			await flush();
+
+			// The list view's file-ref text returns; the preview body is gone.
+			expect(screen.getByText("src/main.ts:L10-L12")).toBeInTheDocument();
+			expect(screen.queryByText(/# Code review: trunk/)).toBeNull();
 		});
 	});
 });
