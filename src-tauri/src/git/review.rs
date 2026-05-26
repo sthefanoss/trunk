@@ -32,9 +32,25 @@ pub(crate) enum ExcerptError {
 }
 
 /// L-03: fence length is `max(3, longest_contiguous_backtick_run + 1)`.
-/// Stub returns 0 so the RED tests fail (the next commit implements it).
-pub(crate) fn fence_length(_body: &str) -> usize {
-    0
+/// Linear byte-scan over the entire body — counter resets on any non-backtick
+/// byte (including newlines), so two separate `` ``` `` runs split by a
+/// newline do NOT compose into a longer run. CommonMark §4.5 requires the
+/// opening fence be strictly longer than any inner backtick run.
+#[allow(dead_code)] // wired up in task 3
+pub(crate) fn fence_length(body: &str) -> usize {
+    let mut longest = 0usize;
+    let mut current = 0usize;
+    for b in body.as_bytes() {
+        if *b == b'`' {
+            current += 1;
+            if current > longest {
+                longest = current;
+            }
+        } else {
+            current = 0;
+        }
+    }
+    std::cmp::max(3, longest + 1)
 }
 
 /// L-07: extension → markdown fence language tag for `Source::FullFile`
