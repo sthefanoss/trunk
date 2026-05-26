@@ -330,7 +330,9 @@ fn classify_anchor(
     // The anchor carries its OWN commit_oid (the commit the line numbers index
     // into), distinct from a commit-level comment's top-level commit_oid.
     let oid = git2::Oid::from_str(&anchor.commit_oid).map_err(|_| OrphanReason::CommitGone)?;
-    let commit = repo.find_commit(oid).map_err(|_| OrphanReason::CommitGone)?;
+    let commit = repo
+        .find_commit(oid)
+        .map_err(|_| OrphanReason::CommitGone)?;
 
     // Side semantics (RESEARCH Pitfall 4): New reads the commit's own tree; Old
     // reads the parent's tree, and a root commit (no parent) is FileGone on Old.
@@ -346,7 +348,9 @@ fn classify_anchor(
     let entry = tree
         .get_path(Path::new(&anchor.file_path))
         .map_err(|_| OrphanReason::FileGone)?;
-    let blob = repo.find_blob(entry.id()).map_err(|_| OrphanReason::FileGone)?;
+    let blob = repo
+        .find_blob(entry.id())
+        .map_err(|_| OrphanReason::FileGone)?;
 
     // 1-based inclusive bounds matching Phase 67/68 capture (RESEARCH A2). `str::lines()`
     // does NOT count a trailing newline as a final empty line, so a comment on the
@@ -363,9 +367,34 @@ fn classify_anchor(
 /// `CommentResolution` per input (count in == count out) — never dropping or
 /// panicking (D-06/D-08). Commit-level comments (`anchor: None`) only need the
 /// commit to exist; line-anchored comments run the full side-aware bound check.
-pub fn resolve_all(_comments: &[Comment], _repo: &git2::Repository) -> Vec<CommentResolution> {
-    // RED stub — replaced with the real classifier in the GREEN step.
-    Vec::new()
+pub fn resolve_all(comments: &[Comment], repo: &git2::Repository) -> Vec<CommentResolution> {
+    comments
+        .iter()
+        .map(|c| {
+            let reason = match (&c.anchor, &c.commit_oid) {
+                // Line-anchored: classify against the anchor's own commit/side/range.
+                (Some(anchor), _) => classify_anchor(anchor, repo).err(),
+                // Commit-level: resolvable iff the commit exists.
+                (None, Some(commit_oid)) => {
+                    match git2::Oid::from_str(commit_oid)
+                        .ok()
+                        .and_then(|oid| repo.find_commit(oid).ok())
+                    {
+                        Some(_) => None,
+                        None => Some(OrphanReason::CommitGone),
+                    }
+                }
+                // Neither anchor nor commit target (defensive; v1 backfill should
+                // prevent it): no resolvable target → CommitGone, never a panic.
+                (None, None) => Some(OrphanReason::CommitGone),
+            };
+            CommentResolution {
+                id: c.id.clone(),
+                resolvable: reason.is_none(),
+                reason,
+            }
+        })
+        .collect()
 }
 
 // ── Selection RMW core (Phase 66, Plan 02): mutex-serialized read-modify-write ─
@@ -851,6 +880,39 @@ pub async fn list_session_commits(
         .map_err(|e| serde_json::to_string(&e).unwrap())?;
 
     Ok(result)
+}
+
+/// List the active session's comments incl. stable ids (CMT-01). Read-only: clones
+/// `.comments` from the in-memory map by CANONICAL key; no `save_session`, no emit
+/// (mirrors `list_session_commits`). A missing in-memory session is `no_session`
+/// (distinct from `canonical_repo_path`'s `not_open`) so the frontend can branch on
+/// session-active vs repo-not-open. No git2 work — the resolvability/orphan check is
+/// the separate `resolve_session_comments` command.
+#[tauri::command]
+pub async fn list_session_comments(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+) -> Result<Vec<Comment>, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    let comments = {
+        let map = sessions.0.lock().unwrap();
+        map.get(&canonical)
+            .ok_or_else(|| {
+                serde_json::to_string(&TrunkError::new(
+                    "no_session",
+                    "No active review session for this repository",
+                ))
+                .unwrap()
+            })?
+            .comments
+            .clone()
+    };
+
+    Ok(comments)
 }
 
 #[tauri::command]
@@ -1912,7 +1974,7 @@ mod tests {
     struct FileRepo {
         _dir: TempDir,
         repo: Repository,
-        root: Oid, // A: empty tree, no files
+        root: Oid,      // A: empty tree, no files
         with_file: Oid, // B: foo.rs present (3 lines)
     }
 
@@ -2009,7 +2071,14 @@ mod tests {
         let b = t.with_file.to_string();
         let comments = vec![
             line_comment("ok", &b, "foo.rs", Side::New, 1, 3),
-            line_comment("commit-gone", "0".repeat(40).as_str(), "foo.rs", Side::New, 1, 1),
+            line_comment(
+                "commit-gone",
+                "0".repeat(40).as_str(),
+                "foo.rs",
+                Side::New,
+                1,
+                1,
+            ),
             line_comment("file-gone", &b, "missing.rs", Side::New, 1, 1),
             line_comment("line-oob", &b, "foo.rs", Side::New, 1, 99),
             commit_comment("commit-level", &b),
@@ -2121,7 +2190,14 @@ mod tests {
     fn resolve_all_classifies_unparseable_oid_as_commit_gone_without_panicking() {
         let t = make_file_repo();
         // "not-a-valid-oid" is not 40 hex chars → Oid::from_str errors.
-        let comments = vec![line_comment("bad", "not-a-valid-oid", "foo.rs", Side::New, 1, 1)];
+        let comments = vec![line_comment(
+            "bad",
+            "not-a-valid-oid",
+            "foo.rs",
+            Side::New,
+            1,
+            1,
+        )];
 
         let out = resolve_all(&comments, &t.repo);
 
