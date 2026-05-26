@@ -464,6 +464,20 @@ fn edit_comment_inner(
     Ok(())
 }
 
+/// Remove a comment by stable `id` (CMT-03, D-03). A missing id is an idempotent
+/// no-op (parity with `apply_remove`) — `retain` simply keeps everything when nothing
+/// matches, so a double-delete or a stale id from another tab never errors.
+fn delete_comment_inner(
+    data_dir: &Path,
+    canonical: &Path,
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    id: &str,
+) -> Result<(), TrunkError> {
+    mutate_session_rmw(data_dir, canonical, sessions, |session| {
+        session.comments.retain(|c| c.id != id);
+    })
+}
+
 /// Write/replace the single draft-comment slot (per-keystroke). `DraftComment` has
 /// NO `cached_excerpt` (schema asymmetry, Pitfall 5) — only text + anchor persist;
 /// the excerpt is computed at submit. Does NOT emit `session-changed` (drafts are
@@ -618,6 +632,84 @@ pub async fn save_draft_comment(
     let req = SaveDraftCommentRequest { path, text, anchor };
     save_draft_comment_inner(&data_dir, &canonical, &sessions.0, req)
         .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    Ok(())
+}
+
+/// Add a commit-level note (ANCH-03): a comment tied to a commit with no code anchor.
+/// The backend for the per-commit "Add note" affordance (Plan 05). Emits
+/// `session-changed` because the note is panel-visible state.
+///
+/// Flat named args mirror the sibling comment commands and the
+/// `safeInvoke("add_commit_comment", { path, commitOid, text })` flat wire shape;
+/// Tauri maps the camelCase JS key `commitOid` to `commit_oid`.
+#[tauri::command]
+pub async fn add_commit_comment(
+    path: String,
+    commit_oid: String,
+    text: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    let req = AddCommitCommentRequest { commit_oid, text };
+    add_commit_comment_inner(&data_dir, &canonical, &sessions.0, req)
+        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
+    Ok(())
+}
+
+/// Update a comment's text by stable `id` (CMT-02). A missing id surfaces as a
+/// serialized `not_found` `TrunkError`. Emits `session-changed` after a successful
+/// edit because the comment list is panel-visible state.
+///
+/// Flat named args mirror the sibling comment commands and the
+/// `safeInvoke("edit_comment", { path, id, text })` flat wire shape.
+#[tauri::command]
+pub async fn edit_comment(
+    path: String,
+    id: String,
+    text: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    edit_comment_inner(&data_dir, &canonical, &sessions.0, &id, text)
+        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
+    Ok(())
+}
+
+/// Remove a comment by stable `id` (CMT-03). A missing id is an idempotent no-op.
+/// Emits `session-changed` because the comment list is panel-visible state.
+///
+/// Flat named args mirror the sibling comment commands and the
+/// `safeInvoke("delete_comment", { path, id })` flat wire shape.
+#[tauri::command]
+pub async fn delete_comment(
+    path: String,
+    id: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    delete_comment_inner(&data_dir, &canonical, &sessions.0, &id)
+        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    let _ = app.emit("session-changed", canonical.to_string_lossy().into_owned());
     Ok(())
 }
 
