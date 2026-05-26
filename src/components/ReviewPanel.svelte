@@ -90,10 +90,15 @@ const groups = $derived.by<CommitGroup[]>(() => {
 	// Fallback groups for comments whose commit is gone from the session.
 	for (const [oid, list] of byOid) {
 		if (seen.has(oid)) continue;
+		// The commit isn't in session.commits — either it's actually gone from the
+		// repo (the resolver will mark each comment CommitGone and the orphan badge
+		// carries the truth) or it's just not added to the review. Either way, the
+		// header summary is unknown here — leave it blank and let the per-comment
+		// badge speak.
 		result.push({
 			oid,
 			shortOid: oid.slice(0, 7),
-			summary: "(commit gone)",
+			summary: "",
 			comments: list,
 		});
 	}
@@ -249,7 +254,7 @@ $effect(() => {
     line-height: 1.5;
   "
 >
-  {#if commits.length === 0}
+  {#if groups.length === 0}
     <div class="flex flex-col" style="gap: 4px; padding: 12px;">
       <span>No commits in this review yet.</span>
       <span style="color: var(--color-text-muted); font-size: 11px;">
@@ -265,7 +270,7 @@ $effect(() => {
     </div>
   {/if}
 
-  {#if commits.length > 0}
+  {#if groups.length > 0}
     <ul class="flex flex-col" style="gap: 8px; list-style: none; margin: 0; padding: 0;">
       {#each groups as group (group.oid)}
         <li class="flex flex-col" style="gap: 4px;">

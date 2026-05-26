@@ -171,6 +171,29 @@ describe("ReviewPanel", () => {
 		).toBeInTheDocument();
 	});
 
+	// Regression: a comment whose anchor.commit_oid is not in session.commits
+	// (e.g. user commented from a diff without marking the commit "in review"
+	// via the graph) must still render in a fallback group — the resolver, not
+	// the session list, is the truth about whether the commit is gone.
+	it("renders fallback group for comments whose commit isn't in session.commits", async () => {
+		installReads({
+			commits: [],
+			comments: [lineAnchoredComment("c1", COMMIT_A, "i need eyes on this")],
+			resolutions: [resolvable("c1")],
+		});
+		render(ReviewPanel, { props: { repoPath: "/repo", onJump: vi.fn() } });
+		await flush();
+		expect(screen.getByText("i need eyes on this")).toBeInTheDocument();
+		// Fallback header uses the short oid; no synthetic "(commit gone)" label
+		// when the resolver says the comment is resolvable.
+		expect(screen.getByText("aaaaaaa")).toBeInTheDocument();
+		expect(screen.queryByText("(commit gone)")).not.toBeInTheDocument();
+		// The no-commits empty state must NOT fire when comments exist.
+		expect(
+			screen.queryByText("No commits in this review yet."),
+		).not.toBeInTheDocument();
+	});
+
 	describe("add note", () => {
 		it("writes a commit-level comment via add_commit_comment on Save", async () => {
 			installReads({ commits, comments: [], resolutions: [] });
