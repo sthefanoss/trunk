@@ -31,18 +31,16 @@ created: 2026-05-26
 
 ## Spacing Scale
 
-This is a **dense desktop GUI**, not a web page. The effective scale used by panel-class components is 2 / 4 / 8 / 12px — tighter than the generic 8-point web scale. Declared subset for this phase:
+Declared tokens for this phase (standard set only):
 
 | Token | Value | Usage in this phase |
 |-------|-------|---------------------|
-| dense | 2px | Vertical padding inside a comment/commit list row |
 | xs | 4px | Inline button padding, tight gaps (e.g. icon ↔ label), button group gap |
 | sm | 8px | Default gap between rows; gap between elements within a row |
-| md | 12px | Panel outer padding; group-header padding |
 
-Exceptions:
-- **2px and 3px are intentional dense-desktop conventions**, not defects. 2px row padding matches the existing `ReviewPanel` stub commit rows and `CommitDetail`; 3px radius (see below) is used app-wide for tight controls. The generic "multiples of 4 only" rule is relaxed here because this is a brownfield panel that must visually match `CommitDetail`/`DiffPanel` density. Do NOT widen to 16/24/32 — that would break visual consistency with the rest of the right/center pane.
-- Larger tokens (16/24/32/48/64) are **not used** in this panel and are intentionally omitted from the contract.
+Exceptions: none — only standard-set values are declared as tokens.
+
+**Density guidance (not a declared scale — prose for the executor):** This panel must visually match the density of its sibling components in the same pane. For sub-token spacing the contract does NOT enumerate (e.g. the tight vertical padding inside a comment/commit list row, and the control border-radius), **match the existing `CommitDetail.svelte` / `DiffPanel.svelte` / `ReviewPanel.svelte` stub** rather than widening to the standard scale. Do NOT pad rows out to 16/24/32 — that would break visual consistency with the rest of the center pane. Larger tokens (16/24/32/48/64) are intentionally not used in this panel.
 
 ---
 
@@ -86,6 +84,12 @@ Additional semantic tokens this phase consumes (already defined):
 
 ---
 
+## Visual Hierarchy
+
+**Focal point:** the **commit group header** (short SHA in `--font-mono` weight 600 + commit summary) is the per-group eye anchor. It is the largest type role (13px) and the heaviest weight (600) in the panel, and it opens each group — the reader's eye lands on it first and uses it to scan between commits. Comment rows beneath it are visually subordinate (12px/400 body). Nothing else in the panel competes for the focal role: the "Add note" affordance, edit/delete controls, and jump affordance are all secondary and only gain emphasis (accent / hover) on interaction.
+
+---
+
 ## Copywriting Contract
 
 These strings are net-new (no existing equivalents in the codebase) and are LOCKED here for the executor. The recipient framing of the milestone is an AI coding agent, but these strings are the human-facing panel UI.
@@ -98,7 +102,7 @@ These strings are net-new (no existing equivalents in the codebase) and are LOCK
 | Commit with no comments (per-group) | muted inline: **"No comments on this commit."** |
 | Edit affordance (inline, D-10) | trigger label **"Edit"**; in-place actions **"Save"** and **"Cancel"** |
 | Empty-text validation | Save is disabled when the textarea is empty/whitespace-only (no error toast; the disabled Save is the feedback) |
-| Error state (load/resolve failure) | toast via existing `showToast(..., "error")`: **"Failed to load review comments."** (mirrors the stub's `safeInvoke` + toast pattern) |
+| Error state (load/resolve failure) | toast via existing `showToast(..., "error")`: **"Failed to load review comments. Reload the panel to retry."** (mirrors the stub's `safeInvoke` + toast pattern) |
 | Destructive confirmation (delete, D-05) | `@tauri-apps/plugin-dialog` `ask` body: **"Delete this comment? This cannot be undone."** title: **"Delete comment"** — cancel is a no-op |
 
 Orphan reason badge labels (map the Rust `OrphanReason` enum → human strings, LOCKED):
