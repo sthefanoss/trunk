@@ -2,24 +2,24 @@
 
 ## Milestones
 
-- â **v0.1 MVP** — Phases 1-6 (shipped 2026-03-09)
-- â **v0.2 Commit Graph** — Phases 7-10 (shipped 2026-03-10)
-- â **v0.3 Actions** — Phases 11-14 (shipped 2026-03-12)
-- â **v0.4 Graph Rework** — Phases 15-17 (shipped 2026-03-13)
-- â **v0.5 Graph Overlay** — Phases 20-26 (shipped 2026-03-15)
-- â **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
-- â **v0.7 Hunk Staging & Search** — Phases 32-36 (shipped 2026-03-19)
-- â **v0.8 Conflict & Rebase** — Phases 37-43 (shipped 2026-03-23)
-- â **v0.9 Multi-tab & Tree View** — Phases 44-49 (shipped 2026-03-25)
-- â **v0.10 CI/CD & Releases** — Phases 50-52 (shipped 2026-03-26)
-- â **v0.11 Infrastructure** — Phases 53-58 (shipped 2026-03-27)
-- â **v0.12 Better Diffs** — Phases 59-64 (shipped 2026-03-30)
-- ð§ **v0.13 Code Review Mode** — Phases 65-71 (in progress)
+- â **v0.1 MVP** — Phases 1-6 (shipped 2026-03-09)
+- â **v0.2 Commit Graph** — Phases 7-10 (shipped 2026-03-10)
+- â **v0.3 Actions** — Phases 11-14 (shipped 2026-03-12)
+- â **v0.4 Graph Rework** — Phases 15-17 (shipped 2026-03-13)
+- â **v0.5 Graph Overlay** — Phases 20-26 (shipped 2026-03-15)
+- â **v0.6 UI Polish & Core Ops** — Phases 27-31 (shipped 2026-03-16)
+- â **v0.7 Hunk Staging & Search** — Phases 32-36 (shipped 2026-03-19)
+- â **v0.8 Conflict & Rebase** — Phases 37-43 (shipped 2026-03-23)
+- â **v0.9 Multi-tab & Tree View** — Phases 44-49 (shipped 2026-03-25)
+- â **v0.10 CI/CD & Releases** — Phases 50-52 (shipped 2026-03-26)
+- â **v0.11 Infrastructure** — Phases 53-58 (shipped 2026-03-27)
+- â **v0.12 Better Diffs** — Phases 59-64 (shipped 2026-03-30)
+- ð§ **v0.13 Code Review Mode** — Phases 65-71 (in progress)
 
 ## Phases
 
 <details>
-<summary>â v0.1 MVP (Phases 1-6) — SHIPPED 2026-03-09</summary>
+<summary>â v0.1 MVP (Phases 1-6) — SHIPPED 2026-03-09</summary>
 
 - [x] Phase 1: Foundation (3/3 plans) — completed 2026-03-03
 - [x] Phase 2: Repository Open + Commit Graph (8/9 plans) — completed 2026-03-09
@@ -33,7 +33,7 @@ Full details: [milestones/v0.1-ROADMAP.md](milestones/v0.1-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.2 Commit Graph (Phases 7-10) — SHIPPED 2026-03-10</summary>
+<summary>â v0.2 Commit Graph (Phases 7-10) — SHIPPED 2026-03-10</summary>
 
 - [x] Phase 7: Lane Algorithm Hardening (2/2 plans) — completed 2026-03-09
 - [x] Phase 8: Straight Rail Rendering (1/1 plans) — completed 2026-03-09
@@ -45,7 +45,7 @@ Full details: [milestones/v0.2-ROADMAP.md](milestones/v0.2-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.3 Actions (Phases 11-14) — SHIPPED 2026-03-12</summary>
+<summary>â v0.3 Actions (Phases 11-14) — SHIPPED 2026-03-12</summary>
 
 - [x] Phase 11: Stash Operations (6/6 plans) — completed 2026-03-12
 - [x] Phase 12: Commit Context Menu (2/2 plans) — completed 2026-03-12
@@ -57,20 +57,20 @@ Full details: [milestones/v0.3-ROADMAP.md](milestones/v0.3-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.4 Graph Rework (Phases 15-17) — SHIPPED 2026-03-13</summary>
+<summary>â v0.4 Graph Rework (Phases 15-17) — SHIPPED 2026-03-13</summary>
 
 - [x] Phase 15: Graph Data Engine (2/2 plans) — completed 2026-03-12
 - [x] Phase 16: Core Graph Rendering (1/1 plans) — completed 2026-03-12
 - [x] Phase 17: Synthetic Row Adaptation (2/2 plans) — completed 2026-03-13
 
-Phases 18-19 (Ref Pill Migration, Interaction Preservation) carried into v0.5 as PILL-01â04 and INTR-01â03.
+Phases 18-19 (Ref Pill Migration, Interaction Preservation) carried into v0.5 as PILL-01â04 and INTR-01â03.
 
 Full details: [milestones/v0.4-ROADMAP.md](milestones/v0.4-ROADMAP.md)
 
 </details>
 
 <details>
-<summary>â v0.5 Graph Overlay (Phases 20-26) — SHIPPED 2026-03-15</summary>
+<summary>â v0.5 Graph Overlay (Phases 20-26) — SHIPPED 2026-03-15</summary>
 
 - [x] Phase 20: Foundation — Types, Constants & Overlay Container (2/2 plans) — completed 2026-03-14
 - [x] Phase 21: Active Lanes Transformation (1/1 plans) — completed 2026-03-14
@@ -85,7 +85,7 @@ Full details: [milestones/v0.5-ROADMAP.md](milestones/v0.5-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.6 UI Polish & Core Ops (Phases 27-31) — SHIPPED 2026-03-16</summary>
+<summary>â v0.6 UI Polish & Core Ops (Phases 27-31) — SHIPPED 2026-03-16</summary>
 
 - [x] Phase 27: Foundation — Icons, Toast & Bug Fixes (5/5 plans) — completed 2026-03-15
 - [x] Phase 27.1: Add icons to commit graph pills (1/1 plans) — completed 2026-03-15 (INSERTED)
@@ -99,7 +99,7 @@ Full details: [milestones/v0.6-ROADMAP.md](milestones/v0.6-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.7 Hunk Staging & Search (Phases 32-36) — SHIPPED 2026-03-19</summary>
+<summary>â v0.7 Hunk Staging & Search (Phases 32-36) — SHIPPED 2026-03-19</summary>
 
 - [x] Phase 32: Hunk Staging Backend (1/1 plans) — completed 2026-03-18
 - [x] Phase 33: Hunk Staging UI (1/1 plans) — completed 2026-03-18
@@ -112,7 +112,7 @@ Full details: [milestones/v0.7-ROADMAP.md](milestones/v0.7-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.8 Conflict & Rebase (Phases 37-43) — SHIPPED 2026-03-23</summary>
+<summary>â v0.8 Conflict & Rebase (Phases 37-43) — SHIPPED 2026-03-23</summary>
 
 - [x] Phase 37: Conflict Detection & Operation State (3/3 plans) — completed 2026-03-20
 - [x] Phase 38: Merge Editor (7/7 plans) — completed 2026-03-23
@@ -127,7 +127,7 @@ Full details: [milestones/v0.8-ROADMAP.md](milestones/v0.8-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.9 Multi-tab & Tree View (Phases 44-49) — SHIPPED 2026-03-25</summary>
+<summary>â v0.9 Multi-tab & Tree View (Phases 44-49) — SHIPPED 2026-03-25</summary>
 
 - [x] Phase 44: Backend State Scoping (1/1 plans) — completed 2026-03-23
 - [x] Phase 45: Frontend Tab Architecture (3/3 plans) — completed 2026-03-24
@@ -141,7 +141,7 @@ Full details: [milestones/v0.9-ROADMAP.md](milestones/v0.9-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.10 CI/CD & Releases (Phases 50-52) — SHIPPED 2026-03-26</summary>
+<summary>â v0.10 CI/CD & Releases (Phases 50-52) — SHIPPED 2026-03-26</summary>
 
 - [x] Phase 50: CI Quality Gates (2/2 plans) — completed 2026-03-25
 - [x] Phase 51: Cross-Platform Release Pipeline (1/1 plans) — completed 2026-03-25
@@ -152,7 +152,7 @@ Full details: [milestones/v0.10-ROADMAP.md](milestones/v0.10-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.11 Infrastructure (Phases 53-58) — SHIPPED 2026-03-27</summary>
+<summary>â v0.11 Infrastructure (Phases 53-58) — SHIPPED 2026-03-27</summary>
 
 - [x] Phase 53: Rust Unit Tests & Test Harness (4/4 plans) — completed 2026-03-26
 - [x] Phase 54: Frontend Unit Tests (4/4 plans) — completed 2026-03-26
@@ -166,7 +166,7 @@ Full details: [milestones/v0.11-ROADMAP.md](milestones/v0.11-ROADMAP.md)
 </details>
 
 <details>
-<summary>â v0.12 Better Diffs (Phases 59-64) — SHIPPED 2026-03-30</summary>
+<summary>â v0.12 Better Diffs (Phases 59-64) — SHIPPED 2026-03-30</summary>
 
 - [x] Phase 59: Backend Data Model & Diff Options (2/2 plans) — completed 2026-03-28
 - [x] Phase 60: Word-Level Diff (2/2 plans) — completed 2026-03-28
@@ -179,14 +179,14 @@ Full details: [milestones/v0.12-ROADMAP.md](milestones/v0.12-ROADMAP.md)
 
 </details>
 
-### ð§ v0.13 Code Review Mode (In Progress)
+### ð§ v0.13 Code Review Mode (In Progress)
 
 **Milestone Goal:** Collect commit/file/line-anchored comments in a review session, then render one markdown file — framed for an AI coding agent — to copy to the clipboard.
 
 Built in strict dependency order: lock the anchor schema and persistence first (every later phase reads/writes it), then commit selection, then the two independent anchor-capture surfaces, then comment management, then render, then output. Phases 67 and 68 are independent and parallelizable.
 
 - [x] **Phase 65: Data Model + Persistence + Session Lifecycle** — Anchor schema, per-repo JSON store, start/resume/end a session (completed 2026-05-25)
-- [x] **Phase 66: Commit Selection** — Seed from a baseâtip range and hand-pick commits from the graph (completed 2026-05-25)
+- [x] **Phase 66: Commit Selection** — Seed from a baseâtip range and hand-pick commits from the graph (completed 2026-05-25)
 - [x] **Phase 67: Diff-Source Anchor Capture** — Comment on a diff line selection with a stable source-line anchor (completed 2026-05-25)
 - [x] **Phase 68: Full-File-Source Anchor Capture** — Comment on a full-file-at-commit line selection (completed 2026-05-25)
 - [x] **Phase 69: Comment Management UI** — Review panel: list, edit, delete, jump-to-anchor, commit-level comments (completed 2026-05-26)
@@ -237,7 +237,7 @@ Plans:
 **Requirements**: SEL-01, SEL-02, SEL-03, SEL-04
 **Success Criteria** (what must be TRUE):
 
-  1. User can seed the session from a commit range (base â tip) and the included commits appear in the review panel.
+  1. User can seed the session from a commit range (base â tip) and the included commits appear in the review panel.
   2. User can right-click a commit in the graph and add it to the session.
   3. User can remove a commit from the session.
   4. User can see the full list of commits included in the session, in graph order without duplicates.
@@ -305,7 +305,7 @@ Plans:
 
 - The v0.12 full-file view is a 100k-context diff, NOT a blob read: unchanged files produce zero hunks, line numbers skip at dropped-hunk boundaries, and content is `from_utf8_lossy`. Use this view only to LET THE USER PICK lines; the persisted anchor stores absolute blob line numbers on the `new` side.
 - `FullFileView` has no line selection today — this is net-new selection state in that component.
-- Render-time excerpts for `full_file` must come from a fresh git2 treeâblob read at the commit, never from re-running the diff (handled in Phase 70, but the anchor here must store blob line numbers to make that possible).
+- Render-time excerpts for `full_file` must come from a fresh git2 treeâblob read at the commit, never from re-running the diff (handled in Phase 70, but the anchor here must store blob line numbers to make that possible).
 
 #### Phase 69: Comment Management UI
 
@@ -362,7 +362,7 @@ Plans:
 - Render in Rust (`git/review.rs` pure logic), returning one markdown string — not a giant per-line enriched payload. Skip syntax/word-span enrichment for excerpts (plain text in a fence is what the AI needs).
 - `full_file` excerpt = fresh git2 `commit.tree().get_path(file).to_object().peel_to_blob()` slice; `diff` excerpt = re-run `diff_tree_to_tree(parent, commit)` for the file and slice overlapping hunk lines.
 - Fence length = `max(3, longest_backtick_run_in_excerpt + 1)`; never indent the fence; preserve exact indentation inside.
-- Every resolution step returns `Result` — never `unwrap`. On failure emit a warning block in the "unresolvable" section using the independently-stored comment text and cached excerpt. Binary files render a `[binary file, no excerpt]` placeholder. Normalize CRLFâLF and fix a single line-counting convention shared by capture and render.
+- Every resolution step returns `Result` — never `unwrap`. On failure emit a warning block in the "unresolvable" section using the independently-stored comment text and cached excerpt. Binary files render a `[binary file, no excerpt]` placeholder. Normalize CRLFâLF and fix a single line-counting convention shared by capture and render.
 
 #### Phase 71: Output (Clipboard)
 
@@ -373,7 +373,12 @@ Plans:
 
   1. User can copy the generated markdown to the clipboard and gets explicit success/failure feedback (not fire-and-forget).
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+**Wave 1**
+
+- [ ] 71-01-PLAN.md — Copy button on ReviewDocPreview: TDD onCopy handler + state + template + style + 8 unit tests + just-check gate (OUT-01)
+
 **UI hint**: yes
 **Notes:**
 
@@ -401,4 +406,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-05-26 — Phase 71 descoped: save-to-file (OUT-02) dropped during context-gathering; phase is now clipboard-only*
+*Last updated: 2026-05-26 — Phase 71 plan finalized: 71-01-PLAN.md (1 plan, 1 wave, TDD on onCopy handler)*
