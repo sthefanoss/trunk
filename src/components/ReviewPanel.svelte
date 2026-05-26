@@ -1,89 +1,232 @@
 <script lang="ts">
-// THROWAWAY STUB (Phase 65, D-12): replaced by the real review panel in Phase 69.
-// Smallest thing that makes SESS-01/02/03 hand-verifiable: three session states
-// (no-session / resume-available / session-active) with lifecycle buttons that
-// invoke the Plan 65-03 commands and toast on error, plus a session-changed
-// listener so other tabs/windows reload. Do not over-invest.
+// Phase 69 — the real review panel (replaces the Phase 65 throwaway stub).
+// Renders the accumulated review grouped by commit (D-09), with a per-commit
+// "Add note" affordance (D-02), inline edit (D-10), delete-with-confirm (D-05),
+// and jump-to-anchor with read-only orphan rows (D-07 / D-08). The panel lives
+// in the center pane (UI-SPEC:133); jump is driven by the host via onJump.
+
+import { CornerDownRight, MessageSquarePlus } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { showToast } from "../lib/toast.svelte.js";
-import type { SessionCommit, SessionStatus } from "../lib/types.js";
+import type {
+	Comment,
+	CommentResolution,
+	OrphanReason,
+	SessionCommit,
+	SessionStatus,
+} from "../lib/types.js";
 
 interface Props {
 	repoPath: string;
+	// Resolvable-comment jump: the host (RepoView) binds this to the review-session
+	// rune's jumpTo, wiring commit/file selection + scroll-to-range.
+	onJump: (comment: Comment) => void;
 }
 
-let { repoPath }: Props = $props();
+let { repoPath, onJump }: Props = $props();
 
-let status = $state<SessionStatus | null>(null);
-let sessionCommits = $state<SessionCommit[]>([]);
-let loading = $state(false);
+let commits = $state<SessionCommit[]>([]);
+let comments = $state<Comment[]>([]);
+let resolutions = $state<CommentResolution[]>([]);
+let canonicalPath = $state<string | null>(null);
 
-let sessionState = $derived(status?.state ?? "none");
+// Inline composer / editor state. Only one is open at a time; both reuse the same
+// textarea primitive (draftText) and the trim-empty-disables-Save rule.
+let addNoteForCommit = $state<string | null>(null);
+let editingCommentId = $state<string | null>(null);
+let draftText = $state("");
 
-async function reloadStatus() {
-	try {
-		status = await safeInvoke<SessionStatus>("get_review_session_status", {
-			path: repoPath,
+const draftValid = $derived(draftText.trim().length > 0);
+
+// LOCKED OrphanReason → badge label map (UI-SPEC § Copywriting Contract).
+const ORPHAN_LABEL: Record<OrphanReason, string> = {
+	CommitGone: "commit gone",
+	FileGone: "file gone",
+	LineOutOfRange: "line out of range",
+};
+
+// Resolution lookup by id (D-08): a comment is an orphan when its resolution
+// exists and resolvable is false.
+const resolutionById = $derived(new Map(resolutions.map((r) => [r.id, r])));
+
+function commitOidForComment(c: Comment): string {
+	// Line-anchored comments group under their anchor's commit; commit-level
+	// notes (anchor null) group under their own commit_oid (D-09).
+	if (c.anchor !== null) return c.anchor.commit_oid;
+	return c.commit_oid ?? "";
+}
+
+interface CommitGroup {
+	oid: string;
+	shortOid: string;
+	summary: string;
+	comments: Comment[];
+}
+
+// Group comments by commit in the session's commit order; comments on commits
+// no longer in the session (e.g. CommitGone) get a fallback group keyed by oid
+// so nothing is dropped (D-08).
+const groups = $derived.by<CommitGroup[]>(() => {
+	const byOid = new Map<string, Comment[]>();
+	for (const c of comments) {
+		const oid = commitOidForComment(c);
+		const list = byOid.get(oid) ?? [];
+		list.push(c);
+		byOid.set(oid, list);
+	}
+
+	const result: CommitGroup[] = [];
+	const seen = new Set<string>();
+	for (const commit of commits) {
+		result.push({
+			oid: commit.oid,
+			shortOid: commit.short_oid,
+			summary: commit.summary,
+			comments: byOid.get(commit.oid) ?? [],
 		});
+		seen.add(commit.oid);
+	}
+	// Fallback groups for comments whose commit is gone from the session.
+	for (const [oid, list] of byOid) {
+		if (seen.has(oid)) continue;
+		result.push({
+			oid,
+			shortOid: oid.slice(0, 7),
+			summary: "(commit gone)",
+			comments: list,
+		});
+	}
+	return result;
+});
+
+const hasAnyComment = $derived(comments.length > 0);
+
+function isOrphan(c: Comment): boolean {
+	const r = resolutionById.get(c.id);
+	return r !== undefined && !r.resolvable;
+}
+
+function orphanLabel(c: Comment): string | null {
+	const r = resolutionById.get(c.id);
+	if (r === undefined || r.resolvable || r.reason === null) return null;
+	return ORPHAN_LABEL[r.reason];
+}
+
+// A line-anchored, resolvable comment is jumpable; commit-level and orphaned
+// comments are not (D-07 / D-08).
+function isJumpable(c: Comment): boolean {
+	return c.anchor !== null && !isOrphan(c);
+}
+
+// Reads. list_session_commits / list_session_comments / resolve_session_comments
+// all require an active session; a missing session is a normal state, so swallow
+// no_session silently and surface only genuine load failures (UI-SPEC error copy).
+async function reload() {
+	// Track the canonical path so the session-changed listener can filter to this
+	// repo (a missing/inactive session is a normal state — swallow silently).
+	safeInvoke<SessionStatus>("get_review_session_status", { path: repoPath })
+		.then((s) => {
+			canonicalPath = s.canonical_path;
+		})
+		.catch(() => {});
+
+	try {
+		const [nextCommits, nextComments, nextResolutions] = await Promise.all([
+			safeInvoke<SessionCommit[]>("list_session_commits", { path: repoPath }),
+			safeInvoke<Comment[]>("list_session_comments", { path: repoPath }),
+			safeInvoke<CommentResolution[]>("resolve_session_comments", {
+				path: repoPath,
+			}),
+		]);
+		commits = nextCommits;
+		comments = nextComments;
+		resolutions = nextResolutions;
 	} catch (e) {
+		const err = e as TrunkError;
+		if (err.code === "no_session") {
+			commits = [];
+			comments = [];
+			resolutions = [];
+			return;
+		}
 		showToast(
-			(e as TrunkError).message ?? "Failed to load review session",
+			"Failed to load review comments. Reload the panel to retry.",
 			"error",
 		);
 	}
 }
 
-// D-05/SEL-04: the in-session commit list (short SHA + summary, graph order +
-// dedup imposed server-side). No-session is a normal state, so swallow the error
-// silently — never toast on an inactive session.
-async function reloadCommits() {
+function openAddNote(oid: string) {
+	editingCommentId = null;
+	addNoteForCommit = oid;
+	draftText = "";
+}
+
+function openEdit(c: Comment) {
+	addNoteForCommit = null;
+	editingCommentId = c.id;
+	draftText = c.text;
+}
+
+function cancelComposer() {
+	addNoteForCommit = null;
+	editingCommentId = null;
+	draftText = "";
+}
+
+async function saveAddNote(oid: string) {
+	if (!draftValid) return;
+	const text = draftText;
+	cancelComposer();
 	try {
-		sessionCommits = await safeInvoke<SessionCommit[]>("list_session_commits", {
+		await safeInvoke("add_commit_comment", {
 			path: repoPath,
+			commitOid: oid,
+			text,
 		});
-	} catch {
-		sessionCommits = [];
+	} catch (e) {
+		showToast((e as TrunkError).message ?? "Failed to add note", "error");
 	}
 }
 
-// D-07/SEL-03: remove a commit from the list the user is looking at. Silent
-// success — remove_review_commit emits session-changed, which the listener below
-// turns into a reload.
-async function removeCommit(oid: string) {
+async function saveEdit(id: string) {
+	if (!draftValid) return;
+	const text = draftText;
+	cancelComposer();
 	try {
-		await safeInvoke("remove_review_commit", { path: repoPath, oid });
+		await safeInvoke("edit_comment", { path: repoPath, id, text });
 	} catch (e) {
-		showToast((e as TrunkError).message ?? "Failed to remove commit", "error");
+		showToast((e as TrunkError).message ?? "Failed to edit comment", "error");
 	}
 }
 
-async function runLifecycle(cmd: string) {
-	loading = true;
+async function deleteComment(id: string) {
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask("Delete this comment? This cannot be undone.", {
+		title: "Delete comment",
+		kind: "warning",
+	});
+	if (!confirmed) return;
 	try {
-		await safeInvoke(cmd, { path: repoPath });
-		await reloadStatus();
+		await safeInvoke("delete_comment", { path: repoPath, id });
 	} catch (e) {
-		showToast((e as TrunkError).message ?? "Review action failed", "error");
-	} finally {
-		loading = false;
+		showToast((e as TrunkError).message ?? "Failed to delete comment", "error");
 	}
 }
 
 // Initial load when the panel mounts / its repo changes.
 $effect(() => {
-	reloadStatus();
-	reloadCommits();
+	void repoPath;
+	reload();
 });
 
-// Live coordination (DP-01): reload when a session-changed event arrives for
-// this repo's canonical path. Mirrors App.svelte's repo-changed listener.
+// Live coordination: reload on session-changed for this repo's canonical path.
 $effect(() => {
 	let unlisten: (() => void) | undefined;
 	listen<string>("session-changed", (event) => {
-		if (status && event.payload !== status.canonical_path) return;
-		reloadStatus();
-		reloadCommits();
+		if (canonicalPath && event.payload !== canonicalPath) return;
+		reload();
 	}).then((fn) => {
 		unlisten = fn;
 	});
@@ -96,109 +239,280 @@ $effect(() => {
 <div
   class="flex flex-col"
   style="
-    flex-shrink: 0;
-    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
     padding: 12px;
-    border-bottom: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
     font-size: 12px;
+    line-height: 1.5;
   "
 >
-  {#if sessionState === "active"}
-    <div class="flex items-center" style="gap: 8px; justify-content: space-between;">
-      <span>Code review in progress</span>
-      <button
-        onclick={() => runLifecycle("end_review_session")}
-        disabled={loading}
-        style="
-          background: var(--color-danger-bg);
-          color: var(--color-danger);
-          border: 1px solid var(--color-danger-border);
-          border-radius: 4px;
-          cursor: pointer;
-          padding: 2px 8px;
-          white-space: nowrap;
-        "
-      >End Review</button>
+  {#if commits.length === 0}
+    <div class="flex flex-col" style="gap: 4px; padding: 12px;">
+      <span>No commits in this review yet.</span>
+      <span style="color: var(--color-text-muted); font-size: 11px;">
+        Add commits from the graph to start reviewing.
+      </span>
     </div>
-    {#if sessionCommits.length === 0}
-      <span style="color: var(--color-text-muted);">No commits selected yet</span>
-    {:else}
-      <ul class="flex flex-col" style="gap: 2px; list-style: none; margin: 0; padding: 0;">
-        {#each sessionCommits as commit (commit.oid)}
-          <li
-            data-testid="session-commit-row"
-            class="flex items-center"
-            style="gap: 8px; padding: 2px 0;"
-          >
-            <span class="font-mono" style="color: var(--color-text-muted); flex-shrink: 0;">{commit.short_oid}</span>
-            <span class="overflow-hidden text-ellipsis whitespace-nowrap" style="flex: 1;">{commit.summary}</span>
-            <button
-              aria-label="Remove commit {commit.short_oid}"
-              onclick={() => removeCommit(commit.oid)}
-              style="
-                background: var(--color-danger-bg);
-                color: var(--color-danger);
-                border: 1px solid var(--color-danger-border);
-                border-radius: 4px;
-                cursor: pointer;
-                padding: 0 6px;
-                flex-shrink: 0;
-              "
-            >×</button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  {:else if sessionState === "resume-available"}
-    <div class="flex items-center" style="gap: 8px; justify-content: space-between;">
-      <span>A saved review session is available</span>
-      <div class="flex" style="gap: 4px;">
-        <button
-          onclick={() => runLifecycle("resume_review_session")}
-          disabled={loading}
-          style="
-            background: var(--color-success-bg);
-            color: var(--color-success);
-            border: 1px solid var(--color-success-border);
-            border-radius: 4px;
-            cursor: pointer;
-            padding: 2px 8px;
-            white-space: nowrap;
-          "
-        >Resume</button>
-        <button
-          onclick={() => runLifecycle("end_review_session")}
-          disabled={loading}
-          style="
-            background: var(--color-danger-bg);
-            color: var(--color-danger);
-            border: 1px solid var(--color-danger-border);
-            border-radius: 4px;
-            cursor: pointer;
-            padding: 2px 8px;
-            white-space: nowrap;
-          "
-        >Discard</button>
-      </div>
-    </div>
-  {:else}
-    <div class="flex items-center" style="gap: 8px; justify-content: space-between;">
-      <span>No code review session</span>
-      <button
-        onclick={() => runLifecycle("start_review_session")}
-        disabled={loading}
-        style="
-          background: var(--color-banner-info-bg);
-          color: var(--color-banner-info-border);
-          border: 1px solid var(--color-banner-info-border);
-          border-radius: 4px;
-          cursor: pointer;
-          padding: 2px 8px;
-          white-space: nowrap;
-        "
-      >Start Code Review</button>
+  {:else if !hasAnyComment}
+    <div class="flex flex-col" style="gap: 4px; padding: 12px;">
+      <span>No comments yet.</span>
+      <span style="color: var(--color-text-muted); font-size: 11px;">
+        Select lines in a diff to comment, or add a note to a commit above.
+      </span>
     </div>
   {/if}
+
+  {#if commits.length > 0}
+    <ul class="flex flex-col" style="gap: 8px; list-style: none; margin: 0; padding: 0;">
+      {#each groups as group (group.oid)}
+        <li class="flex flex-col" style="gap: 4px;">
+          <!-- Commit group header (focal point): short SHA mono 600 + summary -->
+          <div
+            class="flex items-center"
+            style="gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--color-border);"
+          >
+            <span
+              class="font-mono"
+              style="font-size: 13px; font-weight: 600; flex-shrink: 0;"
+            >{group.shortOid}</span>
+            <span
+              class="overflow-hidden text-ellipsis whitespace-nowrap"
+              style="font-size: 13px; font-weight: 600; flex: 1;"
+            >{group.summary}</span>
+            <button
+              type="button"
+              class="flex items-center"
+              onclick={() => openAddNote(group.oid)}
+              style="
+                gap: 4px;
+                background: transparent;
+                color: var(--color-text-muted);
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                padding: 2px 4px;
+                flex-shrink: 0;
+                font-size: 12px;
+              "
+              onmouseenter={(e) => (e.currentTarget.style.background = "var(--color-hover)")}
+              onmouseleave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <MessageSquarePlus size={14} />
+              <span>Add note</span>
+            </button>
+          </div>
+
+          <!-- Inline add-note composer for this commit -->
+          {#if addNoteForCommit === group.oid}
+            <div class="flex flex-col" style="gap: 4px; padding: 4px 0;">
+              <textarea
+                bind:value={draftText}
+                rows="3"
+                style="
+                  width: 100%;
+                  resize: vertical;
+                  background: var(--color-bg);
+                  color: var(--color-text);
+                  border: 1px solid var(--color-border);
+                  border-radius: 4px;
+                  padding: 4px 6px;
+                  font-size: 12px;
+                  font-family: inherit;
+                "
+              ></textarea>
+              <div class="flex items-center" style="gap: 4px;">
+                <button
+                  type="button"
+                  onclick={() => saveAddNote(group.oid)}
+                  disabled={!draftValid}
+                  style="
+                    background: transparent;
+                    color: var(--color-text);
+                    border: 1px solid var(--color-border);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    padding: 2px 8px;
+                    font-size: 12px;
+                  "
+                >Save</button>
+                <button
+                  type="button"
+                  onclick={cancelComposer}
+                  style="
+                    background: transparent;
+                    color: var(--color-text-muted);
+                    border: 1px solid var(--color-border);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    padding: 2px 8px;
+                    font-size: 12px;
+                  "
+                >Cancel</button>
+              </div>
+            </div>
+          {/if}
+
+          {#if group.comments.length === 0}
+            <span style="color: var(--color-text-muted); font-size: 11px; padding: 2px 0;">
+              No comments on this commit.
+            </span>
+          {:else}
+            <ul class="flex flex-col" style="gap: 4px; list-style: none; margin: 0; padding: 0;">
+              {#each group.comments as comment (comment.id)}
+                <li
+                  class="flex flex-col"
+                  style="gap: 2px; padding: 4px 0;"
+                >
+                  {#if editingCommentId === comment.id}
+                    <!-- Inline editor (D-10) — same primitive as add-note -->
+                    <div class="flex flex-col" style="gap: 4px;">
+                      <textarea
+                        bind:value={draftText}
+                        rows="3"
+                        style="
+                          width: 100%;
+                          resize: vertical;
+                          background: var(--color-bg);
+                          color: var(--color-text);
+                          border: 1px solid var(--color-border);
+                          border-radius: 4px;
+                          padding: 4px 6px;
+                          font-size: 12px;
+                          font-family: inherit;
+                        "
+                      ></textarea>
+                      <div class="flex items-center" style="gap: 4px;">
+                        <button
+                          type="button"
+                          onclick={() => saveEdit(comment.id)}
+                          disabled={!draftValid}
+                          style="
+                            background: transparent;
+                            color: var(--color-text);
+                            border: 1px solid var(--color-border);
+                            border-radius: 4px;
+                            cursor: pointer;
+                            padding: 2px 8px;
+                            font-size: 12px;
+                          "
+                        >Save</button>
+                        <button
+                          type="button"
+                          onclick={cancelComposer}
+                          style="
+                            background: transparent;
+                            color: var(--color-text-muted);
+                            border: 1px solid var(--color-border);
+                            border-radius: 4px;
+                            cursor: pointer;
+                            padding: 2px 8px;
+                            font-size: 12px;
+                          "
+                        >Cancel</button>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="flex items-start" style="gap: 8px;">
+                      <!-- Jump affordance: resolvable line-anchored only (D-07);
+                           disabled/absent for commit-level + orphaned (D-08) -->
+                      {#if isJumpable(comment)}
+                        <button
+                          type="button"
+                          aria-label="Jump to code"
+                          onclick={() => onJump(comment)}
+                          class="jump-btn"
+                          style="
+                            background: transparent;
+                            color: var(--color-text-muted);
+                            border: none;
+                            cursor: pointer;
+                            padding: 0;
+                            flex-shrink: 0;
+                            display: flex;
+                            align-items: center;
+                          "
+                        >
+                          <CornerDownRight size={14} />
+                        </button>
+                      {/if}
+                      <div class="flex flex-col" style="gap: 2px; flex: 1; min-width: 0;">
+                        <!-- Comment text stays at full --color-text even for orphans -->
+                        <span style="white-space: pre-wrap; word-break: break-word;">{comment.text}</span>
+                        {#if comment.anchor !== null}
+                          <span
+                            class="font-mono"
+                            style="
+                              font-size: 11px;
+                              line-height: 1.4;
+                              color: var(--color-text-muted);
+                              opacity: {isOrphan(comment) ? 'var(--opacity-dimmed)' : '1'};
+                            "
+                          >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</span>
+                        {/if}
+                        {#if comment.cached_excerpt}
+                          <span
+                            class="font-mono"
+                            style="font-size: 11px; line-height: 1.4; color: var(--color-text-muted); white-space: pre-wrap; word-break: break-word;"
+                          >{comment.cached_excerpt}</span>
+                        {/if}
+                      </div>
+                      <div class="flex items-center" style="gap: 4px; flex-shrink: 0;">
+                        {#if orphanLabel(comment)}
+                          <span
+                            style="
+                              font-size: 11px;
+                              line-height: 1.4;
+                              color: var(--color-warning);
+                              background: var(--color-warning-bg);
+                              border-radius: 4px;
+                              padding: 0 6px;
+                              white-space: nowrap;
+                            "
+                          >{orphanLabel(comment)}</span>
+                        {/if}
+                        <button
+                          type="button"
+                          onclick={() => openEdit(comment)}
+                          style="
+                            background: transparent;
+                            color: var(--color-text-muted);
+                            border: none;
+                            cursor: pointer;
+                            padding: 0 4px;
+                            font-size: 12px;
+                          "
+                        >Edit</button>
+                        <button
+                          type="button"
+                          onclick={() => deleteComment(comment.id)}
+                          style="
+                            background: transparent;
+                            color: var(--color-danger);
+                            border: none;
+                            cursor: pointer;
+                            padding: 0 4px;
+                            font-size: 12px;
+                          "
+                        >Delete</button>
+                      </div>
+                    </div>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {/if}
 </div>
+
+<style>
+  .jump-btn:hover,
+  .jump-btn:focus-visible {
+    color: var(--color-accent);
+  }
+</style>

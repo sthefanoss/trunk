@@ -24,6 +24,12 @@ vi.mock("../lib/toast.svelte.js", () => ({
 	showToast: vi.fn(),
 }));
 
+// The panel registers a session-changed listener in an $effect; mock listen so
+// it doesn't reach the real Tauri IPC core (which is undefined under jsdom).
+vi.mock("@tauri-apps/api/event", () => ({
+	listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
 const COMMIT_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const COMMIT_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
