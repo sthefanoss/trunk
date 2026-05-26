@@ -20,7 +20,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: u32 = 1;
+const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 /// The outcome of attempting to load a session from disk.
 pub enum LoadOutcome {
@@ -121,17 +121,37 @@ pub fn load_session(data_dir: &Path, canonical: &Path) -> Result<LoadOutcome, Tr
         .get("schema_version")
         .and_then(|x| x.as_u64())
         .unwrap_or(0) as u32;
+    // D-16: refuse a newer-schema file untouched. This gate MUST stay BEFORE
+    // from_value and the migration below, so a future v3 is never mangled.
     if version > CURRENT_SCHEMA_VERSION {
         return Ok(LoadOutcome::RefusedNewer);
     }
 
-    match serde_json::from_value::<ReviewSession>(value) {
-        Ok(session) => Ok(LoadOutcome::Loaded(session)),
+    let mut session = match serde_json::from_value::<ReviewSession>(value) {
+        Ok(s) => s,
         Err(_) => {
             quarantine_corrupt(&final_path)?;
-            Ok(LoadOutcome::RecoveredCorrupt)
+            return Ok(LoadOutcome::RecoveredCorrupt);
+        }
+    };
+
+    // v1→v2 migration (shape A): backfill an id on every comment that lacks one
+    // (deserialized to "" via #[serde(default)]). Re-save so ids persist —
+    // otherwise they re-mint on every reload and break id-targeted edit/delete
+    // (Pitfall 3).
+    let mut backfilled = false;
+    for comment in &mut session.comments {
+        if comment.id.is_empty() {
+            comment.id = uuid::Uuid::new_v4().to_string();
+            backfilled = true;
         }
     }
+    session.schema_version = CURRENT_SCHEMA_VERSION;
+    if backfilled || version < CURRENT_SCHEMA_VERSION {
+        save_session(data_dir, canonical, &session)?;
+    }
+
+    Ok(LoadOutcome::Loaded(session))
 }
 
 /// Hard-delete the per-repo session file (SESS-03 / D-13). NotFound is treated
@@ -286,7 +306,10 @@ mod tests {
             "a schema_version > CURRENT must return RefusedNewer (D-16)",
         );
         let after = fs::read(session_path(dir.path(), canonical)).unwrap();
-        assert_eq!(before, after, "the newer file must be left byte-unchanged (D-16)");
+        assert_eq!(
+            before, after,
+            "the newer file must be left byte-unchanged (D-16)"
+        );
         assert!(
             !corrupt_sidecar_path(dir.path(), canonical).exists(),
             "a refused file must NOT be quarantined",

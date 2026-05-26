@@ -13,7 +13,7 @@ use trunk_lib::git::types::ReviewSession;
 
 fn empty_session() -> ReviewSession {
     ReviewSession {
-        schema_version: 1,
+        schema_version: 2,
         commits: vec!["abc123".to_string()],
         comments: vec![],
         draft_comment: None,
@@ -119,7 +119,7 @@ fn newer_version_refused() {
     let session_file = the_session_file(ctx.data_dir());
     fs::write(
         &session_file,
-        br#"{"schema_version":2,"commits":[],"comments":[],"draft_comment":null}"#,
+        br#"{"schema_version":3,"commits":[],"comments":[],"draft_comment":null}"#,
     )
     .unwrap();
     let before = fs::read(&session_file).unwrap();
@@ -147,7 +147,7 @@ fn start_creates_session() {
     let (canonical, session) =
         start_review_session_inner(ctx.data_dir(), ctx.path(), ctx.state_map()).unwrap();
 
-    assert_eq!(session.schema_version, 1);
+    assert_eq!(session.schema_version, 2);
     assert!(session.commits.is_empty());
     assert!(session.comments.is_empty());
     assert!(session.draft_comment.is_none());

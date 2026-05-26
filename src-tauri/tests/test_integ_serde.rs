@@ -885,9 +885,10 @@ use trunk_lib::git::types::{Anchor, Comment, DraftComment, ReviewSession, Side, 
 
 fn anchored_session() -> ReviewSession {
     ReviewSession {
-        schema_version: 1,
+        schema_version: 2,
         commits: vec!["a".repeat(40), "b".repeat(40)],
         comments: vec![Comment {
+            id: "comment-1".to_string(),
             text: "looks good".to_string(),
             anchor: Some(Anchor {
                 commit_oid: "a".repeat(40),
@@ -898,6 +899,7 @@ fn anchored_session() -> ReviewSession {
                 end_line: 12,
             }),
             cached_excerpt: Some("fn main() {}".to_string()),
+            commit_oid: None,
         }],
         draft_comment: None,
     }
@@ -908,8 +910,8 @@ fn session_serde_shape() {
     let json =
         serde_json::to_value(anchored_session()).expect("ReviewSession serialization failed");
 
-    // D-03: schema_version is 1 from the first commit.
-    assert_eq!(json["schema_version"].as_u64().unwrap(), 1);
+    // D-04: schema_version is 2 (v2 carries the comment id + commit_oid).
+    assert_eq!(json["schema_version"].as_u64().unwrap(), 2);
 
     // Capture-order comment list + commit OIDs.
     assert!(json["commits"].is_array(), "commits should be an array");

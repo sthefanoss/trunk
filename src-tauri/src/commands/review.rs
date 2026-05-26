@@ -84,7 +84,7 @@ pub fn start_review_session_inner(
         ));
     }
     let session = ReviewSession {
-        schema_version: 1,
+        schema_version: 2,
         commits: vec![],
         comments: vec![],
         draft_comment: None,
@@ -678,7 +678,7 @@ pub async fn resume_review_session(
             // D-15: the corrupt file was quarantined; start a fresh session, persist
             // it (disk-first), cache it, and let the frontend toast the warning.
             let fresh = ReviewSession {
-                schema_version: 1,
+                schema_version: 2,
                 commits: vec![],
                 comments: vec![],
                 draft_comment: None,

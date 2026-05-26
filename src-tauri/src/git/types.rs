@@ -358,8 +358,14 @@ mod review_schema_tests {
 
         let comment: Comment = serde_json::from_str(v1_json).expect("v1 comment must deserialize");
 
-        assert_eq!(comment.id, "", "missing id must default to the empty sentinel");
-        assert_eq!(comment.commit_oid, None, "missing commit_oid must default to None");
+        assert_eq!(
+            comment.id, "",
+            "missing id must default to the empty sentinel"
+        );
+        assert_eq!(
+            comment.commit_oid, None,
+            "missing commit_oid must default to None"
+        );
     }
 
     #[test]
