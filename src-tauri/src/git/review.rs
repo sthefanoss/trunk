@@ -15,7 +15,6 @@ use crate::git::types::{Anchor, ReviewSession, Side, Source};
 /// `OrphanReason` does — never extend it). All variants funnel into either the
 /// resolved per-file section (via the `[binary file, no excerpt]` placeholder
 /// for `Binary`) or the unresolvable trailing section (everything else).
-#[allow(dead_code)] // wired up in task 2 / task 3
 #[derive(Debug)]
 pub(crate) enum ExcerptError {
     /// `blob.is_binary()` returned true; emit `[binary file, no excerpt]`
@@ -36,7 +35,6 @@ pub(crate) enum ExcerptError {
 /// byte (including newlines), so two separate `` ``` `` runs split by a
 /// newline do NOT compose into a longer run. CommonMark §4.5 requires the
 /// opening fence be strictly longer than any inner backtick run.
-#[allow(dead_code)] // wired up in task 3
 pub(crate) fn fence_length(body: &str) -> usize {
     let mut longest = 0usize;
     let mut current = 0usize;
@@ -56,7 +54,6 @@ pub(crate) fn fence_length(body: &str) -> usize {
 /// L-07: extension → markdown fence language tag for `Source::FullFile`
 /// excerpts. Hand-rolled per L-10 (no syntect call). Distinct from
 /// `syntax::fallback_extension` which targets syntect syntax IDs.
-#[allow(dead_code)] // wired up in task 3
 pub(crate) fn fence_language(file_path: &str) -> &'static str {
     let ext = std::path::Path::new(file_path)
         .extension()
@@ -110,7 +107,6 @@ fn slice_lines(content: &str, start_line: u32, end_line: u32) -> Option<String> 
 /// the parent's. `blob.is_binary()` short-circuits to `ExcerptError::Binary`
 /// BEFORE any slicing (L-05). Caller MUST have run `classify_anchor` first
 /// (Pitfall 1) — `slice_full_file` does NOT re-gate.
-#[allow(dead_code)] // wired up in task 3
 pub(crate) fn slice_full_file(
     repo: &git2::Repository,
     anchor: &Anchor,
@@ -148,7 +144,6 @@ pub(crate) fn slice_full_file(
 /// the body matches what the cached_excerpt looked like at capture. Empty
 /// walk → `ExcerptError::NoHunks` (Pitfall 2 — file unchanged from parent at
 /// this commit). Root-commit guard mirrors `commands/diff.rs:410-414`.
-#[allow(dead_code)] // wired up in task 3
 pub(crate) fn slice_diff(repo: &git2::Repository, anchor: &Anchor) -> Result<String, ExcerptError> {
     let oid =
         git2::Oid::from_str(&anchor.commit_oid).map_err(|_| ExcerptError::ResolutionFailed)?;
@@ -224,7 +219,6 @@ pub(crate) fn slice_diff(repo: &git2::Repository, anchor: &Anchor) -> Result<Str
 /// WITHOUT entering the slicers — a `Side::Old` anchor on a root commit would
 /// otherwise hit `commit.parent(0)` and surface as `ResolutionFailed`
 /// (wrong: the correct reason is `FileGone`).
-#[allow(dead_code)] // wired up in task 3
 pub(crate) fn try_resolve_excerpt(
     repo: &git2::Repository,
     anchor: &Anchor,
@@ -236,11 +230,347 @@ pub(crate) fn try_resolve_excerpt(
     }
 }
 
-/// Top-level pure renderer. Placeholder scaffold — task 3 implements the full
-/// D-03..D-10 section assembly. Always returns a `String`, never panics.
-#[allow(dead_code)] // task 3 fleshes this out
-pub fn render(_session: &ReviewSession, _repo: &git2::Repository) -> String {
-    String::new()
+// ── D-09 human-readable phrases for orphan / render-only failures ──────────
+// Centralised so the SUMMARY can grep for the literal strings and the tests
+// assert on them. Plain prose for the AI consumer per D-09.
+
+fn orphan_phrase(reason: &OrphanReason) -> &'static str {
+    match reason {
+        OrphanReason::CommitGone => "commit no longer exists in the repository",
+        OrphanReason::FileGone => "file no longer exists at this commit/side",
+        OrphanReason::LineOutOfRange => "anchor line range is outside the current file bounds",
+    }
+}
+
+fn excerpt_error_phrase(err: &ExcerptError) -> &'static str {
+    match err {
+        ExcerptError::Orphaned(r) => orphan_phrase(r),
+        ExcerptError::NoHunks => "diff hunk no longer exists at this commit",
+        ExcerptError::ResolutionFailed => "excerpt could not be re-resolved from the repository",
+        // Binary never reaches this path (it routes into the resolved section
+        // via the placeholder), but we cover it defensively.
+        ExcerptError::Binary => "binary blob has no text excerpt",
+    }
+}
+
+/// L-04-safe 7-char short SHA: returns at most the first 7 chars, never
+/// panicking on a shorter input. `Option::unwrap_or` is NOT `Result::unwrap`.
+fn short_sha(oid: &str) -> &str {
+    oid.get(..7).unwrap_or(oid)
+}
+
+/// Best-effort repo name derived from `repo.workdir().file_name()`. Bare repos
+/// (no workdir) and unprintable file names fall back to "repository".
+fn repo_name(repo: &git2::Repository) -> String {
+    repo.workdir()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .map(String::from)
+        .unwrap_or_else(|| "repository".to_string())
+}
+
+/// Emit a fenced code block — fence length scales to the body's longest
+/// backtick run per L-03. `info` is the language tag (or "diff" for Diff
+/// sources, "text" fallback for FullFile).
+fn emit_fence(out: &mut String, body: &str, info: &str) {
+    use std::fmt::Write;
+    let n = fence_length(body);
+    let fence: String = "`".repeat(n);
+    let _ = writeln!(out, "{fence}{info}");
+    out.push_str(body);
+    if !body.ends_with('\n') {
+        out.push('\n');
+    }
+    let _ = writeln!(out, "{fence}");
+    let _ = writeln!(out);
+}
+
+/// What the `(anchor, classify, slice)` triple resolved to. Keeps the
+/// `render` partitioning code declarative — match on the variant, not on
+/// nested Results.
+enum ResolvedComment<'c> {
+    /// anchor + classify Ok + slice Ok → resolvable; carries the excerpt body.
+    Anchored {
+        comment: &'c crate::git::types::Comment,
+        anchor: &'c Anchor,
+        excerpt: String,
+        info: &'static str,
+    },
+    /// anchor + classify Ok + slice Binary → resolved, but emits the
+    /// `[binary file, no excerpt]` placeholder INSIDE the per-file section.
+    Binary {
+        comment: &'c crate::git::types::Comment,
+        anchor: &'c Anchor,
+    },
+    /// anchor=None, commit_oid present, commit found in repo.
+    CommitLevel {
+        comment: &'c crate::git::types::Comment,
+        commit_oid: String,
+    },
+    /// Everything else: anchor=Some + classify/slice failure, anchor=None +
+    /// commit missing-or-None.
+    Unresolvable {
+        comment: &'c crate::git::types::Comment,
+        anchor: Option<&'c Anchor>,
+        phrase: &'static str,
+    },
+}
+
+/// Top-level pure renderer (L-01, L-04, L-09, L-10). Returns a single `String`
+/// containing the full markdown document; never panics. Per D-11, the caller
+/// is responsible for the ≥1 comment gate — render does NOT defend against
+/// zero comments (it just produces a doc with empty sections).
+pub fn render(session: &ReviewSession, repo: &git2::Repository) -> String {
+    use std::fmt::Write;
+
+    // ── 1. Partition comments into three buckets ────────────────────────
+    let resolved: Vec<ResolvedComment> = session
+        .comments
+        .iter()
+        .map(|comment| match (&comment.anchor, &comment.commit_oid) {
+            (Some(anchor), _) => match try_resolve_excerpt(repo, anchor) {
+                Ok(body) => {
+                    let info: &'static str = match anchor.source {
+                        Source::Diff => "diff",
+                        Source::FullFile => fence_language(&anchor.file_path),
+                    };
+                    ResolvedComment::Anchored {
+                        comment,
+                        anchor,
+                        excerpt: body,
+                        info,
+                    }
+                }
+                Err(ExcerptError::Binary) => ResolvedComment::Binary { comment, anchor },
+                Err(other) => ResolvedComment::Unresolvable {
+                    comment,
+                    anchor: Some(anchor),
+                    phrase: excerpt_error_phrase(&other),
+                },
+            },
+            (None, Some(commit_oid)) => {
+                // Commit-level: resolvable iff the commit exists.
+                let exists = git2::Oid::from_str(commit_oid)
+                    .ok()
+                    .and_then(|oid| repo.find_commit(oid).ok())
+                    .is_some();
+                if exists {
+                    ResolvedComment::CommitLevel {
+                        comment,
+                        commit_oid: commit_oid.clone(),
+                    }
+                } else {
+                    ResolvedComment::Unresolvable {
+                        comment,
+                        anchor: None,
+                        phrase: orphan_phrase(&OrphanReason::CommitGone),
+                    }
+                }
+            }
+            (None, None) => ResolvedComment::Unresolvable {
+                comment,
+                anchor: None,
+                phrase: orphan_phrase(&OrphanReason::CommitGone),
+            },
+        })
+        .collect();
+
+    let mut out = String::new();
+
+    // ── 2. Header: H1 + framing + commit refs (D-03 + D-07 + D-08) ─────
+    let name = repo_name(repo);
+    let _ = writeln!(out, "# Code review: {name}");
+    let _ = writeln!(out);
+    let _ = writeln!(
+        out,
+        "This is a human-authored code review with anchored excerpts. Address each comment in the context of the excerpt it sits next to."
+    );
+    let _ = writeln!(out);
+    if !session.commits.is_empty() {
+        let _ = writeln!(out, "## Commits");
+        let _ = writeln!(out);
+        for oid_str in &session.commits {
+            let short = short_sha(oid_str);
+            let subject = git2::Oid::from_str(oid_str)
+                .ok()
+                .and_then(|oid| repo.find_commit(oid).ok())
+                .and_then(|c| c.summary().map(String::from))
+                .unwrap_or_else(|| "(subject unavailable)".to_string());
+            let _ = writeln!(out, "- {short} -- {subject}");
+        }
+        let _ = writeln!(out);
+    }
+
+    // ── 3. Resolved per-(file, commit) anchored sections (D-04 + D-05 +
+    //     D-06 + L-08 + L-05) ─────────────────────────────────────────────
+    // Group keys: (file_path, commit_oid). We collect references then sort
+    // for deterministic output.
+    let mut groups: std::collections::BTreeMap<(String, String), Vec<&ResolvedComment>> =
+        std::collections::BTreeMap::new();
+    for r in &resolved {
+        let key = match r {
+            ResolvedComment::Anchored { anchor, .. } | ResolvedComment::Binary { anchor, .. } => {
+                Some((anchor.file_path.clone(), anchor.commit_oid.clone()))
+            }
+            _ => None,
+        };
+        if let Some(k) = key {
+            groups.entry(k).or_default().push(r);
+        }
+    }
+
+    if !groups.is_empty() {
+        let _ = writeln!(out, "## Anchored Comments");
+        let _ = writeln!(out);
+        for ((file_path, commit_oid), entries) in &groups {
+            let short = short_sha(commit_oid);
+            let _ = writeln!(out, "### {file_path} ({short})");
+            let _ = writeln!(out);
+
+            // Sort entries ascending by start_line. Pull start_line out of
+            // each entry's anchor; both variants carry one.
+            let mut sorted: Vec<&ResolvedComment> = entries.clone();
+            sorted.sort_by_key(|r| match r {
+                ResolvedComment::Anchored { anchor, .. }
+                | ResolvedComment::Binary { anchor, .. } => anchor.start_line,
+                _ => u32::MAX,
+            });
+
+            for r in sorted {
+                match r {
+                    ResolvedComment::Anchored {
+                        comment,
+                        anchor,
+                        excerpt,
+                        info,
+                    } => {
+                        let _ = writeln!(
+                            out,
+                            "#### {file_path}:L{start}-L{end} ({short})",
+                            start = anchor.start_line,
+                            end = anchor.end_line,
+                        );
+                        let _ = writeln!(out);
+                        // D-06: excerpt FIRST, comment text after.
+                        emit_fence(&mut out, excerpt, info);
+                        out.push_str(&comment.text);
+                        if !comment.text.ends_with('\n') {
+                            out.push('\n');
+                        }
+                        let _ = writeln!(out);
+                    }
+                    ResolvedComment::Binary { comment, anchor } => {
+                        let _ = writeln!(
+                            out,
+                            "#### {file_path}:L{start}-L{end} ({short})",
+                            start = anchor.start_line,
+                            end = anchor.end_line,
+                        );
+                        let _ = writeln!(out);
+                        // L-05: placeholder LIVES inside the resolved per-file
+                        // section, NOT the unresolvable section.
+                        let _ = writeln!(out, "[binary file, no excerpt]");
+                        let _ = writeln!(out);
+                        out.push_str(&comment.text);
+                        if !comment.text.ends_with('\n') {
+                            out.push('\n');
+                        }
+                        let _ = writeln!(out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // ── 4. Commit-level section (D-04 middle slot) ─────────────────────
+    let commit_levels: Vec<&ResolvedComment> = resolved
+        .iter()
+        .filter(|r| matches!(r, ResolvedComment::CommitLevel { .. }))
+        .collect();
+    if !commit_levels.is_empty() {
+        let _ = writeln!(out, "## Commit-level Comments");
+        let _ = writeln!(out);
+        for r in &commit_levels {
+            if let ResolvedComment::CommitLevel {
+                comment,
+                commit_oid,
+            } = r
+            {
+                let short = short_sha(commit_oid);
+                let subject = git2::Oid::from_str(commit_oid)
+                    .ok()
+                    .and_then(|oid| repo.find_commit(oid).ok())
+                    .and_then(|c| c.summary().map(String::from))
+                    .unwrap_or_else(|| "(subject unavailable)".to_string());
+                let _ = writeln!(out, "### {short} -- {subject}");
+                let _ = writeln!(out);
+                out.push_str(&comment.text);
+                if !comment.text.ends_with('\n') {
+                    out.push('\n');
+                }
+                let _ = writeln!(out);
+            }
+        }
+    }
+
+    // ── 5. Unresolvable section (D-04 trailing slot, D-09 + D-10 + L-09) ─
+    let unresolvables: Vec<&ResolvedComment> = resolved
+        .iter()
+        .filter(|r| matches!(r, ResolvedComment::Unresolvable { .. }))
+        .collect();
+    if !unresolvables.is_empty() {
+        let _ = writeln!(out, "## Unresolvable Anchors");
+        let _ = writeln!(out);
+        for r in &unresolvables {
+            if let ResolvedComment::Unresolvable {
+                comment,
+                anchor,
+                phrase,
+            } = r
+            {
+                if let Some(a) = anchor {
+                    let short = short_sha(&a.commit_oid);
+                    let _ = writeln!(
+                        out,
+                        "### {path}:L{start}-L{end} ({short})",
+                        path = a.file_path,
+                        start = a.start_line,
+                        end = a.end_line,
+                    );
+                } else if let Some(commit_oid) = &comment.commit_oid {
+                    let short = short_sha(commit_oid);
+                    let _ = writeln!(out, "### Commit-level note ({short})");
+                } else {
+                    let _ = writeln!(out, "### Orphan note");
+                }
+                let _ = writeln!(out);
+                let _ = writeln!(out, "{phrase}.");
+                let _ = writeln!(out);
+
+                if let (Some(a), Some(cached)) = (anchor, &comment.cached_excerpt) {
+                    let info: &'static str = match a.source {
+                        Source::Diff => "diff",
+                        Source::FullFile => fence_language(&a.file_path),
+                    };
+                    let _ = writeln!(
+                        out,
+                        "Anchor no longer resolves; excerpt is the cached snapshot from attach time."
+                    );
+                    let _ = writeln!(out);
+                    emit_fence(&mut out, cached, info);
+                }
+
+                out.push_str(&comment.text);
+                if !comment.text.ends_with('\n') {
+                    out.push('\n');
+                }
+                let _ = writeln!(out);
+            }
+        }
+    }
+
+    out
 }
 
 #[cfg(test)]
