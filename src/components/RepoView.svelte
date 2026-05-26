@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { buildTree, collectFilePaths } from "../lib/build-tree.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import type { RemoteState } from "../lib/remote-state.svelte.js";
+import { createReviewSession } from "../lib/review-session.svelte.js";
 import {
 	getDiffContextLines,
 	getDiffIgnoreWhitespace,
@@ -17,6 +18,7 @@ import {
 } from "../lib/store.js";
 import { showToast } from "../lib/toast.svelte.js";
 import type {
+	Comment,
 	CommitDetail as CommitDetailType,
 	DiffRequestOptions,
 	FileDiff,
@@ -31,6 +33,7 @@ import CommitGraph from "./CommitGraph.svelte";
 import DiffPanel from "./DiffPanel.svelte";
 import MergeEditor from "./MergeEditor.svelte";
 import RebaseEditor from "./RebaseEditor.svelte";
+import ReviewPanel from "./ReviewPanel.svelte";
 import StagingPanel from "./StagingPanel.svelte";
 
 interface DirtyCounts {
@@ -49,6 +52,9 @@ interface Props {
 	rightPaneWidth: number;
 	rightPaneCollapsed: boolean;
 	windowVisible: boolean;
+	// Review mode is toggled by the OS menu (review-toggle) at the App level so the
+	// global event only affects the active tab; App passes the flag down per tab.
+	reviewActive: boolean;
 	onleftpanecollapsedchange: (collapsed: boolean) => void;
 	onrightpanecollapsedchange: (collapsed: boolean) => void;
 	onleftpanewidthchange: (width: number) => void;
@@ -65,11 +71,42 @@ let {
 	rightPaneWidth,
 	rightPaneCollapsed,
 	windowVisible,
+	reviewActive,
 	onleftpanecollapsedchange,
 	onrightpanecollapsedchange,
 	onleftpanewidthchange,
 	onrightpanewidthchange,
 }: Props = $props();
+
+// Center-pane Review-mode state (UI-SPEC:133, LOCKED to the center pane). The
+// rune owns rightPaneMode (panel|diff); jumpTo composes the existing
+// selection/scroll machinery via injected deps. App's review-toggle flag syncs
+// into the rune so only the active tab enters review mode.
+const reviewSession = createReviewSession();
+
+$effect(() => {
+	reviewSession.setReviewActive(reviewActive);
+});
+
+// DiffPanel ref for jump-to-range scroll+highlight (Phase 69 / D-07).
+let diffPanelRef = $state<{
+	scrollToLine: (startLine: number, endLine: number) => void;
+} | null>(null);
+
+// Bind the panel's jump affordance to the rune, wiring the existing RepoView
+// machinery as the rune's navigation seams.
+function handleReviewJump(comment: Comment) {
+	reviewSession.jumpTo(comment, {
+		selectCommit: handleCommitSelect,
+		selectFile: handleCommitFileSelect,
+		scrollToRange: (startLine, endLine) => {
+			// Wait for the diff to render after commit/file selection before scrolling.
+			requestAnimationFrame(() =>
+				diffPanelRef?.scrollToLine(startLine, endLine),
+			);
+		},
+	});
+}
 
 // Per-repo state
 let refreshSignal = $state(0);
@@ -719,7 +756,43 @@ function startRightResize(e: MouseEvent) {
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
   <div class="flex-1 overflow-hidden">
-    {#if showMergeEditor && selectedFile}
+    {#if reviewSession.state.reviewActive}
+      <!-- Review mode claims the center pane (UI-SPEC:133). A persistent accent
+           "Review" toggle returns from a jumped-to diff back to the panel. -->
+      <div class="flex flex-col" style="height: 100%; min-height: 0;">
+        <div class="flex items-center" style="gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--color-border); flex-shrink: 0; background: var(--color-surface);">
+          <button
+            type="button"
+            onclick={() => reviewSession.showPanel()}
+            style="
+              background: {reviewSession.state.rightPaneMode === 'panel' ? 'var(--color-accent)' : 'transparent'};
+              color: {reviewSession.state.rightPaneMode === 'panel' ? 'var(--color-bg)' : 'var(--color-text-muted)'};
+              border: 1px solid {reviewSession.state.rightPaneMode === 'panel' ? 'var(--color-accent)' : 'var(--color-border)'};
+              border-radius: 4px;
+              cursor: pointer;
+              padding: 2px 10px;
+              font-size: 12px;
+            "
+          >Review</button>
+        </div>
+        <div class="flex flex-col" style="flex: 1; min-height: 0; overflow: hidden;">
+          {#if reviewSession.state.rightPaneMode === 'diff' && showDiff}
+            <DiffPanel
+              bind:this={diffPanelRef}
+              fileDiffs={currentDiffFiles}
+              commitDetail={commitDetail}
+              selectedPath={selectedCommitFile ?? selectedFile?.path ?? null}
+              diffKind={selectedCommitFile ? 'commit' : 'commit'}
+              {repoPath}
+              loading={stagingDiffLoading}
+              onclose={() => { handleDiffClose(); reviewSession.showPanel(); }}
+            />
+          {:else}
+            <ReviewPanel {repoPath} onJump={handleReviewJump} />
+          {/if}
+        </div>
+      </div>
+    {:else if showMergeEditor && selectedFile}
       <MergeEditor
         {repoPath}
         filePath={selectedFile.path}

@@ -4,7 +4,6 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import RecentReposPicker from "./components/RecentReposPicker.svelte";
 import RepoView from "./components/RepoView.svelte";
-import ReviewPanel from "./components/ReviewPanel.svelte";
 import TabBar from "./components/TabBar.svelte";
 import Toast from "./components/Toast.svelte";
 import Toolbar from "./components/Toolbar.svelte";
@@ -548,9 +547,11 @@ $effect(() => {
 	};
 });
 
-// Review panel toggle (Phase 65, D-12): the View-menu "Start/End Code Review"
-// item emits review-toggle (registered in Rust, Plan 65-03). Mirrors the
-// search-toggle listener in CommitGraph.
+// Review mode toggle (Phase 69): the View-menu "Start/End Code Review" item
+// emits review-toggle (registered in Rust, Plan 65-03). The flag is owned here
+// at the App level so this window-global event only flips the ACTIVE tab into
+// review mode; RepoView receives it as `reviewActive` and drives the center-pane
+// review panel via the review-session rune. Mirrors the search-toggle listener.
 $effect(() => {
 	let unlisten: (() => void) | undefined;
 	listen<void>("review-toggle", () => {
@@ -589,9 +590,6 @@ $effect(() => {
       <div style="position: absolute; inset: 0; display: flex; flex-direction: column; {tab.id !== activeTabId ? 'visibility: hidden; pointer-events: none;' : ''}">
         {#if tab.repoPath}
           {@const tabState = getOrCreateTabState(tab.id)}
-          {#if reviewPanelOpen && tab.id === activeTabId}
-            <ReviewPanel repoPath={tab.repoPath} />
-          {/if}
           <RepoView
             repoPath={tab.repoPath}
             repoName={tab.repoName}
@@ -602,6 +600,7 @@ $effect(() => {
             {rightPaneWidth}
             {rightPaneCollapsed}
             {windowVisible}
+            reviewActive={reviewPanelOpen && tab.id === activeTabId}
             onleftpanecollapsedchange={(c) => { leftPaneCollapsed = c; setLeftPaneCollapsed(c); }}
             onrightpanecollapsedchange={(c) => { rightPaneCollapsed = c; setRightPaneCollapsed(c); }}
             onleftpanewidthchange={(w) => { leftPaneWidth = w; setLeftPaneWidth(w); }}
