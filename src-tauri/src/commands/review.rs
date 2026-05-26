@@ -1434,4 +1434,160 @@ mod tests {
             save_draft_comment_inner(data_dir.path(), &canonical, &sessions, req).unwrap_err();
         assert_eq!(err.code, "no_session");
     }
+
+    // ── Phase 69 Plan 02: comment management (commit-level note, edit, delete) ──
+
+    // Test 10 (ANCH-03): add_commit_comment_inner persists a commit-level comment.
+    #[test]
+    fn add_commit_comment_persists_commit_level_comment() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        let req = AddCommitCommentRequest {
+            commit_oid: "abc123def456".to_string(),
+            text: "this commit needs a follow-up".to_string(),
+        };
+        add_commit_comment_inner(data_dir.path(), &canonical, &sessions, req).unwrap();
+
+        let s = loaded(&data_dir, &canonical);
+        assert_eq!(s.comments.len(), 1);
+        assert_eq!(s.comments[0].text, "this commit needs a follow-up");
+        assert_eq!(
+            s.comments[0].commit_oid.as_deref(),
+            Some("abc123def456"),
+            "commit-level comment must carry its commit_oid"
+        );
+    }
+
+    // Test 11 (D-01): a commit-level comment is distinguishable from a line-anchored
+    // one — anchor.is_none() && commit_oid.is_some() && a fresh non-empty id.
+    #[test]
+    fn add_commit_comment_is_distinguishable_from_line_anchored() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        let req = AddCommitCommentRequest {
+            commit_oid: "deadbeef".to_string(),
+            text: "note".to_string(),
+        };
+        add_commit_comment_inner(data_dir.path(), &canonical, &sessions, req).unwrap();
+
+        let s = loaded(&data_dir, &canonical);
+        let c = &s.comments[0];
+        assert!(c.anchor.is_none(), "commit-level comment has no code anchor");
+        assert!(c.commit_oid.is_some(), "commit-level comment is tied to a commit");
+        assert!(
+            c.cached_excerpt.is_none(),
+            "commit-level comment has no diff excerpt"
+        );
+        assert!(!c.id.is_empty(), "every comment carries a fresh non-empty id");
+    }
+
+    // Test 12: add_commit_comment_inner does NOT clear the line-anchored draft slot —
+    // a commit-level note is independent of the diff composer.
+    #[test]
+    fn add_commit_comment_leaves_draft_slot_untouched() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        sessions
+            .lock()
+            .unwrap()
+            .get_mut(&canonical)
+            .unwrap()
+            .draft_comment = Some(DraftComment {
+            text: "half-typed line comment".to_string(),
+            anchor: Some(distinct_anchor()),
+        });
+
+        let req = AddCommitCommentRequest {
+            commit_oid: "abc".to_string(),
+            text: "commit note".to_string(),
+        };
+        add_commit_comment_inner(data_dir.path(), &canonical, &sessions, req).unwrap();
+
+        let s = loaded(&data_dir, &canonical);
+        assert!(
+            s.draft_comment.is_some(),
+            "a commit-level note must not clear the line-anchored draft"
+        );
+    }
+
+    // Test 13 (CMT-02): edit_comment_inner updates one comment's text by id and
+    // leaves every other comment unchanged.
+    #[test]
+    fn edit_comment_updates_text_by_id_and_leaves_others() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        // Seed two comments so we can prove only the targeted one changes.
+        add_commit_comment_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            AddCommitCommentRequest {
+                commit_oid: "c1".to_string(),
+                text: "first".to_string(),
+            },
+        )
+        .unwrap();
+        add_commit_comment_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            AddCommitCommentRequest {
+                commit_oid: "c2".to_string(),
+                text: "second".to_string(),
+            },
+        )
+        .unwrap();
+        let target_id = loaded(&data_dir, &canonical).comments[0].id.clone();
+
+        edit_comment_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            &target_id,
+            "first (edited)".to_string(),
+        )
+        .unwrap();
+
+        let s = loaded(&data_dir, &canonical);
+        assert_eq!(s.comments.len(), 2, "edit must not add or drop comments");
+        let edited = s.comments.iter().find(|c| c.id == target_id).unwrap();
+        assert_eq!(edited.text, "first (edited)");
+        let other = s.comments.iter().find(|c| c.id != target_id).unwrap();
+        assert_eq!(other.text, "second", "non-targeted comment is untouched");
+    }
+
+    // Test 14 (T-69-05): edit_comment_inner on a missing id returns not_found and
+    // mutates nothing.
+    #[test]
+    fn edit_comment_missing_id_is_not_found() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        add_commit_comment_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            AddCommitCommentRequest {
+                commit_oid: "c1".to_string(),
+                text: "untouched".to_string(),
+            },
+        )
+        .unwrap();
+
+        let err = edit_comment_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            "no-such-id",
+            "ignored".to_string(),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, "not_found");
+
+        let s = loaded(&data_dir, &canonical);
+        assert_eq!(s.comments.len(), 1);
+        assert_eq!(
+            s.comments[0].text, "untouched",
+            "a not_found edit must mutate nothing"
+        );
+    }
 }
