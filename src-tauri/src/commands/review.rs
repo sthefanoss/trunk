@@ -976,6 +976,70 @@ pub async fn resolve_session_comments(
     Ok(result)
 }
 
+/// Generate the AI-framed markdown review doc for the active session (DOC-01).
+/// Read-only: no `save_session`, no `session-changed` emit, no `mutate_session_rmw`.
+/// Mirrors `resolve_session_comments`'s clone-under-lock + `spawn_blocking` shape so
+/// the `ReviewSessionsState` lock is never held across git2 work (Pitfall 6 — `git2::Repository`
+/// is not `Sync`). Clones the FULL `ReviewSession` (not just `.comments`) — the renderer
+/// reads `commits` for the D-07 refs list.
+///
+/// D-11 gate (zero-comment rejection) lives HERE, not in the renderer. The pure
+/// `git::review::render` assumes `session.comments.len() >= 1` and has no defensive
+/// zero-comment branch; this command is the only invocation path, so the gate at this
+/// layer is the contract. A non-UI invocation that bypasses the UI's D-01 gating
+/// surfaces as `Err({code: "no_comments", ...})` rather than a soft empty doc.
+///
+/// SKIP `_inner`: no disk I/O means no disk-testability indirection is warranted. The
+/// pure renderer in `git::review::render` IS the testable surface (TDD'd to 30 tests
+/// in Phase 70 Plan 01). See PHASE 70 RESEARCH Q1 Option B.
+///
+/// Markdown injection in comment text is a DELIBERATE non-mitigation (Pitfall 5).
+/// The recipient is an AI coding agent; escaping a user's `` ``` `` or heading would
+/// hide signal the reviewer intentionally put there. Do not add escaping.
+#[tauri::command]
+pub async fn generate_review_doc(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+) -> Result<String, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    let session = {
+        let map = sessions.0.lock().unwrap();
+        map.get(&canonical)
+            .ok_or_else(|| {
+                serde_json::to_string(&TrunkError::new(
+                    "no_session",
+                    "No active review session for this repository",
+                ))
+                .unwrap()
+            })?
+            .clone()
+    };
+
+    // D-11 gate: zero comments is the command's contract violation, not the
+    // renderer's. The pure renderer assumes >=1 and has no defensive branch.
+    if session.comments.is_empty() {
+        return Err(serde_json::to_string(&TrunkError::new(
+            "no_comments",
+            "Generate requires at least one comment in the session",
+        ))
+        .unwrap());
+    }
+
+    let doc = tauri::async_runtime::spawn_blocking(move || -> Result<String, TrunkError> {
+        let repo = git2::Repository::open(&path).map_err(TrunkError::from)?;
+        Ok(crate::git::review::render(&session, &repo))
+    })
+    .await
+    .map_err(|e| serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap())?
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    Ok(doc)
+}
+
 #[tauri::command]
 pub async fn start_review_session(
     path: String,

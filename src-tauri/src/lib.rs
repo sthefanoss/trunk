@@ -136,6 +136,7 @@ pub fn run() {
             commands::review::delete_comment,
             commands::review::list_session_comments,
             commands::review::resolve_session_comments,
+            commands::review::generate_review_doc,
             commands::commit_actions::checkout_commit,
             commands::commit_actions::create_tag,
             commands::commit_actions::delete_tag,
