@@ -1,4 +1,4 @@
-import type { Comment } from "./types";
+import type { Comment, Side } from "./types";
 
 /**
  * Owns Review-mode center-pane state and the jump action (D-07).
@@ -24,10 +24,14 @@ export interface ReviewSessionState {
 
 // The navigation seams jumpTo composes. Plan 05 binds these to RepoView's
 // commit/file selection and scroll machinery; each may be sync or async.
+// `side` is threaded through so the diff scroll target picks the right
+// hunk-line coordinate (Side::Old indexes the parent tree's line numbers,
+// Side::New the commit's own tree). Without it, an Old-side anchor's
+// line number is checked against new_start/new_lines and misses the hunk.
 export interface JumpDeps {
 	selectCommit(oid: string): void | Promise<void>;
 	selectFile(path: string): void | Promise<void>;
-	scrollToRange(startLine: number, endLine: number): void;
+	scrollToRange(startLine: number, endLine: number, side: Side): void;
 }
 
 export interface ReviewSessionManager {
@@ -65,7 +69,7 @@ export function createReviewSession(): ReviewSessionManager {
 			// The file's Source decides diff vs full-file view downstream.
 			await deps.selectFile(anchor.file_path);
 			state.rightPaneMode = "diff";
-			deps.scrollToRange(anchor.start_line, anchor.end_line);
+			deps.scrollToRange(anchor.start_line, anchor.end_line, anchor.side);
 		},
 	};
 }

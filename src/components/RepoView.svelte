@@ -24,6 +24,7 @@ import type {
 	FileDiff,
 	RebaseTodoItem,
 	RefsResponse,
+	Side,
 	WorkingTreeStatus,
 } from "../lib/types.js";
 import type { UndoRedoManager } from "../lib/undo-redo.svelte.js";
@@ -90,7 +91,7 @@ $effect(() => {
 
 // DiffPanel ref for jump-to-range scroll+highlight (Phase 69 / D-07).
 let diffPanelRef = $state<{
-	scrollToLine: (startLine: number, endLine: number) => void;
+	scrollToLine: (startLine: number, endLine: number, side: Side) => void;
 } | null>(null);
 
 // Bind the panel's jump affordance to the rune, wiring the existing RepoView
@@ -99,13 +100,13 @@ function handleReviewJump(comment: Comment) {
 	reviewSession.jumpTo(comment, {
 		selectCommit: handleCommitSelect,
 		selectFile: handleCommitFileSelect,
-		scrollToRange: (startLine, endLine) => {
+		scrollToRange: (startLine, endLine, side) => {
 			// The panel→diff swap destroys ReviewPanel and mounts a fresh DiffPanel;
 			// diffPanelRef is bound during that render. Poll a few frames until it's
 			// available before scrolling, so the jump never silently no-ops.
 			const tryScroll = (retries = 3) => {
 				if (diffPanelRef) {
-					diffPanelRef.scrollToLine(startLine, endLine);
+					diffPanelRef.scrollToLine(startLine, endLine, side);
 				} else if (retries > 0) {
 					requestAnimationFrame(() => tryScroll(retries - 1));
 				}

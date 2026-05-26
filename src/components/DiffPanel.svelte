@@ -26,6 +26,7 @@ import type {
 	FileDiff,
 	LayoutMode,
 	SessionStatus,
+	Side,
 } from "../lib/types.js";
 import CommentComposer from "./diff/CommentComposer.svelte";
 import DiffToolbar from "./diff/DiffToolbar.svelte";
@@ -265,21 +266,28 @@ function scrollToHunk(index: number) {
 }
 
 // Jump-to-range (Phase 69 / D-07): scroll to and transiently highlight the hunk
-// that contains a comment's anchored new-side line range. The review panel jump
-// resolves to a single rendered file; we locate the hunk whose new-line span
-// covers `startLine` (in hunk view the hunk wrapper is the scroll target). This
-// is best-effort — if the line isn't currently rendered (e.g. full-file mode or
-// no matching hunk), it falls back to the first hunk so the file is at least
-// brought into view rather than leaving the user stranded.
-export function scrollToLine(startLine: number, _endLine: number) {
+// that contains a comment's anchored line range. The review panel jump resolves
+// to a single rendered file; we locate the hunk whose old/new-line span covers
+// `startLine`, branching on `side` because an Old-side anchor's line number is
+// a parent-tree coordinate and a New-side anchor's is a commit-tree coordinate.
+// In hunk view the hunk wrapper is the scroll target. This is best-effort —
+// if the line isn't currently rendered (e.g. full-file mode or no matching
+// hunk), it falls back to the first hunk so the file is at least brought into
+// view rather than leaving the user stranded.
+export function scrollToLine(
+	startLine: number,
+	_endLine: number,
+	side: Side = "New",
+) {
 	const keys = Object.keys(hunkElements);
 	if (keys.length === 0) return;
 	let targetKey: string | null = null;
 	for (const fd of fileDiffs) {
 		for (let hunkIdx = 0; hunkIdx < fd.hunks.length; hunkIdx++) {
 			const hunk = fd.hunks[hunkIdx];
-			const start = hunk.new_start;
-			const end = hunk.new_start + hunk.new_lines - 1;
+			const start = side === "Old" ? hunk.old_start : hunk.new_start;
+			const lines = side === "Old" ? hunk.old_lines : hunk.new_lines;
+			const end = start + lines - 1;
 			if (startLine >= start && startLine <= end) {
 				targetKey = `${fd.path}-${hunkIdx}`;
 				break;
