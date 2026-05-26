@@ -334,3 +334,39 @@ pub struct ReviewSession {
     pub comments: Vec<Comment>,
     pub draft_comment: Option<DraftComment>,
 }
+
+#[cfg(test)]
+mod review_schema_tests {
+    use super::*;
+
+    #[test]
+    fn deserializes_v1_comment_without_id_or_commit_oid() {
+        // A v1 session file predates the v2 fields: the comment JSON has neither
+        // `id` nor `commit_oid`. `#[serde(default)]` on `id` and Option's implicit
+        // default on `commit_oid` must let it deserialize (NOT error) — the
+        // migration-shape-A sentinel is an empty id, backfilled at load time.
+        let v1_json = r#"{ "text": "looks good", "anchor": null, "cached_excerpt": null }"#;
+
+        let comment: Comment = serde_json::from_str(v1_json).expect("v1 comment must deserialize");
+
+        assert_eq!(comment.id, "", "missing id must default to the empty sentinel");
+        assert_eq!(comment.commit_oid, None, "missing commit_oid must default to None");
+    }
+
+    #[test]
+    fn round_trips_id_and_commit_oid_unchanged() {
+        let original = Comment {
+            id: "abc-123".to_string(),
+            text: "ship it".to_string(),
+            anchor: None,
+            cached_excerpt: None,
+            commit_oid: Some("deadbeef".to_string()),
+        };
+
+        let json = serde_json::to_string(&original).expect("serialize");
+        let restored: Comment = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.id, "abc-123");
+        assert_eq!(restored.commit_oid, Some("deadbeef".to_string()));
+    }
+}
