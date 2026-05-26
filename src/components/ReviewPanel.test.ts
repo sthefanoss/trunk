@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { safeInvoke } from "../lib/invoke.js";
+import { createReviewSession } from "../lib/review-session.svelte.js";
 import type {
 	Comment,
 	CommentResolution,
@@ -135,7 +136,12 @@ describe("ReviewPanel", () => {
 			resolutions: [resolvable("c1"), resolvable("c2")],
 		});
 		render(ReviewPanel, {
-			props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
 		});
 		await flush();
 
@@ -150,7 +156,12 @@ describe("ReviewPanel", () => {
 	it("reads the three session sources on mount", async () => {
 		installReads({ commits, comments: [], resolutions: [] });
 		render(ReviewPanel, {
-			props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
 		});
 		await flush();
 		const cmds = calledCommands();
@@ -162,7 +173,12 @@ describe("ReviewPanel", () => {
 	it("shows the no-comments empty state when commits exist but no comments", async () => {
 		installReads({ commits, comments: [], resolutions: [] });
 		render(ReviewPanel, {
-			props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
 		});
 		await flush();
 		expect(screen.getByText("No comments yet.")).toBeInTheDocument();
@@ -171,7 +187,12 @@ describe("ReviewPanel", () => {
 	it("shows the no-commits empty state when the session has no commits", async () => {
 		installReads({ commits: [], comments: [], resolutions: [] });
 		render(ReviewPanel, {
-			props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
 		});
 		await flush();
 		expect(
@@ -190,7 +211,12 @@ describe("ReviewPanel", () => {
 			resolutions: [resolvable("c1")],
 		});
 		render(ReviewPanel, {
-			props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
 		});
 		await flush();
 		expect(screen.getByText("i need eyes on this")).toBeInTheDocument();
@@ -208,7 +234,12 @@ describe("ReviewPanel", () => {
 		it("writes a commit-level comment via add_commit_comment on Save", async () => {
 			installReads({ commits, comments: [], resolutions: [] });
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -233,7 +264,12 @@ describe("ReviewPanel", () => {
 		it("disables Save while the add-note textarea is empty/whitespace", async () => {
 			installReads({ commits, comments: [], resolutions: [] });
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -263,7 +299,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -291,7 +332,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -312,7 +358,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -336,7 +387,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -356,7 +412,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -378,7 +439,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump, onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump,
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -396,7 +462,12 @@ describe("ReviewPanel", () => {
 				resolutions: [orphan("c1", "FileGone")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -416,7 +487,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit,
+				},
 			});
 			await flush();
 
@@ -446,7 +522,12 @@ describe("ReviewPanel", () => {
 				],
 			});
 			const { container } = render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -484,7 +565,12 @@ describe("ReviewPanel", () => {
 				resolutions: [resolvable("c1")],
 			});
 			const { container } = render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
@@ -520,7 +606,12 @@ describe("ReviewPanel", () => {
 				],
 			});
 			render(ReviewPanel, {
-				props: { repoPath: "/repo", onJump: vi.fn(), onJumpToCommit: vi.fn() },
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
 			});
 			await flush();
 
