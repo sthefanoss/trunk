@@ -10,10 +10,11 @@
 // Timer discipline: vi.useFakeTimers() is active per-test. Microtask flush
 // uses `await Promise.resolve()` and/or `await tick()` — NEVER
 // `setTimeout(r, 0)`, which deadlocks under fake timers.
+
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { showToast } from "../lib/toast.svelte.js";
 import ReviewDocPreview from "./ReviewDocPreview.svelte";
 
@@ -72,18 +73,18 @@ describe("ReviewDocPreview", () => {
 		);
 		await fireEvent.click(getCopyButton());
 		await flush();
-		expect(
-			screen.getByRole("button", { name: /Copied/ }),
-		).toHaveTextContent(/Copied/);
+		expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+			/Copied/,
+		);
 	});
 
 	it("reverts after timeout", async () => {
 		renderPreview("the doc");
 		await fireEvent.click(getCopyButton());
 		await flush();
-		expect(
-			screen.getByRole("button", { name: /Copied/ }),
-		).toHaveTextContent(/Copied/);
+		expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+			/Copied/,
+		);
 		vi.advanceTimersByTime(1500);
 		await tick();
 		expect(screen.getByRole("button", { name: /Copy/ })).toHaveTextContent(
@@ -96,9 +97,9 @@ describe("ReviewDocPreview", () => {
 		// First click at virtual t=0.
 		await fireEvent.click(getCopyButton());
 		await flush();
-		expect(
-			screen.getByRole("button", { name: /Copied/ }),
-		).toHaveTextContent(/Copied/);
+		expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+			/Copied/,
+		);
 
 		// Mid-window second click at virtual t=500.
 		vi.advanceTimersByTime(500);
@@ -109,9 +110,9 @@ describe("ReviewDocPreview", () => {
 		// (we're at t=500 + 1499 = t=1999). Advance 1499 and assert still Copied.
 		vi.advanceTimersByTime(1499);
 		await tick();
-		expect(
-			screen.getByRole("button", { name: /Copied/ }),
-		).toHaveTextContent(/Copied/);
+		expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+			/Copied/,
+		);
 
 		// Second timer fires at t=500 + 1500 = t=2000.
 		vi.advanceTimersByTime(1);
