@@ -192,7 +192,7 @@ Built in strict dependency order: lock the anchor schema and persistence first (
 - [x] **Phase 69: Comment Management UI** — Review panel: list, edit, delete, jump-to-anchor, commit-level comments (completed 2026-05-26)
 - [x] **Phase 70: Excerpt Resolution + Markdown Render** — Generate one AI-framed markdown doc with resolved excerpts (completed 2026-05-26)
 - [x] **Phase 71: Output (Clipboard)** — Copy the doc to the clipboard with explicit success/failure feedback (save-to-file dropped 2026-05-26 — see 71-CONTEXT.md) (completed 2026-05-26)
-- [ ] **Phase 72: Review-Pane UX Integration** — Toolbar button + Cmd+Shift+R entry, Copy directly on comments view (Generate becomes Copy), preview pane + dead blue button removed (closes G-71-A and G-71-B from 71-UAT.md)
+- [x] **Phase 72: Review-Pane UX Integration** — Toolbar button + Cmd+Shift+R entry, Copy directly on comments view (Generate becomes Copy), preview pane + dead blue button removed (closes G-71-A and G-71-B from 71-UAT.md) (completed 2026-05-27)
 
 #### Phase 65: Data Model + Persistence + Session Lifecycle
 
@@ -414,7 +414,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 + Wave 1: 72-02 + 72-03)*
 
-- [ ] 72-04-PLAN.md — Delete ReviewDocPreview.{svelte,test.ts}, delete RepoView blue strip, add Cmd+Shift+R accelerator + manual UAT checkpoint
+- [x] 72-04-PLAN.md — Delete ReviewDocPreview.{svelte,test.ts}, delete RepoView blue strip, add Cmd+Shift+R accelerator + manual UAT checkpoint
 
 **UI hint**: yes
 **Notes:**
