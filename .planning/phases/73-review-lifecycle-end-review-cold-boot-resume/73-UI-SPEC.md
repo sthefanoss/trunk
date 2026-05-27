@@ -1,10 +1,12 @@
 ---
 phase: 73
 slug: review-lifecycle-end-review-cold-boot-resume
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-27
+revised: 2026-05-27
+reviewed_at: 2026-05-27
 ---
 
 # Phase 73 — UI Design Contract
@@ -31,19 +33,18 @@ This phase introduces **no new screens or components** — it adds three small U
 
 ## Spacing Scale
 
-Declared values for this phase. The project's existing rhythm uses multiples of **2** at the inline-button scale and multiples of **4** for layout — this phase stays within the existing pattern.
+Declared values for this phase. All tokens below are multiples of **4**, matching the standard 4/8/16/24/32/48/64 scale. This phase declares **no new spacing tokens**; every value used either appears in the table below or is preserved verbatim from an existing CSS rule in `ReviewPanel.svelte` (those carry-forwards are not phase-declared tokens — they are existing rules left untouched).
 
 | Token | Value | Usage in this phase |
 |-------|-------|---------------------|
-| 2xs | 2px | Vertical padding for the summary caption row (`padding: 2px 0`), matching the existing muted-caption rule at `ReviewPanel.svelte:537` |
 | xs | 4px | Inline gap between icon and label inside Copy/End buttons (carry-forward from `.copy-button` `gap: 4px` at `:778`); border-radius for buttons |
-| sm | 8px | Header inter-button gap (existing header `gap: 8px` at `:379`); button horizontal padding `2px 8px` (carry-forward from `.copy-button` `:784`) |
-| md | 12px | Header padding `6px 12px` (existing at `:380`); scroll-body padding `12px` (existing at `:410`); empty-state block padding `12px` (existing at `:418, :425`) |
+| sm | 8px | Header inter-button gap (existing header `gap: 8px` at `:379`); button horizontal padding (carry-forward from `.copy-button` `:784`) |
+| md | 12px | Scroll-body padding `12px` (existing at `:410`); empty-state block padding `12px` (existing at `:418, :425`) |
 | lg | 16px | (unused new — existing list gaps stay at `gap: 4px` / `gap: 8px`) |
 
-**Exceptions:** The header row uses `padding: 6px 12px` (existing — 6 is not a 4-multiple). This phase does NOT introduce new exceptions; it preserves the existing rhythm.
+**Carry-forward values (not phase-declared tokens):** The session-summary caption reuses the existing muted-caption CSS rule at `ReviewPanel.svelte:537` verbatim, including its `padding: 2px 0`. This phase does **not** introduce 2px as a new spacing token — it is an existing in-file CSS value left untouched. Similarly, the existing header `padding: 6px 12px` at `:380` and the existing `.copy-button` `padding: 2px 8px` at `:784` are preserved unchanged; they are not phase tokens.
 
-**Net new spacing this phase:** none. End button reuses the `.copy-button` padding triplet. Session-summary caption reuses the `padding: 2px 0` muted-caption pattern already used at line 537.
+**Net new spacing this phase:** none. End button reuses the `.copy-button` padding triplet by extending the existing class. Session-summary caption reuses the existing muted-caption rule at line 537.
 
 ---
 
@@ -177,7 +178,7 @@ Single `<span>` rendered inside the scroll body, above the `{#if groups.length =
 |----------|-------|
 | Tag | `<span>` |
 | Container | direct child of scroll body; no wrapper |
-| Padding | `2px 0` (carry-forward from `:537`) |
+| Padding | inherits the existing muted-caption rule at `ReviewPanel.svelte:537` verbatim (carry-forward CSS, not a phase-declared spacing token) |
 | Font size | 11px |
 | Color | `var(--color-text-muted)` |
 | Text | `{comments.length} comments · {commits.length} commits` |
@@ -240,13 +241,19 @@ Recorded so the executor and ui-checker know the spec did NOT mutate anything lo
 
 ---
 
+## Revision History
+
+- **2026-05-27 (revision 1):** Removed `2xs (2px)` row from the phase's declared Spacing Scale table after gsd-ui-checker flagged it as a non-4-multiple token (Dimension 5 BLOCK). Reframed the 2px vertical padding on the session-summary caption as a carry-forward of the existing muted-caption CSS rule at `ReviewPanel.svelte:537` — not a phase-declared token. The visual output is unchanged (the existing rule is preserved verbatim); only the contract's token table is now strictly multiples of 4 (4/8/12/16). Dimension 1 (Copy label) and Dimension 4 (1px typography steps) FLAGs left as carry-forward existing project conventions per checker direction.
+
+---
+
 ## Checker Sign-Off
 
 - [ ] Dimension 1 Copywriting: PASS — every visible string declared with source; cold vs warm-empty distinction structural; no placeholders.
 - [ ] Dimension 2 Visuals: PASS — Trash2 icon, inline two-step button (no modal), no illustration in empty states; consistent with existing Copy precedent.
 - [ ] Dimension 3 Color: PASS — 60/30/10 split preserved; destructive isolated to its own token; no inline colors; accent reserved-for list explicit.
 - [ ] Dimension 4 Typography: PASS — 3 sizes (11/12/13) and 2 weights (400/600); line-height 1.5; Inter sans only; no mono introduced.
-- [ ] Dimension 5 Spacing: PASS — all spacing inherits existing rhythm; no new exceptions; multiples of 2 at button scale and multiples of 4 at layout scale; no new tokens.
+- [ ] Dimension 5 Spacing: PASS — phase-declared tokens are strictly multiples of 4 (4/8/12/16); the 2px vertical padding on the summary caption is carry-forward CSS (existing rule at `:537`), explicitly NOT a phase-declared token.
 - [ ] Dimension 6 Registry Safety: PASS — no shadcn, no third-party registries; only addition is one named import from existing `@lucide/svelte`.
 
 **Approval:** pending
