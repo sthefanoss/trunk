@@ -9,6 +9,7 @@ import type {
 	Comment,
 	CommentResolution,
 	SessionCommit,
+	SessionStatus,
 } from "../lib/types.js";
 import ReviewPanel from "./ReviewPanel.svelte";
 
@@ -29,9 +30,23 @@ vi.mock("../lib/toast.svelte.js", () => ({
 
 // The panel registers a session-changed listener in an $effect; mock listen so
 // it doesn't reach the real Tauri IPC core (which is undefined under jsdom).
+// Capture the callback so tests can simulate cross-tab `session-changed` emits
+// by calling `fireSessionChanged(path)` below — Plan 73-01 needs this for the
+// cold-boot resume recursion-safety assertion (resume_review_session must fire
+// exactly once across the initial reload + the listener-triggered reload).
+let sessionChangedHandler: ((event: { payload: string }) => void) | null = null;
 vi.mock("@tauri-apps/api/event", () => ({
-	listen: vi.fn().mockResolvedValue(() => {}),
+	listen: vi.fn((_event: string, cb: (event: { payload: string }) => void) => {
+		sessionChangedHandler = cb;
+		return Promise.resolve(() => {
+			sessionChangedHandler = null;
+		});
+	}),
 }));
+
+function fireSessionChanged(payload: string): void {
+	sessionChangedHandler?.({ payload });
+}
 
 // Phase 72: Copy handler writes to the clipboard via the plugin's writeText.
 // Mock the boundary so we can assert on calls and trigger rejections.
@@ -102,7 +117,25 @@ function installReads(opts: {
 	comments?: Comment[];
 	resolutions?: CommentResolution[];
 	generateDoc?: string;
+	// Phase 73-01 — lifecycle dispatch. Default `status` is `active` so the ~50
+	// pre-existing tests stay on the warm path (no cold-boot resume call).
+	status?: SessionStatus;
+	// After a successful resume_review_session call, subsequent
+	// get_review_session_status reads return this — models the backend
+	// transitioning "resume-available" -> "active" after a successful resume.
+	// Used by the recursion-safety assertion in describe("cold-boot resume"):
+	// the listener-triggered second reload reads "active" and skips the resume
+	// branch, keeping the call count at exactly 1.
+	statusAfterResume?: SessionStatus;
+	resumeRejection?: unknown;
+	endRejection?: unknown;
 }) {
+	const status: SessionStatus = opts.status ?? {
+		state: "active",
+		file_exists: true,
+		canonical_path: "/repo",
+	};
+	let resumed = false;
 	vi.mocked(safeInvoke).mockReset();
 	vi.mocked(safeInvoke).mockImplementation((cmd: string) => {
 		switch (cmd) {
@@ -114,6 +147,21 @@ function installReads(opts: {
 				return Promise.resolve(opts.resolutions ?? []);
 			case "generate_review_doc":
 				return Promise.resolve(opts.generateDoc ?? "# stub\n");
+			case "get_review_session_status":
+				return Promise.resolve(
+					resumed ? (opts.statusAfterResume ?? status) : status,
+				);
+			case "resume_review_session":
+				if (opts.resumeRejection !== undefined) {
+					return Promise.reject(opts.resumeRejection);
+				}
+				resumed = true;
+				return Promise.resolve(undefined);
+			case "end_review_session":
+				if (opts.endRejection !== undefined) {
+					return Promise.reject(opts.endRejection);
+				}
+				return Promise.resolve(undefined);
 			default:
 				return Promise.resolve(undefined);
 		}
