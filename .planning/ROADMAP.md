@@ -438,7 +438,12 @@ Plans:
   4. Existing Copy flow still works; Copy and End are independently usable from the comments view.
   5. `just check` exits 0 with all updated/new tests passing.
 
-**Plans**: TBD (see `/gsd:plan-phase 73`)
+**Plans**: 3 plans
+
+Plans:
+- [ ] 73-01-PLAN.md — Cold-boot resume in ReviewPanel.reload() + sessionState rune + test-harness extension
+- [ ] 73-02-PLAN.md — End-review two-step button in header (D-03/D-05/D-08) with danger color tokens
+- [ ] 73-03-PLAN.md — Three-way empty-state branching (D-06) + session summary caption (D-04) + multi-tab tests (D-09)
 
 **UI hint**: yes
 **Notes:**
