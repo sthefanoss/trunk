@@ -581,7 +581,7 @@ $effect(() => {
     <div data-tauri-drag-region class="flex-1 h-full"></div>
     {#if activeTab?.repoPath}
       {@const activeState = getOrCreateTabState(activeTabId)}
-      <Toolbar repoPath={activeTab.repoPath} remoteState={activeState.remoteState} undoRedo={activeState.undoRedo} />
+      <Toolbar repoPath={activeTab.repoPath} remoteState={activeState.remoteState} undoRedo={activeState.undoRedo} reviewActive={reviewPanelOpen} />
     {/if}
   </div>
 
