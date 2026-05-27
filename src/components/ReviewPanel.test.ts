@@ -1370,3 +1370,119 @@ describe("summary line", () => {
 		expect(screen.queryByText(/comments · /)).toBeNull();
 	});
 });
+
+// Phase 73-03 — Multi-tab coordination (REQ-73-MULTITAB, D-09). Tab A's
+// end_review_session call emits a session-changed event; tab B's existing
+// listener at ReviewPanel.svelte:447-461 reloads, sees status='none', and
+// renders the cold empty state. Cross-repo payloads are filtered by the
+// listener's `canonicalPath && payload !== canonicalPath` check — no churn.
+//
+// REAL timers — the listener chain is microtask-driven. The captured
+// `sessionChangedHandler` from the @tauri-apps/api/event mock is the simulator.
+describe("multi-tab coordination", () => {
+	it("End in another tab clears panel", async () => {
+		// Swappable status: dispatcher reads the closure variable on every call,
+		// so post-end mutation flips the next get_review_session_status to 'none'.
+		let currentStatus: SessionStatus = {
+			state: "active",
+			file_exists: true,
+			canonical_path: "/repo",
+		};
+		let currentCommits: SessionCommit[] = commits;
+		let currentComments: Comment[] = [
+			lineAnchoredComment("c1", COMMIT_A, "tab-A note"),
+		];
+		let currentResolutions: CommentResolution[] = [resolvable("c1")];
+
+		vi.mocked(safeInvoke).mockReset();
+		vi.mocked(safeInvoke).mockImplementation((cmd: string) => {
+			switch (cmd) {
+				case "get_review_session_status":
+					return Promise.resolve(currentStatus);
+				case "list_session_commits":
+					return Promise.resolve(currentCommits);
+				case "list_session_comments":
+					return Promise.resolve(currentComments);
+				case "resolve_session_comments":
+					return Promise.resolve(currentResolutions);
+				default:
+					return Promise.resolve(undefined);
+			}
+		});
+
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		// Initial warm render: comment visible, End button visible.
+		expect(screen.getByText("tab-A note")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /End review/ }),
+		).toBeInTheDocument();
+
+		// Simulate tab A ending the review: backend flips to 'none' and emits
+		// session-changed for this canonical path. Tab B's listener fires
+		// reload(), which re-reads the swapped status + empty arrays.
+		currentStatus = {
+			state: "none",
+			file_exists: false,
+			canonical_path: "/repo",
+		};
+		currentCommits = [];
+		currentComments = [];
+		currentResolutions = [];
+
+		fireSessionChanged("/repo");
+		await flush();
+
+		// Cold empty state now visible; warm copy and prior comment gone; End
+		// button hidden (sessionState === 'none' → {#if} gate hides it).
+		expect(screen.getByText("No active review")).toBeInTheDocument();
+		expect(screen.queryByText("tab-A note")).toBeNull();
+		expect(screen.queryByText("Review started.")).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: /End review/ }),
+		).toBeNull();
+	});
+
+	it("session-changed for different repo is filtered out", async () => {
+		installReads({
+			commits,
+			comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
+			resolutions: [resolvable("c1")],
+			status: {
+				state: "active",
+				file_exists: true,
+				canonical_path: "/repo",
+			},
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		// Capture call count AFTER the initial reload has set canonicalPath —
+		// this is the precondition for the listener's payload filter to kick in.
+		const initialCalls = vi.mocked(safeInvoke).mock.calls.length;
+
+		fireSessionChanged("/different-repo");
+		await flush();
+
+		// Listener's `canonicalPath && event.payload !== canonicalPath` filter
+		// short-circuits → reload() never fires → no additional IPC calls.
+		expect(vi.mocked(safeInvoke).mock.calls.length).toBe(initialCalls);
+		// And no churn that would clear the rendered comment.
+		expect(screen.getByText("look here")).toBeInTheDocument();
+	});
+});
