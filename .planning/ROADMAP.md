@@ -277,10 +277,12 @@ Plans:
   3. A selection spanning added and deleted lines attaches without error and records which side it targets.
 
 **Plans**: 4 plans
+
 - [x] 67-01-PLAN.md — Pure TS capture-time adapter (indices -> {anchor, cachedExcerpt})
 - [x] 67-02-PLAN.md — Shared add_comment + save_draft_comment Tauri commands
 - [x] 67-03-PLAN.md — Thread commitDetail, lift 3 commit-diff selection guards, request DTOs
 - [x] 67-04-PLAN.md — Inline CommentComposer + Comment affordance (D-01..D-04) + UAT
+
 **UI hint**: yes
 **Notes:**
 
@@ -300,8 +302,10 @@ Plans:
   2. A comment attached this way records the file's absolute (1-based) line range at that commit and survives an app restart.
 
 **Plans**: 2 plans
+
 - [x] 68-01-PLAN.md — Pure full-file capture adapter `buildFullFileAnchor` (TDD, V1–V4)
 - [x] 68-02-PLAN.md — Full-file selection + Comment affordance + composer wiring + restart-survival (V5–V10)
+
 **UI hint**: yes
 **Notes:**
 
@@ -322,11 +326,13 @@ Plans:
   4. User can jump from a comment to its anchored code location; a comment whose anchor no longer resolves shows a read-only "orphaned" state with a reason badge instead of navigating nowhere or erroring.
 
 **Plans**: 5 plans
+
 - [x] 69-01-PLAN.md — Schema v2: Comment id + commit_oid, schema_version 1→2, lazy id-backfill migration (D-15/D-16 preserved)
 - [x] 69-02-PLAN.md — Mutating commands: add_commit_comment, edit_comment, delete_comment (by id)
 - [x] 69-03-PLAN.md — Read commands: list_session_comments + git2-backed resolve_session_comments (orphan classifier)
 - [x] 69-04-PLAN.md — TS DTOs (id/commit_oid/OrphanReason/CommentResolution) + review-session.svelte.ts rune
 - [x] 69-05-PLAN.md — Real ReviewPanel in the center pane: group-by-commit, add-note, inline edit, delete-confirm, jump vs orphan
+
 **UI hint**: yes
 **Notes:**
 
@@ -359,6 +365,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 70-03-PLAN.md — Generate button in ReviewPanel header + panel preview swap + ReviewDocPreview component (DOC-01)
+
 **Notes:**
 
 - Render in Rust (`git/review.rs` pure logic), returning one markdown string — not a giant per-line enriched payload. Skip syntax/word-span enrichment for excerpts (plain text in a fence is what the AI needs).
@@ -441,8 +448,16 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 73-01-PLAN.md — Cold-boot resume in ReviewPanel.reload() + sessionState rune + test-harness extension
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 73-02-PLAN.md — End-review two-step button in header (D-03/D-05/D-08) with danger color tokens
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 73-03-PLAN.md — Three-way empty-state branching (D-06) + session summary caption (D-04) + multi-tab tests (D-09)
 
 **UI hint**: yes
