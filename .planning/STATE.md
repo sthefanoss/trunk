@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
-status: in-progress
-stopped_at: Phase 73 added to roadmap (carry-forward bundle from Phase 72)
-last_updated: "2026-05-27T07:38:28.483Z"
-last_activity: 2026-05-27 -- Phase 73 added to roadmap
+status: completed
+stopped_at: Phase 73 context gathered
+last_updated: "2026-05-27T08:19:29.521Z"
+last_activity: 2026-05-27 -- Phase 72 marked complete
 progress:
   total_phases: 9
   completed_phases: 8
@@ -154,7 +154,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T23:32:33.644Z
-Stopped at: Phase 72 UI-SPEC approved
-Resume file: .planning/phases/72-review-pane-ux-integration/72-UI-SPEC.md
+Last session: 2026-05-27T08:19:29.509Z
+Stopped at: Phase 73 context gathered
+Resume file: .planning/phases/73-review-lifecycle-end-review-cold-boot-resume/73-CONTEXT.md
 Next action: Human runs `just dev` and verifies the attach flow (steps 1-8); type "approved" to resume Plan 04 completion (SUMMARY + state advance)
