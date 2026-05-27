@@ -193,7 +193,7 @@ Built in strict dependency order: lock the anchor schema and persistence first (
 - [x] **Phase 70: Excerpt Resolution + Markdown Render** — Generate one AI-framed markdown doc with resolved excerpts (completed 2026-05-26)
 - [x] **Phase 71: Output (Clipboard)** — Copy the doc to the clipboard with explicit success/failure feedback (save-to-file dropped 2026-05-26 — see 71-CONTEXT.md) (completed 2026-05-26)
 - [x] **Phase 72: Review-Pane UX Integration** — Toolbar button + Cmd+Shift+R entry, Copy directly on comments view (Generate becomes Copy), preview pane + dead blue button removed (closes G-71-A and G-71-B from 71-UAT.md) (completed 2026-05-27)
-- [ ] **Phase 73: Review Lifecycle (End-review + cold-boot resume)** — Bundle Bug 3 (comments don't appear on first open after app boot) with the End-review affordance, so the review session has both lifecycle endpoints. Carry-forward from Phase 72; see `.planning/todos/pending/phase-73-review-lifecycle.md`.
+- [x] **Phase 73: Review Lifecycle (End-review + cold-boot resume)** — Bundle Bug 3 (comments don't appear on first open after app boot) with the End-review affordance, so the review session has both lifecycle endpoints. Carry-forward from Phase 72; see `.planning/todos/pending/phase-73-review-lifecycle.md`. (completed 2026-05-27)
 
 #### Phase 65: Data Model + Persistence + Session Lifecycle
 
@@ -458,7 +458,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 73-03-PLAN.md — Three-way empty-state branching (D-06) + session summary caption (D-04) + multi-tab tests (D-09)
+- [x] 73-03-PLAN.md — Three-way empty-state branching (D-06) + session summary caption (D-04) + multi-tab tests (D-09)
 
 **UI hint**: yes
 **Notes:**

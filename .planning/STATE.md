@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.13
 milestone_name: Code Review Mode
-status: executing
-stopped_at: Phase 73 Plan 02 complete; Plan 03 next (empty-state gating + summary caption)
-last_updated: "2026-05-27T17:40:00Z"
-last_activity: 2026-05-27 -- Phase 73 Plan 02 shipped (End-review two-step button)
+status: verifying
+stopped_at: "Phase 73 Plan 03 complete — phase ready for /gsd:verify-work 73"
+last_updated: "2026-05-27T15:53:33.677Z"
+last_activity: 2026-05-27 -- Phase 73 Plan 03 shipped (empty-state branching, summary caption, multi-tab coordination)
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 31
-  completed_plans: 30
-  percent: 93
+  completed_plans: 31
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-30 after v0.12 shipped)
 
 ## Current Position
 
-Phase: 73 (review-lifecycle-end-review-cold-boot-resume) — EXECUTING
-Plan: 3 of 3 (Plans 01-02 shipped — cold-boot resume + End-review button)
-Status: Executing Phase 73
-Last activity: 2026-05-27 -- Phase 73 Plan 02 shipped (End-review two-step button)
+Phase: 73 (review-lifecycle-end-review-cold-boot-resume) — COMPLETE
+Plan: 3 of 3 (Plans 01-03 shipped — cold-boot resume + End-review button + empty-state branching/summary/multi-tab)
+Status: Phase complete — ready for verification
+Last activity: 2026-05-27 -- Phase 73 Plan 03 shipped (empty-state branching, summary caption, multi-tab coordination)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [█████████░] 93%
 | Phase 69 P03 | ~25min | 2 tasks | 2 files |
 | Phase 73 P01 | 7min | 3 tasks | 2 files |
 | Phase 73 P02 | 6min | 2 tasks | 2 files |
+| Phase 73 P03 | 6min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Progress: [█████████░] 93%
 - [Phase 73]: 73-02: button order shipped as [End review] [Copy] — End BEFORE Copy in the header flex row; UI-SPEC doesn't pin the order; destructive reads naturally to the left of the affirmative action
 - [Phase 73]: 73-02: endConfirming stays TRUE during the IPC await (label frozen at "Click again to confirm" per UI-SPEC § In-flight); success collapses via session-changed listener round-trip → sessionState === 'none' → {#if} gate hides the button; failure explicitly reverts + showToast
 - [Phase 73]: 73-02: toast prefix added via template literal (`Failed to end review: ${errorMessage(e, "unknown error")}`) — same shape as Plan 01's resume-fail toast; errorMessage extracts only .message, the prefix is added at the call site
+- [Phase 73]: 73-03: three-way empty-state branching specificity-first (cold → warm-no-commits → warm-with-commits-zero-comments) consumes Plan 01 sessionState rune + groups + hasAnyComment; no new state shapes; warm-no-commits copy preserved verbatim
+- [Phase 73]: 73-03: session-summary caption '{N} comments · {M} commits' (U+00B7) above empty-state block, gated on sessionState !== 'none' — single span with var(--color-text-muted)/font-size:11px, no new IPC, no PII (T-73-11 accepted)
+- [Phase 73]: 73-03: multi-tab coordination emergent — Plan 01 sessionState rune + untouched session-changed listener (D-09 byte-for-byte across all three plans) + Plan 03 empty-state branching compose into tab-A End → tab-B cold render. Test 1 uses per-test closure dispatcher; Test 2 asserts safeInvoke call-count delta to prove canonicalPath filter held without coupling to reload() internals
 
 ### Pending Todos
 
@@ -162,7 +166,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-05-27
-Last session: 2026-05-27T17:40:00Z
-Stopped at: Phase 73 Plan 02 complete (End-review two-step button shipped)
-Resume file: .planning/phases/73-review-lifecycle-end-review-cold-boot-resume/73-03-PLAN.md
+Last session: 2026-05-27T15:53:33.669Z
+Stopped at: Phase 73 Plan 03 complete — phase ready for /gsd:verify-work 73
+Resume file: .planning/phases/73-review-lifecycle-end-review-cold-boot-resume/73-03-SUMMARY.md
 Next action: Execute Plan 73-03 (three-way empty-state branching + summary caption + multi-tab tests); manual smoke tests for Plans 01 + 02 (cold-boot resume + End button danger color) are outstanding per 73-VALIDATION.md but non-blocking for Plan 03
