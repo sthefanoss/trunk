@@ -4,11 +4,12 @@ import {
 	ArrowDown,
 	ArrowUp,
 	GitBranch,
+	MessagesSquare,
 	PackageOpen,
 	Redo2,
 	Undo2,
 } from "@lucide/svelte";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import type { TrunkError } from "../lib/invoke.js";
 import { safeInvoke } from "../lib/invoke.js";
 import type { RemoteState } from "../lib/remote-state.svelte.js";
@@ -21,9 +22,14 @@ interface Props {
 	repoPath: string;
 	remoteState: RemoteState;
 	undoRedo: UndoRedoManager;
+	reviewActive: boolean;
 }
 
-let { repoPath, remoteState, undoRedo }: Props = $props();
+let { repoPath, remoteState, undoRedo, reviewActive }: Props = $props();
+
+function handleReviewToggle() {
+	void emit("review-toggle");
+}
 
 // Listen to remote-progress events from backend (relocated from StatusBar)
 $effect(() => {
@@ -229,6 +235,14 @@ async function handleBranchCreate(values: Record<string, string>) {
     pointer-events: none;
   }
 
+  .toolbar-btn.toolbar-btn-active {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+  .toolbar-btn.toolbar-btn-active:hover:not(:disabled) {
+    background: var(--color-accent);
+  }
+
   .btn-group {
     display: inline-flex;
     align-items: stretch;
@@ -270,6 +284,17 @@ async function handleBranchCreate(values: Record<string, string>) {
     </button>
     <button class="toolbar-btn" onclick={handlePop}>
       <PackageOpen size={14} /> Pop
+    </button>
+  </div>
+
+  <div class="toolbar-group">
+    <button
+      class="toolbar-btn"
+      class:toolbar-btn-active={reviewActive}
+      aria-pressed={reviewActive}
+      onclick={handleReviewToggle}
+    >
+      <MessagesSquare size={14} /> Review
     </button>
   </div>
 </div>

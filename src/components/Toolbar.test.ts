@@ -2,13 +2,29 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { describe, expect, it, vi } from "vitest";
 import Toolbar from "./Toolbar.svelte";
 
-// Shared Tauri mock
-import "../__tests__/helpers/tauri-mock";
-
-// Explicitly mock @tauri-apps/api/event to prevent real listen calls
+// All Tauri module mocks — declared locally (NOT via ../__tests__/helpers/tauri-mock)
+// for proper vi.mock hoisting before Toolbar.svelte's static imports resolve.
+// The new Review-button tests assert on `emit` identity, which requires the
+// mocked event module to be the SAME instance Toolbar.svelte sees at import time
+// — a guarantee the shared helper cannot provide (its vi.mock runs at the helper
+// file's import time, AFTER Toolbar.svelte has already resolved its imports).
+//
+// Includes:
+//   listen: vi.fn().mockResolvedValue(() => {})
+//   emit: vi.fn().mockResolvedValue(undefined)
 vi.mock("@tauri-apps/api/event", () => ({
 	listen: vi.fn().mockResolvedValue(() => {}),
 	emit: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({
+	invoke: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+	open: vi.fn(),
+	ask: vi.fn().mockResolvedValue(false),
+	message: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock invoke module — safeInvoke for check_undo_available etc.
@@ -144,9 +160,8 @@ describe("Toolbar", () => {
 				reviewActive: false,
 			},
 		});
-		const reviewBtn = screen.getByText("Review").closest("button");
-		expect(reviewBtn).not.toBeNull();
-		await fireEvent.click(reviewBtn!);
+		const reviewBtn = screen.getByRole("button", { name: /Review/ });
+		await fireEvent.click(reviewBtn);
 		expect(vi.mocked(emit)).toHaveBeenCalledWith("review-toggle");
 	});
 
@@ -159,8 +174,7 @@ describe("Toolbar", () => {
 				reviewActive: true,
 			},
 		});
-		const btn = screen.getByText("Review").closest("button");
-		expect(btn).not.toBeNull();
+		const btn = screen.getByRole("button", { name: /Review/ });
 		expect(btn).toHaveClass("toolbar-btn-active");
 		expect(btn).toHaveAttribute("aria-pressed", "true");
 	});
