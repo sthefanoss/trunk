@@ -860,3 +860,166 @@ describe("ReviewPanel", () => {
 		});
 	});
 });
+
+// Phase 73-01 — cold-boot resume. When the panel mounts on a repo whose review
+// session exists on disk but isn't in memory (status.state === "resume-available"),
+// reload() must call resume_review_session exactly once before the parallel list
+// reads. Active/none paths must skip the resume entirely. Resume rejections (e.g.
+// the newer_version TrunkError from a forward-incompat session file) surface as a
+// toast via errorMessage(); reads still attempt and fall through the existing
+// no_session arm to the cold empty state.
+//
+// REAL timers — the cold-boot reload chain is microtask-driven only. Do NOT
+// promote vi.useFakeTimers() into this describe; the top-of-file `flush()` helper
+// uses setTimeout(0) and deadlocks under fake timers.
+describe("cold-boot resume", () => {
+	const RESUME_AVAILABLE: SessionStatus = {
+		state: "resume-available",
+		file_exists: true,
+		canonical_path: "/repo",
+	};
+	const ACTIVE: SessionStatus = {
+		state: "active",
+		file_exists: true,
+		canonical_path: "/repo",
+	};
+	const NONE: SessionStatus = {
+		state: "none",
+		file_exists: false,
+		canonical_path: "/repo",
+	};
+
+	function resumeCallCount(): number {
+		return calledCommands().filter((c) => c === "resume_review_session").length;
+	}
+
+	it("calls resume_review_session exactly once when status is resume-available", async () => {
+		installReads({
+			commits,
+			comments: [lineAnchoredComment("c1", COMMIT_A, "x")],
+			resolutions: [resolvable("c1")],
+			status: RESUME_AVAILABLE,
+			// After a successful resume the backend reports "active"; the
+			// session-changed listener triggers a second reload() which reads
+			// "active" and SKIPS the resume branch — keeping the count at 1.
+			statusAfterResume: ACTIVE,
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		// Fire the listener-triggered second reload (no ad-hoc mockImplementation;
+		// the dispatcher's `resumed` flag is what gates the post-resume status).
+		fireSessionChanged("/repo");
+		await flush();
+
+		expect(resumeCallCount()).toBe(1);
+
+		// Resume happens BEFORE the parallel reads — assert call order from the
+		// dispatcher's recorded sequence.
+		const order = calledCommands();
+		const resumeIdx = order.indexOf("resume_review_session");
+		const listIdx = order.indexOf("list_session_commits");
+		expect(resumeIdx).toBeGreaterThanOrEqual(0);
+		expect(listIdx).toBeGreaterThan(resumeIdx);
+
+		// Reads ran after resume — the comment text is in the DOM.
+		expect(screen.getByText("x")).toBeInTheDocument();
+	});
+
+	it("skips resume when session is already active", async () => {
+		installReads({
+			commits,
+			comments: [lineAnchoredComment("c1", COMMIT_A, "x")],
+			resolutions: [resolvable("c1")],
+			status: ACTIVE,
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		expect(resumeCallCount()).toBe(0);
+		// Reads still run.
+		expect(screen.getByText("x")).toBeInTheDocument();
+	});
+
+	it("skips resume when no session exists on disk", async () => {
+		installReads({
+			commits: [],
+			comments: [],
+			resolutions: [],
+			status: NONE,
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		expect(resumeCallCount()).toBe(0);
+		// Reads still run; no toast emitted; cold render path.
+		expect(calledCommands()).toContain("list_session_commits");
+		expect(vi.mocked(showToast)).not.toHaveBeenCalled();
+	});
+
+	it("surfaces newer_version TrunkError rejection as toast", async () => {
+		installReads({
+			status: RESUME_AVAILABLE,
+			resumeRejection: {
+				code: "newer_version",
+				message: "Session file is newer than this build supports",
+			},
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		expect(vi.mocked(showToast)).toHaveBeenCalledWith(
+			"Failed to resume review: Session file is newer than this build supports",
+			"error",
+		);
+	});
+
+	it("surfaces arbitrary IPC failure as toast via errorMessage Error branch", async () => {
+		installReads({
+			status: RESUME_AVAILABLE,
+			resumeRejection: new Error("boom"),
+		});
+		render(ReviewPanel, {
+			props: {
+				repoPath: "/repo",
+				session: createReviewSession(),
+				onJump: vi.fn(),
+				onJumpToCommit: vi.fn(),
+			},
+		});
+		await flush();
+
+		expect(vi.mocked(showToast)).toHaveBeenCalledWith(
+			"Failed to resume review: boom",
+			"error",
+		);
+	});
+});
