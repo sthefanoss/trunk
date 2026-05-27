@@ -1197,7 +1197,9 @@ describe("End review", () => {
 	});
 
 	it("clears pending timer on unmount (no console.error from torn-down state)", async () => {
-		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		const consoleError = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
 
 		const { unmount } = renderWithSession();
 		await flushFake();
