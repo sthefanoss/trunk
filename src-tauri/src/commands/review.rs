@@ -623,11 +623,33 @@ fn save_draft_comment_inner(
     })
 }
 
+/// Sync core of `seed_review_range`: precheck (Task 2) + git2 walk + RMW. Takes
+/// a pre-resolved canonical (matching siblings like `add_review_commit:676-677`)
+/// and the raw `repo_path` for `Repository::open`. Extracted so a unit test can
+/// drive the no-walk-on-no-session contract without a Tauri runtime (66/WR-03).
+fn seed_review_range_inner(
+    data_dir: &Path,
+    canonical: &Path,
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    base_oid: &str,
+    tip_oid: &str,
+    repo_path: &str,
+) -> Result<(), TrunkError> {
+    let repo = git2::Repository::open(repo_path).map_err(TrunkError::from)?;
+    let base = git2::Oid::from_str(base_oid).map_err(TrunkError::from)?;
+    let tip = git2::Oid::from_str(tip_oid).map_err(TrunkError::from)?;
+    validate_range(&repo, base, tip)?;
+    let range_oids = compute_range_oids(&repo, base, tip)?;
+    seed_review_range_rmw(data_dir, canonical, sessions, range_oids)
+}
+
 /// Seed the session from an inclusive commit range `[base..tip]` (SEL-01, D-02/D-03).
 ///
-/// git2 work (open repo, parse OIDs, validate, walk) runs in `spawn_blocking` on a
-/// cloned `RepoState` snapshot and the RAW path; the resulting range is then
-/// unioned into the session under the sessions mutex (one emit per gesture).
+/// Canonical resolves OUTSIDE `spawn_blocking` (matches sibling commands like
+/// `add_review_commit:676-677`, closing INT-W1). git2 work runs on the blocking
+/// pool; the RMW + emit stay on the async-runtime thread because
+/// `ReviewSessionsState` is a bare `Mutex` (not `Arc<Mutex>`), so its borrow
+/// cannot satisfy `spawn_blocking`'s `'static + Send` bound. One emit per gesture.
 #[tauri::command]
 pub async fn seed_review_range(
     path: String,
@@ -639,17 +661,17 @@ pub async fn seed_review_range(
 ) -> Result<(), String> {
     let state_map = state.0.lock().unwrap().clone();
     let data_dir = resolve_data_dir(&app)?;
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
 
     let path_for_blocking = path.clone();
-    let (canonical, range_oids) = tauri::async_runtime::spawn_blocking(
-        move || -> Result<(PathBuf, Vec<String>), TrunkError> {
-            let canonical = canonical_repo_path(&path_for_blocking, &state_map)?;
+    let range_oids = tauri::async_runtime::spawn_blocking(
+        move || -> Result<Vec<String>, TrunkError> {
             let repo = git2::Repository::open(&path_for_blocking).map_err(TrunkError::from)?;
             let base = git2::Oid::from_str(&base_oid).map_err(TrunkError::from)?;
             let tip = git2::Oid::from_str(&tip_oid).map_err(TrunkError::from)?;
             validate_range(&repo, base, tip)?;
-            let range_oids = compute_range_oids(&repo, base, tip)?;
-            Ok((canonical, range_oids))
+            compute_range_oids(&repo, base, tip)
         },
     )
     .await
@@ -1561,6 +1583,38 @@ mod tests {
         // No in-memory session for `canonical` → RMW must reject with `no_session`.
         let err = add_review_commit_rmw(data_dir.path(), &canonical, &sessions, "x").unwrap_err();
         assert_eq!(err.code, "no_session");
+    }
+
+    // 66/WR-03: seed_review_range_inner must return `no_session` without running a
+    // git walk when no session exists for the canonical path. The precheck is the
+    // cheap fast-fail gate before any libgit2 work. To prove the walk never ran,
+    // `repo_path` points at a tmp dir with NO `.git` — if the inner walked first,
+    // `Repository::open` would surface a git2 error code (NOT `no_session`).
+    #[test]
+    fn seed_review_range_rejects_when_no_session() {
+        use std::sync::Mutex;
+        let data_dir = TempDir::new().unwrap();
+        // A non-repo dir: `Repository::open` would fail here BEFORE the RMW lock
+        // reports `no_session` — so a passing assertion proves the precheck ran first.
+        let non_repo = TempDir::new().unwrap();
+        let canonical = data_dir.path().join("absent");
+        let sessions: Mutex<HashMap<PathBuf, ReviewSession>> = Mutex::new(HashMap::new());
+
+        let err = seed_review_range_inner(
+            data_dir.path(),
+            &canonical,
+            &sessions,
+            // OIDs are valid hex so a missing precheck would walk past parsing too;
+            // the only reason this can surface `no_session` is the precheck.
+            "0000000000000000000000000000000000000000",
+            "0000000000000000000000000000000000000001",
+            non_repo.path().to_str().unwrap(),
+        )
+        .expect_err("expected an error when no session exists for the canonical path");
+        assert_eq!(
+            err.code, "no_session",
+            "no session for the canonical path must short-circuit BEFORE the git walk (66/WR-03); got {err:?}"
+        );
     }
 
     // Disk-first ordering (D-10): if save_session fails, the in-memory session
