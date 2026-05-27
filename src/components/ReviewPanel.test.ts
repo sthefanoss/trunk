@@ -1,8 +1,10 @@
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { tick } from "svelte";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { safeInvoke } from "../lib/invoke.js";
 import { createReviewSession } from "../lib/review-session.svelte.js";
+import { showToast } from "../lib/toast.svelte.js";
 import type {
 	Comment,
 	CommentResolution,
@@ -29,6 +31,12 @@ vi.mock("../lib/toast.svelte.js", () => ({
 // it doesn't reach the real Tauri IPC core (which is undefined under jsdom).
 vi.mock("@tauri-apps/api/event", () => ({
 	listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
+// Phase 72: Copy handler writes to the clipboard via the plugin's writeText.
+// Mock the boundary so we can assert on calls and trigger rejections.
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
+	writeText: vi.fn().mockResolvedValue(undefined),
 }));
 
 const COMMIT_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -626,11 +634,54 @@ describe("ReviewPanel", () => {
 		});
 	});
 
-	// Phase 70 D-01 / D-02 / DOC-01: the Generate button + preview swap.
-	// The rune is exercised through the panel — only safeInvoke is mocked, so
-	// these tests verify the integration ReviewPanel↔rune↔IPC end-to-end.
-	describe("Generate / preview", () => {
-		it("generate button is disabled when no comments", async () => {
+	// Phase 72: Copy button replaces Generate. Click invokes generate_review_doc,
+	// then writeText with the returned markdown; ✓ Copied for 1500ms with
+	// clearTimeout-before-setTimeout re-arm; failure surfaces toast via
+	// instanceof Error narrowing. Pattern carry-forward from the now-deleted
+	// ReviewDocPreview.test.ts.
+	describe("Copy", () => {
+		// Scope fake timers to THIS describe only. The file-global `flush` helper
+		// at the top uses `setTimeout(r, 0)` which deadlocks under fake timers —
+		// the tests inside this block use a local `flushFake` instead.
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		// Microtask flush — safe under fake timers (no setTimeout(0)).
+		async function flushFake() {
+			await Promise.resolve();
+			await tick();
+		}
+
+		// `Copy` vs `Copied` share only the `Cop` prefix (no `y` in `Copied`!) —
+		// substring match on `/Copy/` would NOT match the success-state button.
+		// Use `/Cop(y|ied)/` to cover both states via a single accessor.
+		function getCopyButton() {
+			return screen.getByRole("button", { name: /Cop(y|ied)/ });
+		}
+
+		function renderWithComment(opts: { generateDoc?: string } = {}) {
+			installReads({
+				commits,
+				comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
+				resolutions: [resolvable("c1")],
+				generateDoc: opts.generateDoc ?? "the doc",
+			});
+			render(ReviewPanel, {
+				props: {
+					repoPath: "/repo",
+					session: createReviewSession(),
+					onJump: vi.fn(),
+					onJumpToCommit: vi.fn(),
+				},
+			});
+		}
+
+		it("Copy button is disabled when no comments", async () => {
 			installReads({ commits, comments: [], resolutions: [] });
 			render(ReviewPanel, {
 				props: {
@@ -640,77 +691,125 @@ describe("ReviewPanel", () => {
 					onJumpToCommit: vi.fn(),
 				},
 			});
-			await flush();
+			await flushFake();
 
-			const generateBtn = screen.getByRole("button", { name: /generate/i });
-			expect(generateBtn).toBeDisabled();
-			// The D-01 LOCKED tooltip drives the affordance when disabled.
-			expect(generateBtn.getAttribute("title")).toBe(
+			const copyBtn = getCopyButton();
+			expect(copyBtn).toBeDisabled();
+			// The disabled tooltip is inherited verbatim from the Generate button.
+			expect(copyBtn.getAttribute("title")).toBe(
 				"Add at least one comment to generate",
 			);
 		});
 
-		it("generate click invokes generate_review_doc and swaps to preview", async () => {
-			installReads({
-				commits,
-				comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
-				resolutions: [resolvable("c1")],
-				generateDoc: "# Code review: trunk\n\nfoo",
-			});
-			render(ReviewPanel, {
-				props: {
-					repoPath: "/repo",
-					session: createReviewSession(),
-					onJump: vi.fn(),
-					onJumpToCommit: vi.fn(),
-				},
-			});
-			await flush();
-
-			const generateBtn = screen.getByRole("button", { name: /generate/i });
-			expect(generateBtn).not.toBeDisabled();
-			await fireEvent.click(generateBtn);
-			await flush();
+		it("copy click invokes generate and writeText", async () => {
+			renderWithComment();
+			await flushFake();
+			await fireEvent.click(getCopyButton());
+			await flushFake();
 
 			expect(calledCommands()).toContain("generate_review_doc");
 			expect(callArgs("generate_review_doc")?.path).toBe("/repo");
-			// The preview view replaces the list — the markdown body is in the DOM.
-			expect(
-				await screen.findByText(/# Code review: trunk/),
-			).toBeInTheDocument();
+			expect(vi.mocked(writeText)).toHaveBeenCalledTimes(1);
+			expect(vi.mocked(writeText)).toHaveBeenCalledWith("the doc");
 		});
 
-		it("back to comments returns to list view", async () => {
-			installReads({
-				commits,
-				comments: [lineAnchoredComment("c1", COMMIT_A, "look here")],
-				resolutions: [resolvable("c1")],
-				generateDoc: "# Code review: trunk\n\nfoo",
-			});
-			render(ReviewPanel, {
-				props: {
-					repoPath: "/repo",
-					session: createReviewSession(),
-					onJump: vi.fn(),
-					onJumpToCommit: vi.fn(),
-				},
-			});
-			await flush();
-
-			// Drive into preview first.
-			await fireEvent.click(screen.getByRole("button", { name: /generate/i }));
-			await flush();
+		it("shows Copied affordance", async () => {
+			renderWithComment();
+			await flushFake();
+			// Before the click the button reads "Copy".
 			expect(
-				await screen.findByText(/# Code review: trunk/),
-			).toBeInTheDocument();
+				screen.getByRole("button", { name: /Cop(y|ied)/ }),
+			).toHaveTextContent(/^Copy$/);
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+				/Copied/,
+			);
+		});
 
-			// Click the back affordance inside the preview header.
-			await fireEvent.click(screen.getByRole("button", { name: /back/i }));
-			await flush();
+		it("reverts to Copy after 1500ms", async () => {
+			renderWithComment();
+			await flushFake();
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+				/Copied/,
+			);
+			vi.advanceTimersByTime(1500);
+			await tick();
+			expect(
+				screen.getByRole("button", { name: /Cop(y|ied)/ }),
+			).toHaveTextContent(/^Copy$/);
+		});
 
-			// The list view's file-ref text returns; the preview body is gone.
-			expect(screen.getByText("src/main.ts:L10-L12")).toBeInTheDocument();
-			expect(screen.queryByText(/# Code review: trunk/)).toBeNull();
+		it("remains clickable during window", async () => {
+			renderWithComment();
+			await flushFake();
+			// First click at virtual t=0.
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+				/Copied/,
+			);
+
+			// Mid-window second click at virtual t=500.
+			vi.advanceTimersByTime(500);
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+
+			// If the FIRST timer were still alive it would fire at t=1500
+			// (we're at t=500 + 1499 = t=1999). Advance 1499 and assert still Copied.
+			vi.advanceTimersByTime(1499);
+			await tick();
+			expect(screen.getByRole("button", { name: /Copied/ })).toHaveTextContent(
+				/Copied/,
+			);
+
+			// Second timer fires at t=500 + 1500 = t=2000.
+			vi.advanceTimersByTime(1);
+			await tick();
+			expect(
+				screen.getByRole("button", { name: /Cop(y|ied)/ }),
+			).toHaveTextContent(/^Copy$/);
+		});
+
+		it("shows error toast on failure", async () => {
+			vi.mocked(writeText).mockRejectedValueOnce(new Error("plugin disabled"));
+			renderWithComment();
+			await flushFake();
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			expect(vi.mocked(showToast)).toHaveBeenCalledWith(
+				"Failed to copy: plugin disabled",
+				"error",
+			);
+		});
+
+		it("does not flip copied on failure", async () => {
+			vi.mocked(writeText).mockRejectedValueOnce(new Error("plugin disabled"));
+			renderWithComment();
+			await flushFake();
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			// Button text must still be Copy — never Copied — on the failure path.
+			expect(
+				screen.getByRole("button", { name: /Cop(y|ied)/ }),
+			).toHaveTextContent(/^Copy$/);
+			expect(
+				screen.queryByRole("button", { name: /Copied/ }),
+			).not.toBeInTheDocument();
+		});
+
+		it("coerces non-Error rejection", async () => {
+			vi.mocked(writeText).mockRejectedValueOnce("raw string");
+			renderWithComment();
+			await flushFake();
+			await fireEvent.click(getCopyButton());
+			await flushFake();
+			expect(vi.mocked(showToast)).toHaveBeenCalledWith(
+				"Failed to copy: raw string",
+				"error",
+			);
 		});
 	});
 });

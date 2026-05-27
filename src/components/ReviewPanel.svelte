@@ -5,8 +5,9 @@
 // and jump-to-anchor with read-only orphan rows (D-07 / D-08). The panel lives
 // in the center pane (UI-SPEC:133); jump is driven by the host via onJump.
 
-import { FileText, MessageSquarePlus } from "@lucide/svelte";
+import { Clipboard, MessageSquarePlus } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import type { ReviewSessionManager } from "../lib/review-session.svelte.js";
 import { showToast } from "../lib/toast.svelte.js";
@@ -17,7 +18,6 @@ import type {
 	SessionCommit,
 	SessionStatus,
 } from "../lib/types.js";
-import ReviewDocPreview from "./ReviewDocPreview.svelte";
 
 interface Props {
 	repoPath: string;
@@ -127,6 +127,34 @@ const groups = $derived.by<CommitGroup[]>(() => {
 
 const hasAnyComment = $derived(comments.length > 0);
 
+// Phase 72 — Copy state. Pattern carry-forward from the Phase 71 preview
+// component (being deleted in Plan 04; this is now the canonical home).
+let copied = $state(false);
+// Plain handle, not $state — only used to clear; reactivity is on `copied`.
+let copyTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Type guard for the TrunkError shape thrown by safeInvoke (a plain object with
+// string `code` + `message`, NOT an Error subclass — see lib/invoke.ts). Used
+// in catch blocks to surface `.message` without an unchecked `as` cast.
+function isTrunkError(e: unknown): e is TrunkError {
+	return (
+		typeof e === "object" &&
+		e !== null &&
+		"code" in e &&
+		"message" in e &&
+		typeof (e as { message: unknown }).message === "string"
+	);
+}
+
+// Extract a human-readable message from an unknown catch value. Handles three
+// shapes: native Error (writeText / plugin throws), TrunkError (safeInvoke
+// throws — plain object with .message), and anything else (coerced via String).
+function errorMessage(e: unknown, fallback: string): string {
+	if (e instanceof Error) return e.message;
+	if (isTrunkError(e)) return e.message;
+	return fallback;
+}
+
 function isOrphan(c: Comment): boolean {
 	const r = resolutionById.get(c.id);
 	return r !== undefined && !r.resolvable;
@@ -211,8 +239,7 @@ async function reload() {
 		comments = nextComments;
 		resolutions = nextResolutions;
 	} catch (e) {
-		const err = e as TrunkError;
-		if (err.code === "no_session") {
+		if (isTrunkError(e) && e.code === "no_session") {
 			commits = [];
 			comments = [];
 			resolutions = [];
@@ -254,7 +281,7 @@ async function saveAddNote(oid: string) {
 			text,
 		});
 	} catch (e) {
-		showToast((e as TrunkError).message ?? "Failed to add note", "error");
+		showToast(errorMessage(e, "Failed to add note"), "error");
 	}
 }
 
@@ -265,24 +292,35 @@ async function saveEdit(id: string) {
 	try {
 		await safeInvoke("edit_comment", { path: repoPath, id, text });
 	} catch (e) {
-		showToast((e as TrunkError).message ?? "Failed to edit comment", "error");
+		showToast(errorMessage(e, "Failed to edit comment"), "error");
 	}
 }
 
-// Phase 70 D-01 / DOC-01: click handler for the header Generate button. The
-// button is disabled by `!hasAnyComment`, so the no_comments TrunkError branch
-// is reachable only by a race (the session was emptied by another window
-// between render and click) — surface it as a toast and stay on the list view.
-// The rune's generate() is the IPC + state-mutation surface; this handler is
-// the toast-wrapping facade.
-async function onGenerateClick() {
+// Phase 72 — Copy handler. The button is disabled by `!hasAnyComment`, so the
+// no_comments TrunkError branch (from session.generate) is reachable only by a
+// race (the session was emptied by another window between render and click) —
+// surface it as a toast. The handler composes session.generate() (IPC, returns
+// markdown string) with writeText() (clipboard plugin). Both are awaited inside
+// one try/catch so a failure in either step lands in the same showToast call;
+// the button never flips to "Copied" on failure. Carry-forward of the Phase 71
+// preview component's Copy handler (now-deleted in Plan 04).
+async function onCopyClick() {
 	try {
-		await session.generate(repoPath);
+		const md = await session.generate(repoPath);
+		await writeText(md);
+		// Pitfall 2 carry-forward: clear any in-flight revert timer before
+		// scheduling a new one. Rapid re-clicks must extend the affordance,
+		// not race against it.
+		if (copyTimer !== null) clearTimeout(copyTimer);
+		copied = true;
+		copyTimer = setTimeout(() => {
+			copied = false;
+			copyTimer = null;
+		}, 1500);
 	} catch (e) {
-		showToast(
-			(e as TrunkError).message ?? "Failed to generate review doc",
-			"error",
-		);
+		// `unknown` in TS strict; narrow rather than cast. Pitfall 1 + CLAUDE.md.
+		const msg = e instanceof Error ? e.message : String(e);
+		showToast(`Failed to copy: ${msg}`, "error");
 	}
 }
 
@@ -296,7 +334,7 @@ async function deleteComment(id: string) {
 	try {
 		await safeInvoke("delete_comment", { path: repoPath, id });
 	} catch (e) {
-		showToast((e as TrunkError).message ?? "Failed to delete comment", "error");
+		showToast(errorMessage(e, "Failed to delete comment"), "error");
 	}
 }
 
@@ -329,21 +367,12 @@ $effect(() => {
 });
 </script>
 
-{#if session.state.panelMode === "preview" && session.state.previewMarkdown !== null}
-  <!-- Phase 70 D-02: panel-internal swap. The generated markdown replaces the
-       comment-list view entirely; the cached previewMarkdown is preserved
-       across swaps (re-Generate is the only invalidation path). -->
-  <ReviewDocPreview
-    markdown={session.state.previewMarkdown}
-    onBack={() => session.showList()}
-  />
-{:else}
 <div class="flex flex-col" style="flex: 1; min-height: 0; overflow: hidden;">
-  <!-- Panel-level header (Phase 70 D-01): hosts the Generate button. Disabled
-       until the session has >=1 comment; the disabled tooltip and the hard
-       backstop in commands/review.rs (no_comments TrunkError) form the D-11
-       gate. The header sits above the scrollable list body so the button is
-       always visible while the list scrolls. -->
+  <!-- Panel-level header (Phase 72): hosts the Copy button. Disabled until the
+       session has >=1 comment; the disabled tooltip and the hard backstop in
+       commands/review.rs (no_comments TrunkError) form the gate. The header
+       sits above the scrollable list body so the button is always visible
+       while the list scrolls. -->
   <div
     class="flex items-center"
     style="
@@ -358,13 +387,18 @@ $effect(() => {
     <span class="preview-spacer" style="flex: 1;"></span>
     <button
       type="button"
-      class="generate-button flex items-center"
-      onclick={onGenerateClick}
+      class="copy-button flex items-center"
+      onclick={onCopyClick}
       disabled={!hasAnyComment}
       title={hasAnyComment ? "" : "Add at least one comment to generate"}
     >
-      <FileText size={14} />
-      <span>Generate</span>
+      {#if copied}
+        <span aria-hidden="true">✓</span>
+        <span>Copied</span>
+      {:else}
+        <Clipboard size={14} />
+        <span>Copy</span>
+      {/if}
     </button>
   </div>
   <div
@@ -595,7 +629,6 @@ $effect(() => {
   {/if}
   </div>
 </div>
-{/if}
 
 <style>
   .jump-ref:hover,
@@ -737,24 +770,27 @@ $effect(() => {
     opacity: 0.5;
   }
 
-  /* Phase 70 Generate button — lives in the panel header. Disabled state
-     follows the existing card-editor-actions pattern (cursor + opacity). */
-  .generate-button {
+  /* Phase 72 Copy button — lives in the panel header. Carry-forward from the
+     deleted Phase 71 preview component. */
+  .copy-button {
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
     background: transparent;
-    color: var(--color-text);
+    color: var(--color-text-muted);
     border: 1px solid var(--color-border);
     border-radius: 4px;
     cursor: pointer;
-    padding: 2px 10px;
+    padding: 2px 8px;
     font-size: 12px;
     font-family: inherit;
   }
-  .generate-button:hover:not([disabled]),
-  .generate-button:focus-visible:not([disabled]) {
+  .copy-button:hover:not([disabled]),
+  .copy-button:focus-visible:not([disabled]) {
+    color: var(--color-text);
     background: var(--color-hover);
   }
-  .generate-button[disabled] {
+  .copy-button[disabled] {
     cursor: not-allowed;
     opacity: 0.5;
   }
