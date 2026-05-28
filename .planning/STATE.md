@@ -7,7 +7,7 @@ stopped_at: Milestone v0.14 defined; awaiting roadmap
 last_updated: "2026-05-28T00:00:00.000Z"
 last_activity: 2026-05-28 — Milestone v0.14 Commit Message UX started
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0

@@ -2,6 +2,7 @@
 created: 2026-04-14T00:00:00.000Z
 title: Collect commit messages for merge/revert instead of bypassing editor
 area: commands
+resolves_phase: 76
 files:
   - src-tauri/src/commands/operation_state.rs
   - src-tauri/src/commands/commit_actions.rs

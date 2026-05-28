@@ -15,6 +15,7 @@
 - â **v0.11 Infrastructure** — Phases 53-58 (shipped 2026-03-27)
 - â **v0.12 Better Diffs** — Phases 59-64 (shipped 2026-03-30)
 - ✅ **v0.13 Code Review Mode** — Phases 65-74 (shipped 2026-05-27)
+- 🔄 **v0.14 Commit Message UX** — Phases 75-76 (in progress)
 
 ## Phases
 
@@ -197,6 +198,45 @@ Full details: [milestones/v0.13-ROADMAP.md](milestones/v0.13-ROADMAP.md)
 
 </details>
 
+<details open>
+<summary>🔄 v0.14 Commit Message UX (Phases 75-76) — IN PROGRESS</summary>
+
+**Goal:** Make `merge --continue`, `merge <branch>`, and `revert <oid>` open a pre-populated commit-message editor matching git's terminal `$EDITOR` behavior, eliminating the `GIT_EDITOR=true` / `--no-edit` bypasses that silently swallow the message.
+
+**Requirements:** MSG-01..06 (6 total)
+
+### Phase 75: Message Editor Infrastructure
+
+**Goal:** Establish the reusable message-editor primitive (Svelte modal + Rust temp-editor-script helper) without changing any production git operations yet.
+
+**Requirements:** MSG-04, MSG-05
+
+**Why infrastructure first:** Lets us TDD the editor and Rust helper in isolation. The three op wirings in Phase 76 then become mechanical applications of the established pattern instead of three concurrent designs.
+
+**Success criteria:**
+1. `MessageEditor.svelte` modal renders with a provided default, save returns the edited text, cancel returns `null` — all driven through a host-owned `open(default) → Promise<string | null>` API
+2. Rust temp-editor helper (extracted from `interactive_rebase.rs:157-172` into `src-tauri/src/git/editor.rs` or similar) produces a script-file-based `GIT_EDITOR=<script>` target that swaps the user-edited content into git's commit-message file, and cleans up temp files on both success and error paths
+3. Unit tests cover: default pre-fill, edit + save round-trip, Esc cancel returns null, empty/whitespace-only message returns null (MSG-06 building block), no temp-file leaks under happy or error path
+4. No production code path changed (Phase 76 does the wiring); `just check` passes
+
+### Phase 76: Wire MessageEditor into merge/continue, merge, and revert
+
+**Goal:** Route the three git operations through the Phase 75 MessageEditor + per-op default-message builders, remove the `GIT_EDITOR=true` / `--no-edit` bypasses, and abort cleanly on empty message.
+
+**Requirements:** MSG-01, MSG-02, MSG-03, MSG-06
+
+**Success criteria:**
+1. **Continue Merge** opens the editor pre-filled from `.git/MERGE_MSG`; edited message lands in the merge commit; `operation_state.rs:171` no longer sets `GIT_EDITOR=true`
+2. **Merge Branch** (non-fast-forward only) opens the editor pre-filled with `"Merge branch 'X'"` (or `"Merge remote-tracking branch 'origin/X'"` for remotes); edited message lands in the merge commit; `operation_state.rs:301,304` no longer use `--no-edit` or `GIT_EDITOR=true`
+3. **Revert Commit** opens the editor pre-filled with `Revert "<subject>"\n\nThis reverts commit <oid>.`; edited message lands in the revert commit; `commit_actions.rs:153` no longer uses `--no-edit`
+4. Empty / whitespace-only message in any of the three aborts the operation cleanly: no commit created, repo remains in a recoverable state (mid-merge with resolved conflicts, or `REVERT_HEAD` set)
+5. Fast-forward merges continue to skip the editor (matches CLI behavior — no merge commit means no message needed)
+6. `just check` passes — fmt, biome, svelte-check, clippy, cargo-test, vitest all green
+
+Full details: [milestones/v0.14-ROADMAP.md](milestones/v0.14-ROADMAP.md) (created at milestone close)
+
+</details>
+
 ## Progress
 
 | Milestone | Phases | Plans | Status | Shipped |
@@ -214,7 +254,8 @@ Full details: [milestones/v0.13-ROADMAP.md](milestones/v0.13-ROADMAP.md)
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
 | v0.12 Better Diffs | 59-64 | 14/14 | Complete | 2026-03-30 |
 | v0.13 Code Review Mode | 65-74 | 37/37 | Complete | 2026-05-27 |
+| v0.14 Commit Message UX | 75-76 | 0/0 | In Progress | — |
 
 ---
 *Roadmap created: 2026-03-13*
-*Last updated: 2026-05-28 — v0.13 Code Review Mode shipped; 10 phases, 37 plans, 65 tasks archived to milestones/v0.13-*. 1 pending human UAT (cross-repo session-changed isolation).*
+*Last updated: 2026-05-28 — v0.14 Commit Message UX milestone started (Phases 75-76, MSG-01..06).*
