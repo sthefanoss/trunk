@@ -14,7 +14,17 @@ findings:
   warning: 4
   info: 3
   total: 8
-status: issues_found
+status: resolved
+resolved:
+  - CR-01 (3f6b2ee)
+  - WR-01 (4d4a148)
+  - WR-02 (97148e7)
+  - WR-03 (97148e7)
+  - WR-04 (3f6b2ee)
+  - IN-01 (4d4a148)
+deferred:
+  - IN-02 (UI affordance for empty/whitespace Save — Phase 76 caller-level concern)
+  - IN-03 (Windows-side editor shell — out of phase-75 scope)
 ---
 
 # Phase 75: Code Review Report
