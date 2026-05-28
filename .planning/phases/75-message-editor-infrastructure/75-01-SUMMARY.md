@@ -70,7 +70,7 @@ completed: 2026-05-28
 
 1. **Task 1 (RED): write failing MessageEditor.test.ts** — `e34cf8b` (test)
 2. **Task 2 (GREEN): implement MessageEditor.svelte** — `1d491eb` (feat)
-3. **Task 3 (REFACTOR+verify): walk simple-design checks, run `just check`, write SUMMARY** — committed with this SUMMARY (no implementation changes — Task 2 output was already minimal per Beck's four rules; explicit no-refactor decision recorded)
+3. **Task 3 (REFACTOR+verify): walk simple-design checks, run `just check`, write SUMMARY** — `2a73dd6` (docs — no implementation changes; Task 2 output was already minimal per Beck's four rules; biome whitespace reformat of test file only)
 
 ## Files Created/Modified
 
