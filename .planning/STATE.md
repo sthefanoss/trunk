@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.14
 milestone_name: milestone
 status: planned (2 plans, wave 1; ready for execution)
-stopped_at: Phase 75 context gathered
-last_updated: "2026-05-28T21:08:42.180Z"
+stopped_at: Phase 76 context gathered
+last_updated: "2026-05-28T21:45:04.654Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 2
@@ -198,9 +198,9 @@ v0.13-specific outstanding work:
 ## Session Continuity
 
 Last activity: 2026-05-28
-Last session: 2026-05-28T12:00:00.000Z
-Stopped at: Phase 75 context gathered
-Resume file: .planning/phases/75-message-editor-infrastructure/75-CONTEXT.md
+Last session: 2026-05-28T21:45:04.651Z
+Stopped at: Phase 76 context gathered
+Resume file: .planning/phases/76-wire-messageeditor-into-merge-continue-merge-and-revert/76-CONTEXT.md
 Next action: /gsd:plan-phase 75
 
 ## Operator Next Steps
