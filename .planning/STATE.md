@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.14
 milestone_name: milestone
 status: executing
-stopped_at: Completed 76-02-PLAN.md (revert-side backend)
-last_updated: "2026-05-28T23:28:27.692Z"
-last_activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
+stopped_at: Completed 76-03-PLAN.md (frontend merge/revert wiring)
+last_updated: "2026-05-29T01:50:00.000Z"
+last_activity: 2026-05-29 -- Phase 76 Plan 03 (frontend merge/revert wiring) executed
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-28 after v0.14 defined)
 ## Current Position
 
 Phase: 76 (wire-messageeditor-into-merge-continue-merge-and-revert) — EXECUTING
-Plan: 3 of 4 (76-01, 76-02 complete)
+Plan: 4 of 4 (76-01, 76-02, 76-03 complete)
 Status: Executing Phase 76
-Last activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
+Last activity: 2026-05-29 -- Phase 76 Plan 03 (frontend merge/revert wiring) executed
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Last activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
 | Phase 73 P03 | 6min | 3 tasks | 2 files |
 | Phase 76 P01 | 30min | 2 tasks + 1 ownership | 5 files |
 | Phase 76 P02 | 18min | 2 tasks | 4 files |
+| Phase 76 P03 | 38min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,9 @@ Last activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
 - [Phase 76]: 76-01: lib.rs dropped merge_branch registration while frontend still invokes it (CommitGraph:592, BranchSidebar:397) — expected wave seam, repointed in Plan 03
 - [Phase 76]: 76-01: renaming merge_branch_inner broke the pre-existing src-tauri/tests integration suite (driver + 4 call sites); migrated to merge_branch_begin two-step semantics and INVERTED merge_branch_with_conflict_returns_error (which asserted the now-fixed stdout-conflict bug) — gate is `just check`, not filtered cargo test
 - [Phase 76]: 76-02: revert-side backend — revert_commit_begin/continue/abort (RevertBeginResult struct, --cleanup=strip, git revert --abort recovery for MSG-06)
+- [Phase 76]: 76-03: single RepoView-hosted MessageEditor with a reactive $state title flipped per-operation before await ref.open() (D-03/D-04); onopenmessageeditor threaded to CommitGraph/BranchSidebar/StagingPanel mirroring onopenrebaseeditor
+- [Phase 76]: 76-03: merge/revert trigger sites route begin -> editor -> continue with a single null guard (cancel/empty leaves the recoverable in-progress state, no commit — D-02/MSG-06); merge ff/conflicts open no editor (MSG-02 ff skip)
+- [Phase 76]: 76-03: context-menu-wired handlers tested via menu-action capture — the @tauri-apps/api/menu MenuItem.new mock records {text -> action} so firing the captured callback exercises the real user gesture in jsdom; BranchSidebar.test.ts must declare ALL Tauri mocks locally (a shared named-import helper reorders vi.mock hoisting and detaches the invoke mock the component sees)
 
 ### Pending Todos
 
@@ -207,11 +211,11 @@ v0.13-specific outstanding work:
 ## Session Continuity
 
 Last activity: 2026-05-29
-Last session: 2026-05-29T00:00:00.000Z
-Stopped at: Completed 76-02-PLAN.md (revert-side backend)
+Last session: 2026-05-29T01:50:00.000Z
+Stopped at: Completed 76-03-PLAN.md (frontend merge/revert wiring)
 Resume file: None
-Next action: execute 76-03 (frontend merge/revert wiring)
+Next action: execute 76-04 (StagingPanel merge-continue + OperationBanner revert continue/abort + UAT)
 
 ## Operator Next Steps
 
-- Execute Plan 76-03 (frontend: host MessageEditor in RepoView, thread onopenmessageeditor to CommitGraph/BranchSidebar/StagingPanel, route merge/revert through the modal)
+- Execute Plan 76-04 (StagingPanel merge-continue editor replacing the inline form, OperationBanner Revert Continue/Abort buttons consuming onopenmessageeditor + revert_abort, then UAT checkpoint)

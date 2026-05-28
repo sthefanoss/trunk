@@ -242,7 +242,7 @@ Plans:
 5. Fast-forward merges continue to skip the editor (matches CLI behavior — no merge commit means no message needed)
 6. `just check` passes — fmt, biome, svelte-check, clippy, cargo-test, vitest all green
 
-**Plans:** 4 plans (4 waves)
+**Plans:** 3/4 plans complete
 
 Plans:
 
@@ -256,7 +256,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 76-03-PLAN.md — host MessageEditor in RepoView; route CommitGraph + BranchSidebar merge/revert triggers (MSG-02/MSG-03/MSG-06)
+- [x] 76-03-PLAN.md — host MessageEditor in RepoView; route CommitGraph + BranchSidebar merge/revert triggers (MSG-02/MSG-03/MSG-06)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -283,7 +283,7 @@ Full details: [milestones/v0.14-ROADMAP.md](milestones/v0.14-ROADMAP.md) (create
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
 | v0.12 Better Diffs | 59-64 | 14/14 | Complete | 2026-03-30 |
 | v0.13 Code Review Mode | 65-74 | 37/37 | Complete | 2026-05-27 |
-| v0.14 Commit Message UX | 75-76 | 2/6 | In Progress | — |
+| v0.14 Commit Message UX | 75-76 | 5/6 | In Progress | — |
 
 ---
 *Roadmap created: 2026-03-13*
