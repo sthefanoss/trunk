@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.14
 milestone_name: milestone
 status: executing
-stopped_at: Completed 76-01-PLAN.md (merge-side backend)
-last_updated: "2026-05-29T00:00:00.000Z"
-last_activity: 2026-05-29 -- Phase 76 Plan 01 executed
+stopped_at: Completed 76-02-PLAN.md (revert-side backend)
+last_updated: "2026-05-28T23:28:27.692Z"
+last_activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-28 after v0.14 defined)
 ## Current Position
 
 Phase: 76 (wire-messageeditor-into-merge-continue-merge-and-revert) — EXECUTING
-Plan: 2 of 4 (76-01 complete)
+Plan: 3 of 4 (76-01, 76-02 complete)
 Status: Executing Phase 76
-Last activity: 2026-05-29 -- Phase 76 Plan 01 (merge-side backend) executed
+Last activity: 2026-05-29 -- Phase 76 Plan 02 (revert-side backend) executed
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Last activity: 2026-05-29 -- Phase 76 Plan 01 (merge-side backend) executed
 | Phase 73 P02 | 6min | 2 tasks | 2 files |
 | Phase 73 P03 | 6min | 3 tasks | 2 files |
 | Phase 76 P01 | 30min | 2 tasks + 1 ownership | 5 files |
+| Phase 76 P02 | 18min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,7 @@ Last activity: 2026-05-29 -- Phase 76 Plan 01 (merge-side backend) executed
 - [Phase 76]: 76-01: merge_continue commit uses --cleanup=strip (drops # Conflicts: block); GIT_EDITOR=true else-branch removed — None message now returns Err (contract violation), not a silent bypass
 - [Phase 76]: 76-01: lib.rs dropped merge_branch registration while frontend still invokes it (CommitGraph:592, BranchSidebar:397) — expected wave seam, repointed in Plan 03
 - [Phase 76]: 76-01: renaming merge_branch_inner broke the pre-existing src-tauri/tests integration suite (driver + 4 call sites); migrated to merge_branch_begin two-step semantics and INVERTED merge_branch_with_conflict_returns_error (which asserted the now-fixed stdout-conflict bug) — gate is `just check`, not filtered cargo test
+- [Phase 76]: 76-02: revert-side backend — revert_commit_begin/continue/abort (RevertBeginResult struct, --cleanup=strip, git revert --abort recovery for MSG-06)
 
 ### Pending Todos
 
@@ -206,10 +208,10 @@ v0.13-specific outstanding work:
 
 Last activity: 2026-05-29
 Last session: 2026-05-29T00:00:00.000Z
-Stopped at: Completed 76-01-PLAN.md (merge-side backend)
-Resume file: .planning/phases/76-wire-messageeditor-into-merge-continue-merge-and-revert/76-02-PLAN.md
-Next action: execute 76-02 (revert backend)
+Stopped at: Completed 76-02-PLAN.md (revert-side backend)
+Resume file: None
+Next action: execute 76-03 (frontend merge/revert wiring)
 
 ## Operator Next Steps
 
-- Execute Plan 76-02 (revert_commit_begin / revert_continue / revert_abort backend)
+- Execute Plan 76-03 (frontend: host MessageEditor in RepoView, thread onopenmessageeditor to CommitGraph/BranchSidebar/StagingPanel, route merge/revert through the modal)

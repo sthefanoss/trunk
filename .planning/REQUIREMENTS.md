@@ -53,10 +53,10 @@ Updated during roadmap creation.
 |-------------|-------|--------|
 | MSG-01 | Phase 76 | In Progress (76-01 backend: merge_continue --cleanup=strip; frontend wiring pending 76-03) |
 | MSG-02 | Phase 76 | In Progress (76-01 backend: merge_branch_begin + verbatim MERGE_MSG; frontend wiring pending 76-03) |
-| MSG-03 | Phase 76 | Pending |
+| MSG-03 | Phase 76 | In Progress (76-02 backend: revert_commit_begin verbatim MERGE_MSG + revert_continue --cleanup=strip; frontend wiring pending 76-03) |
 | MSG-04 | Phase 75 | Complete |
 | MSG-05 | Phase 75 | Complete |
-| MSG-06 | Phase 76 | Pending |
+| MSG-06 | Phase 76 | In Progress (76-02 backend: revert_abort recovery path + begin-emit; frontend banner + UAT pending 76-03/76-04) |
 
 **Coverage:**
 

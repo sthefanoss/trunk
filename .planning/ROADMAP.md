@@ -252,7 +252,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 76-02-PLAN.md — revert-side backend: revert_commit_begin/continue/abort, --cleanup=strip, recovery path (MSG-03/MSG-06)
+- [x] 76-02-PLAN.md — revert-side backend: revert_commit_begin/continue/abort, --cleanup=strip, recovery path (MSG-03/MSG-06)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
