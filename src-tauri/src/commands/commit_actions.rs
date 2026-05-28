@@ -478,3 +478,221 @@ pub async fn check_undo_available(
         })?
         .map_err(|e| serde_json::to_string(&e).unwrap())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use git2::{Repository, Signature};
+    use tempfile::TempDir;
+
+    // Temp-repo harness (mirrors operation_state.rs tests / git/review.rs:662).
+    // Real git2 + tempfile, no mocks (classical TDD). The code-under-test shells
+    // out to `git`, so the repo config must carry a committer identity.
+
+    fn make_repo() -> (TempDir, Repository) {
+        let dir = TempDir::new().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+        {
+            let mut config = repo.config().unwrap();
+            config.set_str("user.name", "Test").unwrap();
+            config.set_str("user.email", "test@example.com").unwrap();
+        }
+        (dir, repo)
+    }
+
+    fn sig() -> Signature<'static> {
+        Signature::new("Test", "test@example.com", &git2::Time::new(0, 0)).unwrap()
+    }
+
+    fn path_str(dir: &TempDir) -> String {
+        dir.path().to_str().unwrap().to_string()
+    }
+
+    fn state_map_for(dir: &TempDir) -> HashMap<String, PathBuf> {
+        let mut map = HashMap::new();
+        map.insert(path_str(dir), dir.path().to_path_buf());
+        map
+    }
+
+    /// Commit `file`=`content` onto `parents`, carrying the first parent's tree
+    /// forward so existing files persist (faithful linear history). Returns OID.
+    fn commit_file(
+        repo: &Repository,
+        message: &str,
+        parents: &[git2::Oid],
+        file: &str,
+        content: &[u8],
+    ) -> git2::Oid {
+        let blob_oid = repo.blob(content).unwrap();
+        let base_tree = parents
+            .first()
+            .map(|oid| repo.find_commit(*oid).unwrap().tree().unwrap());
+        let mut builder = repo.treebuilder(base_tree.as_ref()).unwrap();
+        builder
+            .insert(file, blob_oid, git2::FileMode::Blob.into())
+            .unwrap();
+        let tree = repo.find_tree(builder.write().unwrap()).unwrap();
+        let parent_commits: Vec<_> = parents
+            .iter()
+            .map(|oid| repo.find_commit(*oid).unwrap())
+            .collect();
+        let parent_refs: Vec<&git2::Commit> = parent_commits.iter().collect();
+        let s = sig();
+        repo.commit(Some("HEAD"), &s, &s, message, &tree, &parent_refs)
+            .unwrap()
+    }
+
+    fn revert_head_path(dir: &TempDir) -> PathBuf {
+        dir.path().join(".git").join("REVERT_HEAD")
+    }
+
+    fn head_body(repo: &Repository) -> String {
+        repo.head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .message()
+            .unwrap()
+            .to_string()
+    }
+
+    /// A two-commit linear repo: base then a "v2" change to `f.txt`. Worktree
+    /// synced to HEAD so subprocess `git revert` sees a clean tree.
+    fn two_commit_repo() -> (TempDir, Repository, git2::Oid) {
+        let (dir, repo) = make_repo();
+        let base = commit_file(&repo, "Important change to x", &[], "f.txt", b"base\n");
+        let v2 = commit_file(&repo, "change to v2", &[base], "f.txt", b"v2\n");
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+            .unwrap();
+        (dir, repo, v2)
+    }
+
+    /// A repo where reverting the tip commit conflicts: the tip changes `f.txt`,
+    /// then a later commit changes `f.txt` again, so reverting the middle commit
+    /// can't apply cleanly. HEAD's tip is returned as the OID to revert.
+    fn conflicting_revert_repo() -> (TempDir, Repository, git2::Oid) {
+        let (dir, repo) = make_repo();
+        let base = commit_file(&repo, "base", &[], "f.txt", b"base\n");
+        let mid = commit_file(&repo, "mid change to v2", &[base], "f.txt", b"v2\n");
+        // A later commit rewrites the same file so reverting `mid` conflicts.
+        commit_file(&repo, "later change to v3", &[mid], "f.txt", b"v3\n");
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+            .unwrap();
+        (dir, repo, mid)
+    }
+
+    #[test]
+    fn revert_commit_begin_returns_default_message_with_full_oid() {
+        let (dir, _repo, oid) = two_commit_repo();
+        let oid_str = oid.to_string();
+        let map = state_map_for(&dir);
+        let result = revert_commit_begin_inner(&path_str(&dir), &oid_str, &map).unwrap();
+        let message = result.message.expect("clean revert must carry a message");
+        assert!(
+            message.starts_with("Revert \"change to v2\""),
+            "got: {message:?}"
+        );
+        assert!(
+            message.contains(&format!("This reverts commit {}.", oid_str)),
+            "message must carry the FULL 40-char OID, not a short OID; got: {message:?}"
+        );
+        assert_eq!(oid_str.len(), 40, "OID under test must be the full 40-char form");
+        assert!(
+            revert_head_path(&dir).exists(),
+            "begin sets REVERT_HEAD (not committed yet)"
+        );
+    }
+
+    #[test]
+    fn revert_continue_clears_revert_head_and_commits_edited_body() {
+        let (dir, repo, oid) = two_commit_repo();
+        let oid_str = oid.to_string();
+        let map = state_map_for(&dir);
+        revert_commit_begin_inner(&path_str(&dir), &oid_str, &map).unwrap();
+
+        let edited = "Revert \"change to v2\"\n\nedited body";
+        revert_continue_inner(&path_str(&dir), edited, &map).unwrap();
+
+        assert!(
+            !revert_head_path(&dir).exists(),
+            "git commit -m clears REVERT_HEAD"
+        );
+        let body = head_body(&repo);
+        assert_eq!(body, edited, "HEAD body must equal the edited message");
+        assert!(
+            !body.lines().any(|l| l.starts_with('#')),
+            "no commit body line may start with #; got: {body:?}"
+        );
+    }
+
+    #[test]
+    fn revert_commit_begin_conflict_returns_conflict_state_err() {
+        let (dir, _repo, oid) = conflicting_revert_repo();
+        let oid_str = oid.to_string();
+        let map = state_map_for(&dir);
+        let err = revert_commit_begin_inner(&path_str(&dir), &oid_str, &map)
+            .expect_err("conflicted revert must return Err, never open the editor");
+        assert_eq!(err.code, "conflict_state");
+    }
+
+    #[test]
+    fn revert_abort_recovers_clean_tree() {
+        let (dir, repo, oid) = two_commit_repo();
+        let oid_str = oid.to_string();
+        let map = state_map_for(&dir);
+        revert_commit_begin_inner(&path_str(&dir), &oid_str, &map).unwrap();
+        assert!(
+            revert_head_path(&dir).exists(),
+            "precondition: begin set REVERT_HEAD"
+        );
+
+        revert_abort_inner(&path_str(&dir), &map).unwrap();
+
+        assert!(
+            !revert_head_path(&dir).exists(),
+            "revert --abort clears REVERT_HEAD"
+        );
+        assert!(
+            !is_dirty(&repo).unwrap(),
+            "revert --abort must leave a clean tree"
+        );
+    }
+
+    #[test]
+    fn revert_continue_strips_conflict_comment_block_from_commit_body() {
+        let (dir, repo, oid) = conflicting_revert_repo();
+        let oid_str = oid.to_string();
+        let map = state_map_for(&dir);
+        // Conflicted begin leaves REVERT_HEAD set; resolve by staging a fix.
+        let _ = revert_commit_begin_inner(&path_str(&dir), &oid_str, &map);
+        let blob = repo.blob(b"resolved\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add(&git2::IndexEntry {
+                ctime: git2::IndexTime::new(0, 0),
+                mtime: git2::IndexTime::new(0, 0),
+                dev: 0,
+                ino: 0,
+                mode: 0o100644,
+                uid: 0,
+                gid: 0,
+                file_size: 0,
+                id: blob,
+                flags: 0,
+                flags_extended: 0,
+                path: b"f.txt".to_vec(),
+            })
+            .unwrap();
+        index.write().unwrap();
+
+        // Finish with a message that carries a trailing `# Conflicts:` block.
+        let msg = "Revert \"mid change to v2\"\n\n# Conflicts:\n#\tf.txt";
+        revert_continue_inner(&path_str(&dir), msg, &map).unwrap();
+
+        let body = head_body(&repo);
+        assert!(
+            !body.lines().any(|l| l.starts_with('#')),
+            "--cleanup=strip must remove the # Conflicts: block; got: {body:?}"
+        );
+    }
+}
