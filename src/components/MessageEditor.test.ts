@@ -147,6 +147,19 @@ describe("MessageEditor", () => {
 		expect(await promise).toBe("msg\n\n");
 	});
 
+	it("resolves the previous promise with null when open is called twice", async () => {
+		const { ref } = mount();
+
+		const first = ref.open("a");
+		const second = ref.open("b");
+
+		expect(await first).toBeNull();
+
+		await screen.findByRole("textbox");
+		await fireEvent.click(screen.getByText("Cancel"));
+		expect(await second).toBeNull();
+	});
+
 	it("hides modal markup after promise resolves", async () => {
 		const { ref } = mount();
 

@@ -10,6 +10,9 @@ let text = $state("");
 let resolveFn: ((value: string | null) => void) | null = null;
 
 export function open(defaultValue: string): Promise<string | null> {
+	// Resolve any in-flight promise before reassigning the slot — otherwise a
+	// second open() leaks the first resolver and the caller awaits forever.
+	resolveFn?.(null);
 	text = defaultValue;
 	isOpen = true;
 	return new Promise((resolve) => {
