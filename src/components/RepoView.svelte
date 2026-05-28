@@ -33,6 +33,7 @@ import CommitDetail from "./CommitDetail.svelte";
 import CommitGraph from "./CommitGraph.svelte";
 import DiffPanel from "./DiffPanel.svelte";
 import MergeEditor from "./MergeEditor.svelte";
+import MessageEditor from "./MessageEditor.svelte";
 import RebaseEditor from "./RebaseEditor.svelte";
 import ReviewPanel from "./ReviewPanel.svelte";
 import StagingPanel from "./StagingPanel.svelte";
@@ -564,6 +565,19 @@ $effect(() => {
 	return () => window.removeEventListener("keydown", handleKeydown);
 });
 
+// Single MessageEditor instance hosted here (D-04). The title is a $props on
+// MessageEditor set BEFORE open() (D-03), so we flip a reactive $state var per
+// operation: "Merge commit message" for merge, "Revert commit message" for revert.
+let messageEditorRef = $state<MessageEditor | null>(null);
+let editorTitle = $state("Merge commit message");
+async function handleOpenMessageEditor(
+	defaultValue: string,
+	title: string,
+): Promise<string | null> {
+	editorTitle = title;
+	return (await messageEditorRef?.open(defaultValue)) ?? null;
+}
+
 async function handleOpenRebaseEditor(baseOid: string, inclusive = false) {
 	if (!repoPath) return;
 	try {
@@ -802,7 +816,7 @@ function startRightResize(e: MouseEvent) {
     </div>
   {:else}
   <div style="width: {leftPaneCollapsed ? 0 : leftPaneWidth}px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
-    <BranchSidebar {repoPath} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} onopenrebaseeditor={handleOpenRebaseEditor} />
+    <BranchSidebar {repoPath} onrefreshed={handleRefresh} onstashselect={handleCommitSelect} onrefnavigate={handleRefNavigate} {refreshSignal} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} />
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="pane-divider" style="display: {leftPaneCollapsed ? 'none' : 'block'};" onmousedown={startLeftResize}></div>
@@ -885,7 +899,7 @@ function startRightResize(e: MouseEvent) {
         onclose={handleDiffClose}
       />
     {:else}
-      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} clearRedoStack={undoRedo.clear} />
+      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} clearRedoStack={undoRedo.clear} />
     {/if}
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -921,8 +935,13 @@ function startRightResize(e: MouseEvent) {
         clearRedoStack={undoRedo.clear}
         {treeViewEnabled}
         ontreeviewtoggle={handleTreeViewToggle}
+        onopenmessageeditor={handleOpenMessageEditor}
       />
     {/if}
   </div>
   {/if}
 </main>
+
+<!-- Single MessageEditor host (D-04). Renders nothing until open() is called;
+     the threaded onopenmessageeditor callback drives merge/revert message edits. -->
+<MessageEditor bind:this={messageEditorRef} title={editorTitle} />

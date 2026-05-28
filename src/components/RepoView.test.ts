@@ -259,4 +259,35 @@ describe("RepoView", () => {
 		expect(leftPane).toBeTruthy();
 		expect((leftPane as HTMLElement).style.width).toBe("0px");
 	});
+
+	// 76-03 Task 1: RepoView hosts a single MessageEditor and threads
+	// onopenmessageeditor to its merge/revert trigger children. The editor renders
+	// nothing until open() is called ({#if isOpen}), so the host is exercised
+	// end-to-end in CommitGraph/BranchSidebar suites where the callback is injected.
+	// Here we guard that adding the host does not break the mount.
+	it("mounts with the MessageEditor host without crashing", () => {
+		const { container } = render(RepoView, {
+			props: {
+				repoPath: "/test/repo",
+				repoName: "test-repo",
+				remoteState: createMockRemoteState(),
+				undoRedo: createMockUndoRedo(),
+				leftPaneWidth: 200,
+				leftPaneCollapsed: false,
+				rightPaneWidth: 300,
+				rightPaneCollapsed: false,
+				windowVisible: true,
+				reviewActive: false,
+				onleftpanecollapsedchange: vi.fn(),
+				onrightpanecollapsedchange: vi.fn(),
+				onleftpanewidthchange: vi.fn(),
+				onrightpanewidthchange: vi.fn(),
+			},
+		});
+		expect(container.querySelector("main")).toBeTruthy();
+		// No message editor dialog is visible before open() is invoked.
+		expect(
+			container.querySelector('[data-testid="message-editor-backdrop"]'),
+		).toBeFalsy();
+	});
 });

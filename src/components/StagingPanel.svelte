@@ -43,6 +43,13 @@ interface Props {
 	clearRedoStack: () => void;
 	treeViewEnabled?: boolean;
 	ontreeviewtoggle?: () => void;
+	// Threaded from RepoView (76-03); consumed by the merge-continue / revert
+	// flows in Plan 04. Declared here so RepoView can pass it without a
+	// svelte-check unknown-prop error in the interim wave seam.
+	onopenmessageeditor?: (
+		defaultValue: string,
+		title: string,
+	) => Promise<string | null>;
 }
 
 let {
@@ -58,6 +65,7 @@ let {
 	clearRedoStack,
 	treeViewEnabled = false,
 	ontreeviewtoggle,
+	onopenmessageeditor,
 }: Props = $props();
 
 let status = $state<WorkingTreeStatus | null>(null);
