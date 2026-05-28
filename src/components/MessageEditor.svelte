@@ -5,9 +5,11 @@ interface Props {
 
 let { title }: Props = $props();
 
+let dialogEl: HTMLDialogElement | undefined = $state();
 let isOpen = $state(false);
 let text = $state("");
 let resolveFn: ((value: string | null) => void) | null = null;
+const titleId = `message-editor-title-${crypto.randomUUID()}`;
 
 export function open(defaultValue: string): Promise<string | null> {
 	// Resolve any in-flight promise before reassigning the slot — otherwise a
@@ -21,6 +23,7 @@ export function open(defaultValue: string): Promise<string | null> {
 }
 
 function close(result: string | null) {
+	if (!isOpen) return;
 	isOpen = false;
 	const resolver = resolveFn;
 	resolveFn = null;
@@ -46,7 +49,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleBackdropClick(e: MouseEvent) {
-	if (e.target === e.currentTarget) {
+	if (e.target === dialogEl) {
 		handleCancel();
 	}
 }
@@ -54,48 +57,61 @@ function handleBackdropClick(e: MouseEvent) {
 function autofocus(node: HTMLElement) {
 	node.focus();
 }
+
+$effect(() => {
+	if (isOpen && dialogEl && !dialogEl.open) {
+		dialogEl.showModal();
+	}
+});
+
 </script>
 
 {#if isOpen}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 flex items-center justify-center"
-		style="z-index: 9999; background: var(--color-backdrop);"
+	<dialog
+		bind:this={dialogEl}
+		class="rounded-lg shadow-xl"
 		data-testid="message-editor-backdrop"
+		aria-labelledby={titleId}
+		style="background: var(--color-surface); border: 1px solid var(--color-border); min-width: 420px; max-width: 640px; padding: 16px;"
 		onkeydown={handleKeydown}
 		onclick={handleBackdropClick}
 	>
-		<div
-			class="rounded-lg shadow-xl"
-			style="background: var(--color-surface); border: 1px solid var(--color-border); min-width: 420px; max-width: 640px; padding: 16px;"
+		<h3
+			id={titleId}
+			class="text-sm font-semibold mb-3"
+			style="color: var(--color-text);"
 		>
-			<h3 class="text-sm font-semibold mb-3" style="color: var(--color-text);">
-				{title}
-			</h3>
+			{title}
+		</h3>
 
-			<textarea
-				class="w-full rounded text-sm"
-				style="background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text); padding: 6px 8px; resize: vertical; min-height: 200px;"
-				bind:value={text}
-				use:autofocus
-			></textarea>
+		<textarea
+			class="w-full rounded text-sm"
+			style="background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text); padding: 6px 8px; resize: vertical; min-height: 200px;"
+			bind:value={text}
+			use:autofocus
+		></textarea>
 
-			<div class="flex justify-end gap-2 mt-4">
-				<button
-					class="rounded px-3 py-1.5 text-xs font-medium"
-					style="background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
-					onclick={handleCancel}
-				>
-					Cancel
-				</button>
-				<button
-					class="rounded px-3 py-1.5 text-xs font-medium"
-					style="background: var(--color-accent); color: var(--color-on-accent);"
-					onclick={handleSubmit}
-				>
-					Save
-				</button>
-			</div>
+		<div class="flex justify-end gap-2 mt-4">
+			<button
+				class="rounded px-3 py-1.5 text-xs font-medium"
+				style="background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
+				onclick={handleCancel}
+			>
+				Cancel
+			</button>
+			<button
+				class="rounded px-3 py-1.5 text-xs font-medium"
+				style="background: var(--color-accent); color: var(--color-on-accent);"
+				onclick={handleSubmit}
+			>
+				Save
+			</button>
 		</div>
-	</div>
+	</dialog>
 {/if}
+
+<style>
+	dialog::backdrop {
+		background: var(--color-backdrop);
+	}
+</style>

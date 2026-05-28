@@ -9,6 +9,20 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 	} as unknown as typeof ResizeObserver;
 }
 
+// jsdom does not implement HTMLDialogElement.showModal/close — stub so modal components render as accessible/open.
+if (typeof HTMLDialogElement !== "undefined") {
+	if (typeof HTMLDialogElement.prototype.showModal !== "function") {
+		HTMLDialogElement.prototype.showModal = function () {
+			this.setAttribute("open", "");
+		};
+	}
+	if (typeof HTMLDialogElement.prototype.close !== "function") {
+		HTMLDialogElement.prototype.close = function () {
+			this.removeAttribute("open");
+		};
+	}
+}
+
 // jsdom does not implement Element.prototype.animate — stub for Svelte transitions (slide, fly, etc.)
 if (typeof Element.prototype.animate === "undefined") {
 	Element.prototype.animate = () =>
