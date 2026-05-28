@@ -4,8 +4,8 @@ milestone: v0.14
 milestone_name: milestone
 status: executing
 stopped_at: Phase 76 context gathered
-last_updated: "2026-05-28T22:37:47.061Z"
-last_activity: 2026-05-28 -- Phase 76 planning complete
+last_updated: "2026-05-28T22:45:21.447Z"
+last_activity: 2026-05-28 -- Phase 76 execution started
 progress:
   total_phases: 2
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28 after v0.14 defined)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** v0.14 Commit Message UX — match terminal `$EDITOR` behavior for merge/continue, merge, and revert
+**Current focus:** Phase 76 — wire-messageeditor-into-merge-continue-merge-and-revert
 
 ## Current Position
 
-Phase: 76
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-28 -- Phase 76 planning complete
+Phase: 76 (wire-messageeditor-into-merge-continue-merge-and-revert) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 76
+Last activity: 2026-05-28 -- Phase 76 execution started
 
 ## Performance Metrics
 
