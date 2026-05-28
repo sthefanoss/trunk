@@ -219,6 +219,12 @@ Full details: [milestones/v0.13-ROADMAP.md](milestones/v0.13-ROADMAP.md)
 3. Unit tests cover: default pre-fill, edit + save round-trip, Esc cancel returns null, empty/whitespace-only message returns null (MSG-06 building block), no temp-file leaks under happy or error path
 4. No production code path changed (Phase 76 does the wiring); `just check` passes
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 75-01-PLAN.md — MessageEditor.svelte modal + vitest suite (MSG-04/MSG-05 in the UI; MSG-06 null-on-empty building block)
+- [ ] 75-02-PLAN.md — Rust src-tauri/src/git/editor.rs helper + #[cfg(test)] block (MSG-04/MSG-05 in the Rust layer; Drop cleanup invariant)
+
 ### Phase 76: Wire MessageEditor into merge/continue, merge, and revert
 
 **Goal:** Route the three git operations through the Phase 75 MessageEditor + per-op default-message builders, remove the `GIT_EDITOR=true` / `--no-edit` bypasses, and abort cleanly on empty message.
