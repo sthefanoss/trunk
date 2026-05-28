@@ -44,6 +44,10 @@ patterns-established:
   - "Pattern: serde tag enum as the frozen frontend discriminant — assert the serialized `kind` string in tests, not just the Rust variant"
   - "Pattern: begin-mutation wrapper emits repo-changed for EVERY outcome (the emit sits after the all-arm graph-extraction match, at the same nesting level)"
 
+# Backend slice of MSG-01/MSG-02 (this plan's scope per PLAN frontmatter). The
+# user-facing requirements are NOT fully Complete until frontend wiring lands:
+# MSG-02 in 76-03, MSG-01 in 76-04. REQUIREMENTS.md traceability is intentionally
+# "In Progress" — do not auto-flip to Complete from this list.
 requirements-completed: [MSG-01, MSG-02]
 
 # Metrics
