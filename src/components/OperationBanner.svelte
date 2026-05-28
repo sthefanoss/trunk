@@ -8,9 +8,15 @@ interface Props {
 	info: OperationInfo;
 	repoPath: string;
 	onaction?: () => void;
+	// Threaded RepoView -> StagingPanel -> OperationBanner so the Revert
+	// Continue button can reach the single host-owned MessageEditor (OQ-2).
+	onopenmessageeditor?: (
+		defaultValue: string,
+		title: string,
+	) => Promise<string | null>;
 }
 
-let { info, repoPath, onaction }: Props = $props();
+let { info, repoPath, onaction, onopenmessageeditor }: Props = $props();
 let loading = $state(false);
 
 let isMerge = $derived(info.op_type === "Merge");

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import StagingPanel from "./StagingPanel.svelte";
 
@@ -168,5 +168,112 @@ describe("StagingPanel", () => {
 				path: "/my/repo",
 			});
 		});
+	});
+});
+
+describe("StagingPanel merge-continue", () => {
+	function mockMergeState(conflicted: unknown[] = []) {
+		mockInvoke.mockReset();
+		mockInvoke.mockImplementation((cmd: string) => {
+			if (cmd === "get_status")
+				return Promise.resolve({
+					unstaged: [],
+					staged: [{ path: "src/main.ts", status: "New", is_binary: false }],
+					conflicted,
+				});
+			if (cmd === "get_operation_state")
+				return Promise.resolve({
+					op_type: "Merge",
+					source_branch: "feature",
+					target_branch: "main",
+					progress: null,
+					source_color_index: 1,
+					target_color_index: 0,
+					rebase_message: null,
+				});
+			if (cmd === "get_merge_message")
+				return Promise.resolve("Merge branch 'feature'");
+			return Promise.resolve(undefined);
+		});
+	}
+
+	beforeEach(() => {
+		mockMergeState();
+	});
+
+	it("routes merge-commit through get_merge_message then the editor then merge_continue", async () => {
+		const onopenmessageeditor = vi.fn().mockResolvedValue("edited message");
+		render(StagingPanel, {
+			props: {
+				repoPath: "/repo",
+				clearRedoStack: vi.fn(),
+				onopenmessageeditor,
+			},
+		});
+
+		const button = await screen.findByText("Commit merge");
+		await fireEvent.click(button);
+
+		await waitFor(() => {
+			expect(mockInvoke).toHaveBeenCalledWith("get_merge_message", {
+				path: "/repo",
+			});
+		});
+		expect(onopenmessageeditor).toHaveBeenCalledWith(
+			"Merge branch 'feature'",
+			"Merge commit message",
+		);
+		await waitFor(() => {
+			expect(mockInvoke).toHaveBeenCalledWith("merge_continue", {
+				path: "/repo",
+				message: "edited message",
+			});
+		});
+	});
+
+	it("makes no merge_continue commit when the editor is cancelled", async () => {
+		const onopenmessageeditor = vi.fn().mockResolvedValue(null);
+		render(StagingPanel, {
+			props: {
+				repoPath: "/repo",
+				clearRedoStack: vi.fn(),
+				onopenmessageeditor,
+			},
+		});
+
+		const button = await screen.findByText("Commit merge");
+		await fireEvent.click(button);
+
+		await waitFor(() => {
+			expect(onopenmessageeditor).toHaveBeenCalled();
+		});
+		expect(mockInvoke).not.toHaveBeenCalledWith(
+			"merge_continue",
+			expect.anything(),
+		);
+	});
+
+	it("does not render the old inline subject/body merge form", async () => {
+		render(StagingPanel, {
+			props: {
+				repoPath: "/repo",
+				clearRedoStack: vi.fn(),
+			},
+		});
+		await screen.findByText("Commit merge");
+		expect(
+			screen.queryByPlaceholderText("Merge commit message"),
+		).toBeNull();
+		expect(screen.queryByText("Commit and Merge")).toBeNull();
+	});
+
+	it("still renders the Abort Merge recovery button in merge state", async () => {
+		render(StagingPanel, {
+			props: {
+				repoPath: "/repo",
+				clearRedoStack: vi.fn(),
+			},
+		});
+		expect(await screen.findByText("Abort Merge")).toBeInTheDocument();
 	});
 });

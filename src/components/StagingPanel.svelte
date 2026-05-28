@@ -579,32 +579,22 @@ async function markAllResolved() {
 }
 
 let mergeLoading = $state(false);
-let mergeSubject = $state("");
-let mergeBody = $state("");
 
-// Pre-fill merge message when entering merge state
-$effect(() => {
-	if (isMerge && operationInfo) {
-		const src = operationInfo.source_branch ?? "???";
-		const tgt = operationInfo.target_branch ?? "???";
-		mergeSubject = `Merge branch '${src}' into ${tgt}`;
-		mergeBody = "";
-	}
-});
-
-async function commitMerge() {
+// Route the merge-continue commit through the single host-owned MessageEditor.
+// The default comes verbatim from git's MERGE_MSG (MSG-04 — never constructed in
+// the frontend); cancel/empty returns null and makes no commit (D-02 — the
+// in-progress merge stays visible and recoverable, so this button is also the
+// clean-merge retry affordance).
+async function runMergeContinue() {
 	mergeLoading = true;
-	const msg = mergeBody.trim()
-		? `${mergeSubject.trim()}\n\n${mergeBody.trim()}`
-		: mergeSubject.trim();
 	try {
-		await safeInvoke("merge_continue", {
+		const def = await safeInvoke<string | null>("get_merge_message", {
 			path: repoPath,
-			message: msg || null,
 		});
+		const msg = await onopenmessageeditor?.(def ?? "", "Merge commit message");
+		if (msg == null) return;
+		await safeInvoke("merge_continue", { path: repoPath, message: msg });
 		showToast("Merge completed", "success");
-		mergeSubject = "";
-		mergeBody = "";
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Merge commit failed", "error");
@@ -917,6 +907,7 @@ $effect(() => {
     <OperationBanner
       info={operationInfo}
       {repoPath}
+      {onopenmessageeditor}
       onaction={() => { loadStatus(); }}
     />
   {/if}
@@ -1308,51 +1299,16 @@ $effect(() => {
       </div>
     </div>
   {:else if isMerge}
-    <!-- Merge commit form + actions -->
+    <!-- Merge-continue actions. The commit message is edited in the host-owned
+         MessageEditor modal (runMergeContinue), not an inline form. -->
     <div style="
       padding: 8px;
       display: flex;
-      flex-direction: column;
       gap: 6px;
-      height: {bottomHeight}px;
       flex-shrink: 0;
-      overflow: hidden;
     ">
-      <input
-        type="text"
-        bind:value={mergeSubject}
-        placeholder="Merge commit message"
-        style="
-          width: 100%;
-          box-sizing: border-box;
-          border: 1px solid var(--color-border);
-          background: var(--color-surface);
-          color: var(--color-text);
-          border-radius: 4px;
-          padding: 4px 6px;
-          font-size: 12px;
-        "
-      />
-      <textarea
-        bind:value={mergeBody}
-        placeholder="Description (optional)"
-        style="
-          width: 100%;
-          flex: 1;
-          min-height: 0;
-          box-sizing: border-box;
-          border: 1px solid var(--color-border);
-          background: var(--color-surface);
-          color: var(--color-text);
-          border-radius: 4px;
-          padding: 4px 6px;
-          font-size: 12px;
-          resize: none;
-        "
-      ></textarea>
-      <div style="display: flex; gap: 6px;">
       <button
-        onclick={commitMerge}
+        onclick={runMergeContinue}
         disabled={!allResolved || mergeLoading}
         style="
           flex: 3;
@@ -1366,7 +1322,7 @@ $effect(() => {
           opacity: {allResolved && !mergeLoading ? 1 : 0.4};
         "
       >
-        {mergeLoading ? 'Committing...' : 'Commit and Merge'}
+        {mergeLoading ? 'Committing...' : 'Commit merge'}
       </button>
       <button
         onclick={abortMerge}
@@ -1385,7 +1341,6 @@ $effect(() => {
       >
         Abort Merge
       </button>
-      </div>
     </div>
   {:else}
     <!-- CommitForm — normal mode -->
