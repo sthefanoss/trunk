@@ -261,9 +261,7 @@ describe("StagingPanel merge-continue", () => {
 			},
 		});
 		await screen.findByText("Commit merge");
-		expect(
-			screen.queryByPlaceholderText("Merge commit message"),
-		).toBeNull();
+		expect(screen.queryByPlaceholderText("Merge commit message")).toBeNull();
 		expect(screen.queryByText("Commit and Merge")).toBeNull();
 	});
 

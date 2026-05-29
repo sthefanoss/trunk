@@ -1,8 +1,21 @@
-import { render, screen } from "@testing-library/svelte";
-import { describe, expect, it } from "vitest";
-import OperationBanner from "./OperationBanner.svelte";
-import "../__tests__/helpers/tauri-mock";
+import { invoke } from "@tauri-apps/api/core";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OperationInfo } from "../lib/types";
+import OperationBanner from "./OperationBanner.svelte";
+
+// Tauri mocks declared locally (not the shared side-effect helper) so vi.mock
+// hoisting binds the invoke/ask the component sees to these mocks (76-03 decision).
+vi.mock("@tauri-apps/api/core", () => ({
+	invoke: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+	open: vi.fn(),
+	ask: vi.fn().mockResolvedValue(false),
+	message: vi.fn().mockResolvedValue(undefined),
+}));
 
 function makeInfo(overrides: Partial<OperationInfo> = {}): OperationInfo {
 	return {
@@ -116,5 +129,111 @@ describe("OperationBanner", () => {
 			},
 		});
 		expect(screen.getByText("Cherry-pick in progress")).toBeInTheDocument();
+	});
+});
+
+describe("OperationBanner revert recovery", () => {
+	const mockInvoke = vi.mocked(invoke);
+	const mockAsk = vi.mocked(ask);
+
+	beforeEach(() => {
+		mockInvoke.mockReset();
+		mockInvoke.mockImplementation((cmd: string) => {
+			if (cmd === "get_merge_message")
+				return Promise.resolve('Revert "x"\n\nThis reverts commit abc.');
+			return Promise.resolve(undefined);
+		});
+		mockAsk.mockReset();
+		mockAsk.mockResolvedValue(true);
+	});
+
+	it("renders Continue and Abort buttons for a revert state", () => {
+		render(OperationBanner, {
+			props: {
+				info: makeInfo({ op_type: "Revert" }),
+				repoPath: "/repo",
+			},
+		});
+		expect(screen.getByText("Continue")).toBeInTheDocument();
+		expect(screen.getByText("Abort")).toBeInTheDocument();
+	});
+
+	it("calls revert_abort and onaction when Abort is confirmed", async () => {
+		const onaction = vi.fn();
+		render(OperationBanner, {
+			props: {
+				info: makeInfo({ op_type: "Revert" }),
+				repoPath: "/repo",
+				onaction,
+			},
+		});
+		await fireEvent.click(screen.getByText("Abort"));
+		await waitFor(() => {
+			expect(mockInvoke).toHaveBeenCalledWith("revert_abort", {
+				path: "/repo",
+			});
+		});
+		await waitFor(() => {
+			expect(onaction).toHaveBeenCalled();
+		});
+	});
+
+	it("routes Continue through get_merge_message, the editor, then revert_continue", async () => {
+		const onopenmessageeditor = vi.fn().mockResolvedValue("edited revert");
+		render(OperationBanner, {
+			props: {
+				info: makeInfo({ op_type: "Revert" }),
+				repoPath: "/repo",
+				onopenmessageeditor,
+			},
+		});
+		await fireEvent.click(screen.getByText("Continue"));
+		await waitFor(() => {
+			expect(mockInvoke).toHaveBeenCalledWith("get_merge_message", {
+				path: "/repo",
+			});
+		});
+		expect(onopenmessageeditor).toHaveBeenCalledWith(
+			'Revert "x"\n\nThis reverts commit abc.',
+			"Revert commit message",
+		);
+		await waitFor(() => {
+			expect(mockInvoke).toHaveBeenCalledWith("revert_continue", {
+				path: "/repo",
+				message: "edited revert",
+			});
+		});
+	});
+
+	it("makes no revert_continue commit when the editor is cancelled", async () => {
+		const onopenmessageeditor = vi.fn().mockResolvedValue(null);
+		render(OperationBanner, {
+			props: {
+				info: makeInfo({ op_type: "Revert" }),
+				repoPath: "/repo",
+				onopenmessageeditor,
+			},
+		});
+		await fireEvent.click(screen.getByText("Continue"));
+		await waitFor(() => {
+			expect(onopenmessageeditor).toHaveBeenCalled();
+		});
+		expect(mockInvoke).not.toHaveBeenCalledWith(
+			"revert_continue",
+			expect.anything(),
+		);
+	});
+
+	it("does not wire a merge-continue editor button for a merge state", () => {
+		const onopenmessageeditor = vi.fn();
+		render(OperationBanner, {
+			props: {
+				info: makeInfo({ op_type: "Merge" }),
+				repoPath: "/repo",
+				onopenmessageeditor,
+			},
+		});
+		expect(screen.queryByText("Continue")).toBeNull();
+		expect(screen.queryByText("Abort")).toBeNull();
 	});
 });

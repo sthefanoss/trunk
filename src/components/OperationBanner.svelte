@@ -21,6 +21,7 @@ let loading = $state(false);
 
 let isMerge = $derived(info.op_type === "Merge");
 let isRebase = $derived(info.op_type === "Rebase");
+let isRevert = $derived(info.op_type === "Revert");
 
 let sourceBranch = $derived(info.source_branch ?? "???");
 let targetBranch = $derived(info.target_branch ?? "???");
@@ -80,6 +81,50 @@ async function handleAbort() {
 			`${opName.charAt(0).toUpperCase() + opName.slice(1)} aborted`,
 			"success",
 		);
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Abort failed", "error");
+	} finally {
+		loading = false;
+		onaction?.();
+	}
+}
+
+// Revert recovery (MSG-06). A Revert state previously rendered no buttons,
+// trapping a cancelled revert in REVERT_HEAD. Continue routes the commit message
+// through the host-owned MessageEditor (default verbatim from MERGE_MSG); cancel
+// (null) makes no commit and leaves the revert recoverable (D-02). Abort runs
+// `git revert --abort`.
+async function handleRevertContinue() {
+	loading = true;
+	try {
+		const def = await safeInvoke<string | null>("get_merge_message", {
+			path: repoPath,
+		});
+		const msg = await onopenmessageeditor?.(def ?? "", "Revert commit message");
+		if (msg == null) return;
+		await safeInvoke("revert_continue", { path: repoPath, message: msg });
+		showToast("Revert completed", "success");
+	} catch (e) {
+		const err = e as TrunkError;
+		showToast(err.message ?? "Continue failed", "error");
+	} finally {
+		loading = false;
+		onaction?.();
+	}
+}
+
+async function handleRevertAbort() {
+	const { ask } = await import("@tauri-apps/plugin-dialog");
+	const confirmed = await ask(
+		"Abort revert? This will discard the in-progress revert and return to the previous state.",
+		{ title: "Abort Revert", kind: "warning" },
+	);
+	if (!confirmed) return;
+	loading = true;
+	try {
+		await safeInvoke("revert_abort", { path: repoPath });
+		showToast("Revert aborted", "success");
 	} catch (e) {
 		const err = e as TrunkError;
 		showToast(err.message ?? "Abort failed", "error");
@@ -170,6 +215,38 @@ async function handleAbort() {
       >Skip</button>
       <button
         onclick={handleAbort}
+        disabled={loading}
+        style="
+          background: var(--color-danger-bg);
+          color: var(--color-danger);
+          font-size: 11px;
+          border: 1px solid var(--color-danger-border);
+          border-radius: 4px;
+          cursor: pointer;
+          padding: 2px 8px;
+          white-space: nowrap;
+        "
+      >Abort</button>
+    </div>
+  {/if}
+  {#if isRevert}
+    <div style="display: flex; gap: 4px; flex-shrink: 0;">
+      <button
+        onclick={handleRevertContinue}
+        disabled={loading}
+        style="
+          background: var(--color-success-bg);
+          color: var(--color-success);
+          font-size: 11px;
+          border: 1px solid var(--color-success-border);
+          border-radius: 4px;
+          cursor: pointer;
+          padding: 2px 8px;
+          white-space: nowrap;
+        "
+      >Continue</button>
+      <button
+        onclick={handleRevertAbort}
         disabled={loading}
         style="
           background: var(--color-danger-bg);
