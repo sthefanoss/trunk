@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v0.14
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 76-04-PLAN.md Tasks 1-2 (StagingPanel merge-continue + OperationBanner revert affordance); Task 3 human-verify UAT open
-last_updated: "2026-05-29T02:05:00.000Z"
-last_activity: 2026-05-29 -- Phase 76 Plan 04 code slice executed (Task 3 human UAT pending)
+status: Phase 76 complete & verified (UAT 6/6 passed); v0.14 ready for /gsd:complete-milestone
+stopped_at: Phase 76 verified — all 5 UAT scenarios passed; MessageEditor centering fix applied; work on branch phase-76-plan pending merge to main
+last_updated: "2026-05-29T12:00:00.000Z"
+last_activity: 2026-05-29 -- Phase 76 verified (manual UAT all passed); MSG-01/02/03/06 Complete
 progress:
   total_phases: 2
   completed_phases: 2
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28 after v0.14 defined)
 
 **Core value:** A developer can open any Git repository, browse its full commit history as a visual graph, stage files, and create commits -- all without touching the terminal.
-**Current focus:** Phase 76 — wire-messageeditor-into-merge-continue-merge-and-revert
+**Current focus:** v0.14 Commit Message UX — both phases (75, 76) complete & verified; ready to complete-milestone
 
 ## Current Position
 
-Phase: 76 (wire-messageeditor-into-merge-continue-merge-and-revert) — EXECUTING
-Plan: 4 of 4 (76-01, 76-02, 76-03 complete)
-Status: Phase complete — ready for verification
+Phase: 76 (wire-messageeditor-into-merge-continue-merge-and-revert) — COMPLETE & VERIFIED
+Plan: 4 of 4 complete (76-01, 76-02, 76-03, 76-04)
+Status: Verified (UAT 6/6 passed) — see 76-VERIFICATION.md. Work on branch phase-76-plan, pending merge to main.
 Last activity: 2026-05-29
 
 ## Performance Metrics

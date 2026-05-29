@@ -283,7 +283,7 @@ Full details: [milestones/v0.14-ROADMAP.md](milestones/v0.14-ROADMAP.md) (create
 | v0.11 Infrastructure | 53-58 | 16/16 | Complete | 2026-03-27 |
 | v0.12 Better Diffs | 59-64 | 14/14 | Complete | 2026-03-30 |
 | v0.13 Code Review Mode | 65-74 | 37/37 | Complete | 2026-05-27 |
-| v0.14 Commit Message UX | 75-76 | 5/6 | In Progress | — |
+| v0.14 Commit Message UX | 75-76 | 6/6 | In Progress | — |
 
 ---
 *Roadmap created: 2026-03-13*

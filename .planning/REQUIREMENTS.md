@@ -10,12 +10,12 @@ Requirements for v0.14. Each maps to a roadmap phase.
 
 ### Message Editor (MSG)
 
-- [ ] **MSG-01**: User can edit the commit message at the commit step of `merge --continue` (after resolving all conflicts), with the editor pre-filled from `.git/MERGE_MSG`.
-- [ ] **MSG-02**: User can edit the commit message at the commit step of `merge <branch>` (non-fast-forward merges that produce a merge commit), with the editor pre-filled with `"Merge branch '<branch>'"` (or `"Merge remote-tracking branch 'origin/<branch>'"` for remote branches).
-- [ ] **MSG-03**: User can edit the commit message at the commit step of `revert <oid>`, with the editor pre-filled with `Revert "<original subject>"` followed by `This reverts commit <oid>.`
+- [x] **MSG-01**: User can edit the commit message at the commit step of `merge --continue` (after resolving all conflicts), with the editor pre-filled from `.git/MERGE_MSG`.
+- [x] **MSG-02**: User can edit the commit message at the commit step of `merge <branch>` (non-fast-forward merges that produce a merge commit), with the editor pre-filled with `"Merge branch '<branch>'"` (or `"Merge remote-tracking branch 'origin/<branch>'"` for remote branches).
+- [x] **MSG-03**: User can edit the commit message at the commit step of `revert <oid>`, with the editor pre-filled with `Revert "<original subject>"` followed by `This reverts commit <oid>.`
 - [x] **MSG-04**: The message editor pre-fills with git's default message for each operation. Source-of-truth defaults: `.git/MERGE_MSG` for continue, constructed string for merge/revert built by the Rust backend (never hardcoded in the frontend).
 - [x] **MSG-05**: User can cancel the message editor (Esc or Cancel button), leaving the repo in the same state as before opening it — no commit created, no half-finished state, no orphan temp files.
-- [ ] **MSG-06**: Empty or whitespace-only message aborts the operation (matches git CLI behavior where saving an empty `$EDITOR` buffer aborts the commit). Operation must leave repo in a clean state: for merge, repo stays mid-merge with conflicts already resolved on disk (user can edit message and retry, or run Abort); for revert, repo stays in `REVERT_HEAD` state (user can retry or abort).
+- [x] **MSG-06**: Empty or whitespace-only message aborts the operation (matches git CLI behavior where saving an empty `$EDITOR` buffer aborts the commit). Operation must leave repo in a clean state: for merge, repo stays mid-merge with conflicts already resolved on disk (user can edit message and retry, or run Abort); for revert, repo stays in `REVERT_HEAD` state (user can retry or abort).
 
 ## v2 Requirements
 
@@ -51,12 +51,12 @@ Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MSG-01 | Phase 76 | In Progress (76-01 backend: merge_continue --cleanup=strip; frontend wiring pending 76-03) |
-| MSG-02 | Phase 76 | In Progress (76-01 backend + 76-03 frontend trigger-site wiring: CommitGraph/BranchSidebar merge `<branch>` route through MessageEditor, ff/conflicts skip the editor; UAT/completion pending 76-04) |
-| MSG-03 | Phase 76 | In Progress (76-02 backend + 76-03 frontend trigger-site wiring: CommitGraph revert routes revert_commit_begin->editor->revert_continue with verbatim MERGE_MSG default; UAT/completion pending 76-04) |
+| MSG-01 | Phase 76 | Complete |
+| MSG-02 | Phase 76 | Complete |
+| MSG-03 | Phase 76 | Complete |
 | MSG-04 | Phase 75 | Complete |
 | MSG-05 | Phase 75 | Complete |
-| MSG-06 | Phase 76 | In Progress (76-02 backend + 76-03 wired the cancel/empty->no-continue path for merge/revert trigger sites; OperationBanner Abort affordance + UAT pending 76-04) |
+| MSG-06 | Phase 76 | Complete |
 
 **Coverage:**
 
