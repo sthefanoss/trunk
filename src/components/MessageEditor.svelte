@@ -110,6 +110,18 @@ $effect(() => {
 {/if}
 
 <style>
+	/* Restore native modal centering: the UA `dialog:modal { margin: auto }`
+	   default is wiped by Tailwind v4 preflight's universal `margin: 0` reset,
+	   which collapses the dialog to the viewport's top-left corner. Re-state the
+	   centering recipe explicitly (fit-content box + inset:0 + auto margins). */
+	dialog {
+		position: fixed;
+		inset: 0;
+		width: fit-content;
+		height: fit-content;
+		margin: auto;
+	}
+
 	dialog::backdrop {
 		background: var(--color-backdrop);
 	}
