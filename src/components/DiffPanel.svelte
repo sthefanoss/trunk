@@ -5,7 +5,10 @@ import {
 	hunkSelectableIndices,
 	resolveSide,
 } from "../lib/diff-anchor.js";
-import { buildFullFileAnchor } from "../lib/full-file-anchor.js";
+import {
+	buildFullFileAnchor,
+	fileSelectableIndices,
+} from "../lib/full-file-anchor.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import {
 	getDiffContentMode,
@@ -279,6 +282,24 @@ async function handleCommentFullFile(filePath: string, indices: Set<number>) {
 	fullFileComposerPath = filePath;
 	fullFileSelectedIndices = indices;
 	fullFileComposerOpen = true;
+}
+
+// One-click whole-file Comment (260531-l02e): comment every change in the file
+// without first selecting lines or switching to full-file view — the file-level
+// analog of "Comment Hunk". Synthesizes the file's new-side line set and reuses
+// the full-file composer path (Source=FullFile, New-side, snapshot-resolved at
+// submit). A pure-deletion file has no new side → deferred, same as the diff
+// guard. Operates on the toolbar's current `selectedPath` (like Stage File).
+async function handleCommentFile() {
+	if (!selectedPath) return;
+	const fd = fileDiffs.find((f) => f.path === selectedPath);
+	if (!fd) return;
+	const indices = fileSelectableIndices(fd);
+	if (indices.size === 0) {
+		showToast("Commenting on removed lines isn't supported yet", "error");
+		return;
+	}
+	await handleCommentFullFile(fd.path, indices);
 }
 
 $effect(() => {
@@ -683,6 +704,7 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		onwordwrapchange={handleWordWrapChange}
 		onstagefile={handleStageFile}
 		onunstagefile={handleUnstageFile}
+		oncommentfile={handleCommentFile}
 		onclose={onclose}
 	/>
 	<DiffViewer

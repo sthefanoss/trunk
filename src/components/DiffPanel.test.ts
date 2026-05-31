@@ -302,6 +302,58 @@ describe("DiffPanel", () => {
 		expect(screen.getByText("Discard Hunk")).toBeInTheDocument();
 	});
 
+	it("shows a Comment File button for unstaged diffs", async () => {
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+				selectedPath: "src/main.ts",
+			},
+		});
+		await flushPrefs();
+		expect(screen.getByText("Comment File")).toBeInTheDocument();
+	});
+
+	it("shows a Comment File button for staged diffs", async () => {
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "staged",
+				repoPath: "/test/repo",
+				selectedPath: "src/main.ts",
+			},
+		});
+		await flushPrefs();
+		expect(screen.getByText("Comment File")).toBeInTheDocument();
+	});
+
+	// Comment File anchors the WHOLE file: every new-side line. testDiff's new side is
+	// new_lineno 1,2,3,4 (Context 1, Add 2, Add 3, Context 4), so the composer opens
+	// over lines 1-4 — not a single hunk's sub-range.
+	it("opens the composer over the file's full new-side range on Comment File click", async () => {
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: null,
+				onclose: vi.fn(),
+				diffKind: "unstaged",
+				repoPath: "/test/repo",
+				selectedPath: "src/main.ts",
+			},
+		});
+		await flushPrefs();
+
+		await fireEvent.click(screen.getByText("Comment File"));
+		await flushPrefs();
+
+		expect(screen.getByText("Comments on lines 1-4")).toBeInTheDocument();
+	});
+
 	// Regression (260531-l02): opening a whole-hunk comment captures the anchor
 	// up-front. A working-tree comment writes a snapshot commit, which fires a
 	// repo-changed → diff refetch → clearSelection mid-compose. Previously the

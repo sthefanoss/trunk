@@ -26,6 +26,7 @@ interface Props {
 	onwordwrapchange: (value: boolean) => void;
 	onstagefile: () => void;
 	onunstagefile: () => void;
+	oncommentfile: () => void;
 	onclose: () => void;
 }
 
@@ -45,6 +46,7 @@ let {
 	onwordwrapchange,
 	onstagefile,
 	onunstagefile,
+	oncommentfile,
 	onclose,
 }: Props = $props();
 </script>
@@ -102,6 +104,18 @@ let {
   >
     <TextWrap size={14} />
   </button>
+
+  {#if diffKind === 'unstaged' || diffKind === 'staged'}
+    <!-- One-click whole-file Comment (260531-l02e): leads the staging action like
+         the hunk toolbar's Comment button. Comments every change in the file;
+         not gated on whitespace-ignore since it never stages. -->
+    <button
+      class="action-btn comment-btn"
+      onclick={oncommentfile}
+    >
+      Comment File
+    </button>
+  {/if}
 
   {#if diffKind === 'unstaged'}
     <button
@@ -172,6 +186,13 @@ let {
     background: var(--color-success-bg);
     border: 1px solid var(--color-success-border);
     color: var(--color-success);
+  }
+
+  .comment-btn {
+    background: var(--color-accent-bg, var(--color-surface));
+    border: 1px solid var(--color-border);
+    color: var(--color-accent);
+    cursor: pointer;
   }
 
   .unstage-btn {

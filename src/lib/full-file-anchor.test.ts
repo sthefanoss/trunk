@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildFullFileAnchor } from "./full-file-anchor.js";
-import type { DiffLine, DiffStatus, FileDiff } from "./types.js";
+import {
+	buildFullFileAnchor,
+	fileSelectableIndices,
+} from "./full-file-anchor.js";
+import type { DiffHunk, DiffLine, DiffStatus, FileDiff } from "./types.js";
 
 function addLine(newLineno: number, content: string): DiffLine {
 	return {
@@ -144,5 +147,51 @@ describe("buildFullFileAnchor", () => {
 		expect(anchor.start_line).toBe(5);
 		expect(anchor.end_line).toBe(50);
 		expect(cachedExcerpt).toBe("before-gap\n… 44 lines unchanged …\nafter-gap");
+	});
+});
+
+function hunk(lines: DiffLine[]): DiffHunk {
+	return {
+		header: "@@ -1,1 +1,1 @@",
+		old_start: 1,
+		old_lines: lines.length,
+		new_start: 1,
+		new_lines: lines.length,
+		lines,
+	};
+}
+
+describe("fileSelectableIndices", () => {
+	it("returns the flat indices of every new-side line, excluding Delete lines", () => {
+		const lines = [
+			contextLine(40, 40, "ctx"),
+			deleteLine(99, "gone"),
+			addLine(41, "added"),
+		];
+		const f = file("Modified", "src/a.ts", lines);
+
+		expect(fileSelectableIndices(f)).toEqual(new Set([0, 2]));
+	});
+
+	it("indices are continuous across multiple hunks (flat over hunks.flatMap)", () => {
+		const f: FileDiff = {
+			path: "src/multi.ts",
+			status: "Modified",
+			is_binary: false,
+			hunks: [
+				hunk([addLine(1, "h1-a"), deleteLine(2, "h1-del")]),
+				hunk([addLine(50, "h2-a"), addLine(51, "h2-b")]),
+			],
+		};
+
+		// Flat list: [add, delete, add, add] -> new-side at flat indices 0, 2, 3.
+		expect(fileSelectableIndices(f)).toEqual(new Set([0, 2, 3]));
+	});
+
+	it("is empty for a pure-deletion file (no new side)", () => {
+		const lines = [deleteLine(1, "gone-a"), deleteLine(2, "gone-b")];
+		const f = file("Deleted", "src/dead.ts", lines);
+
+		expect(fileSelectableIndices(f)).toEqual(new Set());
 	});
 });

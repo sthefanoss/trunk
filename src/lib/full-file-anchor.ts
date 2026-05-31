@@ -30,6 +30,25 @@ export interface FullFileAnchorResult {
 const GAP_MARKER = (count: number): string => `… ${count} lines unchanged …`;
 
 /**
+ * The flat indices (into `file.hunks.flatMap(h => h.lines)`) of every new-side
+ * line in the file — i.e. each line that survives on the new side (new_lineno !=
+ * null). Used to synthesize a whole-file selection when commenting on an entire
+ * file without first picking lines: feeding this set to `buildFullFileAnchor`
+ * yields a New-side range spanning all the file's changes (260531-l02e). An
+ * empty result means the file is pure-deletion (no new side), which the caller
+ * treats as the deferred Old-side case — same convention as the diff path's
+ * resolveSide guard.
+ */
+export function fileSelectableIndices(file: FileDiff): Set<number> {
+	const allLines: DiffLine[] = file.hunks.flatMap((h) => h.lines);
+	const indices = new Set<number>();
+	allLines.forEach((line, i) => {
+		if (line.new_lineno !== null) indices.add(i);
+	});
+	return indices;
+}
+
+/**
  * Build the source-coordinate anchor and plain-content excerpt for a selection
  * of line indices into the file's flat line list.
  */
