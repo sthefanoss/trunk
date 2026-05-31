@@ -182,12 +182,13 @@ async function ensureActiveSession(): Promise<boolean> {
 }
 
 // Open the comment composer SYNCHRONOUSLY. The composer only needs the line range,
-// which comes from the hunk — so nothing async runs here: no session start, no
-// snapshot. The expensive working-tree snapshot + session start are DEFERRED to
-// submit (resolveCommentCommitOid). That is what removes the click-to-open lag and
-// stops the .git write (and its self-inflicted repo-changed reload) from happening
-// while composing; a Cancel now costs nothing (no session, no commit created).
-function openDiffComposer(
+// which comes from the hunk. The EXPENSIVE working-tree snapshot is deferred to
+// submit (resolveCommentCommitOid) — that's what removed the click-to-open lag and
+// the .git write (+ its self-inflicted reload) during compose. The session IS started
+// here, though: it's cheap (a status check, no git hashing) and the composer's
+// draft-save fires on the first keystroke — deferring it left drafts hitting
+// `no_session` (260531-l02c regression).
+async function openDiffComposer(
 	fd: FileDiff,
 	hunkIndex: number,
 	indices: Set<number>,
@@ -197,7 +198,9 @@ function openDiffComposer(
 
 	// Working-tree (unstaged) scope guard (260531-k4j): New-side only this pass. Use
 	// the SAME exported resolveSide buildDiffAnchor uses so guard and anchor agree on
-	// the mixed Add+Delete → New edge case. Commit-mode is NOT guarded.
+	// the mixed Add+Delete → New edge case. Commit-mode + staged are NOT guarded
+	// (staged anchors to the index snapshot whose parent is HEAD, so Old resolves too).
+	// Runs BEFORE ensureActiveSession so a guarded-out comment starts no session.
 	if (diffKind === "unstaged") {
 		const hunkLines = fd.hunks[hunkIndex]?.lines ?? [];
 		const selected = Array.from(indices)
@@ -208,6 +211,9 @@ function openDiffComposer(
 			return;
 		}
 	}
+
+	const ready = await ensureActiveSession();
+	if (!ready) return;
 
 	// commit_oid is filled at submit by resolveCommentCommitOid; the range + excerpt
 	// (all the composer renders) come from the hunk and are stable from this instant.
@@ -247,27 +253,29 @@ async function resolveCommentCommitOid(): Promise<string | null> {
 }
 
 // Comment on the user's current line selection.
-function handleCommentLines(filePath: string, hunkIndex: number) {
+async function handleCommentLines(filePath: string, hunkIndex: number) {
 	const fd = fileDiffs.find((f) => f.path === filePath);
 	if (!fd) return;
-	openDiffComposer(fd, hunkIndex, new Set(selectedLineIndices));
+	await openDiffComposer(fd, hunkIndex, new Set(selectedLineIndices));
 }
 
 // Whole-hunk Comment affordance (260531-l02): comment a hunk without first
 // selecting lines. Synthesize the hunk's selectable (non-context) indices and open
 // the composer with that stable set. Does NOT mutate the visible selection.
-function handleCommentHunk(filePath: string, hunkIndex: number) {
+async function handleCommentHunk(filePath: string, hunkIndex: number) {
 	const fd = fileDiffs.find((f) => f.path === filePath);
 	const hunk = fd?.hunks[hunkIndex];
 	if (!fd || !hunk) return;
-	openDiffComposer(fd, hunkIndex, hunkSelectableIndices(hunk));
+	await openDiffComposer(fd, hunkIndex, hunkSelectableIndices(hunk));
 }
 
 // Full-file analog. NO isMerge guard (merge commits are valid for full-file, L-05),
-// NO Old-side guard (full-file is always New-side, buildFullFileAnchor). Opens
-// synchronously; the session start + working-tree snapshot are deferred to submit
-// (resolveCommentCommitOid), same as the diff path (260531-l02 lag fix).
-function handleCommentFullFile(filePath: string, indices: Set<number>) {
+// NO Old-side guard (full-file is always New-side, buildFullFileAnchor). Starts the
+// session here (cheap; the draft-save needs it — see openDiffComposer); the EXPENSIVE
+// working-tree snapshot stays deferred to submit (resolveCommentCommitOid).
+async function handleCommentFullFile(filePath: string, indices: Set<number>) {
+	const ready = await ensureActiveSession();
+	if (!ready) return;
 	fullFileComposerPath = filePath;
 	fullFileSelectedIndices = indices;
 	fullFileComposerOpen = true;

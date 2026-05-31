@@ -38,6 +38,13 @@ let {
 let text = $state("");
 let submitting = $state(false);
 
+// Focus the textarea as soon as the composer mounts (it mounts fresh on each open)
+// so the user can type immediately without clicking into it.
+let textareaEl = $state<HTMLTextAreaElement | null>(null);
+$effect(() => {
+	textareaEl?.focus();
+});
+
 const DRAFT_DEBOUNCE_MS = 300;
 let draftTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -141,6 +148,7 @@ export async function confirmDiscardIfDirty(): Promise<boolean> {
 		Comments on lines {capturedResult.anchor.start_line}-{capturedResult.anchor.end_line}
 	</div>
 	<textarea
+		bind:this={textareaEl}
 		class="composer-textarea"
 		placeholder="Leave a comment on these lines…"
 		bind:value={text}

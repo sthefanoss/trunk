@@ -318,6 +318,8 @@ async function handleFileSelect(
 		return;
 	}
 	selectedFile = { path, kind };
+	// Close the review panel (swap to diff) so the clicked file is visible (260531-l02d).
+	if (reviewSession.state.reviewActive) reviewSession.showDiff();
 	if (!repoPath) return;
 	if (kind === "conflicted") {
 		// MergeEditor loads its own data via get_merge_sides
@@ -364,6 +366,10 @@ async function selectCommitIdempotent(oid: string) {
 	}
 
 	selectedCommitOid = oid;
+	// Selecting a commit/ref while the review panel is open swaps the center pane to
+	// the diff so the user sees what they clicked (260531-l02d). showDiff is also what
+	// the jump gesture does, so this is consistent (and harmless when review is off).
+	if (reviewSession.state.reviewActive) reviewSession.showDiff();
 	if (!repoPath) return;
 	try {
 		const [files, detail] = await Promise.all([
@@ -430,6 +436,8 @@ async function handleRefNavigate(refNameOrOid: string) {
 async function selectCommitFileIdempotent(path: string) {
 	if (selectedCommitFile === path) return;
 	selectedCommitFile = path;
+	// Close the review panel (swap to diff) so the clicked file is visible (260531-l02d).
+	if (reviewSession.state.reviewActive) reviewSession.showDiff();
 	if (!repoPath || !selectedCommitOid) return;
 	try {
 		const options = buildDiffOptions();
