@@ -5,7 +5,7 @@ milestone_name: milestone
 status: Awaiting next milestone
 stopped_at: Completed 76-03-PLAN.md (frontend merge/revert wiring)
 last_updated: "2026-05-31T01:17:29.489Z"
-last_activity: 2026-05-31 — Completed quick task 260531-4kk: review uncommitted changes (working tree as review target)
+last_activity: 2026-05-31 — Quick task 260531-k4j: in-diff Comment for unstaged changes (code complete, in-app UAT pending)
 progress:
   total_phases: 2
   completed_phases: 2
@@ -178,6 +178,7 @@ Last activity: 2026-05-29 — Milestone v0.14 completed and archived
 | 260405-j41 | Fix diff view horizontal scroll to scroll entire view together | 2026-04-05 | c458fd3 | [260405-j41-fix-diff-view-horizontal-scroll-scroll-e](./quick/260405-j41-fix-diff-view-horizontal-scroll-scroll-e/) |
 | 260514-356 | VSCode-style recent projects picker (Cmd/Ctrl+R) | 2026-05-14 | 045de1f | [260514-356-build-a-recent-projects-picker-vscode-ct](./quick/260514-356-build-a-recent-projects-picker-vscode-ct/) |
 | 260531-4kk | Review uncommitted changes — working tree as a review target (dangling-commit snapshot) | 2026-05-31 | fe5b679 | [260531-4kk-add-review-uncommitted-changes-to-the-co](./quick/260531-4kk-add-review-uncommitted-changes-to-the-co/) |
+| 260531-k4j | Move uncommitted-changes Comment into the working-tree diff toolbar (get-or-create snapshot); remove v1 panel button — code complete, in-app UAT pending | 2026-05-31 | 6349d2d | [260531-k4j-move-uncommitted-changes-comment-afforda](./quick/260531-k4j-move-uncommitted-changes-comment-afforda/) |
 
 ## Deferred Items
 
