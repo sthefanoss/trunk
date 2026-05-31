@@ -1,5 +1,10 @@
 <script lang="ts">
-import { hunkSelectableIndices, resolveSide } from "../lib/diff-anchor.js";
+import {
+	buildDiffAnchor,
+	type DiffAnchorResult,
+	hunkSelectableIndices,
+	resolveSide,
+} from "../lib/diff-anchor.js";
 import { buildFullFileAnchor } from "../lib/full-file-anchor.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import {
@@ -97,15 +102,15 @@ const commitOid = $derived(
 );
 const isMerge = $derived((commitDetail?.parent_oids.length ?? 0) > 1);
 let composerOpen = $state(false);
-let composerFilePath = $state<string | null>(null);
-let composerHunkIdx = $state<number | null>(null);
+// The diff-path capture is built ONCE when the composer opens, from a snapshot of the
+// selection taken BEFORE any await, and injected as a stable `captured` result — NOT
+// derived reactively from selectedLineIndices. A working-tree comment writes a snapshot
+// commit to .git/objects, which the fs watcher reports as repo-changed; that refetches
+// the diff and fires clearSelection() ~200ms later. Deriving the anchor reactively then
+// recomputed it over the emptied selection → Math.min(...[]) = Infinity (260531-l02 bug).
+// Capturing up-front severs that dependency for both the line and whole-hunk paths.
+let diffCaptured = $state<DiffAnchorResult | null>(null);
 let composer = $state<CommentComposer | null>(null);
-
-const composerFile = $derived(
-	composerFilePath
-		? (fileDiffs.find((f) => f.path === composerFilePath) ?? null)
-		: null,
-);
 
 // Full-file capture host state (Phase 68). The selection lives in FullFileView;
 // the host receives the chosen flat indices on the Comment affordance click and
@@ -130,8 +135,7 @@ const fullFileCaptured = $derived(
 
 function closeComposer() {
 	composerOpen = false;
-	composerFilePath = null;
-	composerHunkIdx = null;
+	diffCaptured = null;
 	fullFileComposerOpen = false;
 	fullFileComposerPath = null;
 	fullFileSelectedIndices = new Set();
@@ -178,21 +182,28 @@ async function ensureActiveSession(): Promise<boolean> {
 	}
 }
 
-async function handleCommentLines(filePath: string, hunkIndex: number) {
+// Shared diff-path composer open. Builds the anchor ONCE from a STABLE `indices`
+// snapshot (captured by the caller before any await), so a repo-changed-driven
+// clearSelection during the snapshot fetch can never corrupt it (260531-l02). Used
+// by both the line-selection and whole-hunk Comment affordances.
+async function openDiffComposer(
+	fd: FileDiff,
+	hunkIndex: number,
+	indices: Set<number>,
+) {
 	if (isMerge) return;
+	if (indices.size === 0) return;
 
 	// Working-tree (unstaged) scope guard (260531-k4j): New-side only this pass.
-	// Compute the side with the SAME exported resolveSide buildDiffAnchor uses so
-	// the guard and the anchor agree on the mixed Add+Delete → New edge case. An
-	// Old-side (pure-delete / Deleted file) unstaged selection is a no-op + toast,
-	// NOT an Old-side comment. Commit-mode is NOT guarded (byte-for-byte intact).
+	// Use the SAME exported resolveSide buildDiffAnchor uses so the guard and the
+	// anchor agree on the mixed Add+Delete → New edge case. An Old-side (pure-delete
+	// / Deleted file) selection is a no-op + toast. Commit-mode is NOT guarded.
 	if (diffKind === "unstaged") {
-		const fd = fileDiffs.find((f) => f.path === filePath);
-		const hunkLines = fd?.hunks[hunkIndex]?.lines ?? [];
-		const selected = Array.from(selectedLineIndices)
+		const hunkLines = fd.hunks[hunkIndex]?.lines ?? [];
+		const selected = Array.from(indices)
 			.sort((a, b) => a - b)
 			.map((i) => hunkLines[i]);
-		if (fd && resolveSide(fd.status, selected) === "Old") {
+		if (resolveSide(fd.status, selected) === "Old") {
 			showToast("Commenting on removed lines isn't supported yet", "error");
 			return;
 		}
@@ -201,14 +212,16 @@ async function handleCommentLines(filePath: string, hunkIndex: number) {
 	const ready = await ensureActiveSession();
 	if (!ready) return;
 
-	// For the working tree, anchor to a get-or-create snapshot OID. Set it BEFORE
-	// composerOpen so the composer reads the snapshot oid reactively as commitOid.
+	// Resolve the anchor's commit_oid: the get-or-create snapshot for the working
+	// tree, else the viewed commit. The unstaged snapshot IPC is what triggers
+	// repo-changed — but `indices` is already a stable snapshot, so the clear is moot.
+	let oid = commitDetail?.oid ?? "";
 	if (diffKind === "unstaged") {
 		try {
-			workingTreeSnapshotOid = await safeInvoke<string>(
-				"ensure_working_tree_snapshot",
-				{ path: repoPath },
-			);
+			oid = await safeInvoke<string>("ensure_working_tree_snapshot", {
+				path: repoPath,
+			});
+			workingTreeSnapshotOid = oid;
 		} catch (e) {
 			showToast(
 				(e as TrunkError).message ?? "Failed to snapshot working tree",
@@ -218,29 +231,27 @@ async function handleCommentLines(filePath: string, hunkIndex: number) {
 		}
 	}
 
-	composerFilePath = filePath;
-	composerHunkIdx = hunkIndex;
+	diffCaptured = buildDiffAnchor(oid, fd, hunkIndex, indices);
 	composerOpen = true;
 }
 
+// Comment on the user's current line selection.
+async function handleCommentLines(filePath: string, hunkIndex: number) {
+	const fd = fileDiffs.find((f) => f.path === filePath);
+	if (!fd) return;
+	// Snapshot the selection BEFORE awaiting — see openDiffComposer / diffCaptured.
+	await openDiffComposer(fd, hunkIndex, new Set(selectedLineIndices));
+}
+
 // Whole-hunk Comment affordance (260531-l02): comment a hunk without first
-// selecting lines. Synthesize a full-hunk selection (every non-context line,
-// the same lines the user could click) then DELEGATE to handleCommentLines, so
-// the isMerge guard, the unstaged Old-side scope guard (pure-delete → toast),
-// ensureActiveSession, the snapshot fetch, and the composer are all reused
-// verbatim — zero duplicated logic. A degenerate hunk with no selectable lines
-// opens nothing.
+// selecting lines. Synthesize the hunk's selectable (non-context) indices and open
+// the composer with that stable set. Does NOT mutate the visible selection — that
+// avoids the select→clear flicker and the Infinity-range bug.
 async function handleCommentHunk(filePath: string, hunkIndex: number) {
 	const fd = fileDiffs.find((f) => f.path === filePath);
 	const hunk = fd?.hunks[hunkIndex];
-	if (!hunk) return;
-
-	const indices = hunkSelectableIndices(hunk);
-	if (indices.size === 0) return;
-
-	selectedHunkKey = `${filePath}-${hunkIndex}`;
-	selectedLineIndices = indices;
-	await handleCommentLines(filePath, hunkIndex);
+	if (!fd || !hunk) return;
+	await openDiffComposer(fd, hunkIndex, hunkSelectableIndices(hunk));
 }
 
 // Full-file analog of handleCommentLines. NO isMerge guard — merge commits are
@@ -545,8 +556,7 @@ async function handleLineClick(
 		const proceed = await composer.confirmDiscardIfDirty();
 		if (!proceed) return;
 		composerOpen = false;
-		composerFilePath = null;
-		composerHunkIdx = null;
+		diffCaptured = null;
 	}
 
 	const hunkKey = `${filePath}-${hunkIdx}`;
@@ -709,12 +719,10 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		oncommentfullfile={handleCommentFullFile}
 		bind:fullFileView
 	/>
-	{#if composerOpen && composerFile && composerHunkIdx !== null}
+	{#if composerOpen && diffCaptured}
 		<CommentComposer
 			bind:this={composer}
-			file={composerFile}
-			hunkIdx={composerHunkIdx}
-			{selectedLineIndices}
+			captured={diffCaptured}
 			{commitOid}
 			{repoPath}
 			onclose={closeComposer}
