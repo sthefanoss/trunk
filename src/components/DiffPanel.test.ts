@@ -302,6 +302,39 @@ describe("DiffPanel", () => {
 		expect(screen.getByText("Discard Hunk")).toBeInTheDocument();
 	});
 
+	// Regression (260531-l02): opening a whole-hunk comment captures the anchor
+	// up-front. A working-tree comment writes a snapshot commit, which fires a
+	// repo-changed → diff refetch → clearSelection mid-compose. Previously the
+	// composer re-derived its range from the now-empty selection → Math.min(...[])
+	// = Infinity. The captured anchor must survive a fileDiffs reload.
+	it("keeps the whole-hunk comment range finite when the diff reloads mid-compose", async () => {
+		const baseProps = {
+			commitDetail: null,
+			onclose: vi.fn(),
+			diffKind: "unstaged" as const,
+			repoPath: "/test/repo",
+		};
+		const { rerender } = render(DiffPanel, {
+			props: { ...baseProps, fileDiffs: [testDiff] },
+		});
+		await flushPrefs();
+
+		// Whole-hunk comment with NO prior line selection.
+		await fireEvent.click(screen.getByText("Comment"));
+		await flushPrefs();
+
+		// New-side lines of the hunk are new_lineno 2 and 3.
+		expect(screen.getByText("Comments on lines 2-3")).toBeInTheDocument();
+
+		// A fresh fileDiffs reference reproduces the repo-changed reload that fires
+		// clearSelection. The captured range must be unaffected — never Infinity.
+		await rerender({ ...baseProps, fileDiffs: [testDiff] });
+		await flushPrefs();
+
+		expect(screen.getByText("Comments on lines 2-3")).toBeInTheDocument();
+		expect(screen.queryByText(/Infinity/)).not.toBeInTheDocument();
+	});
+
 	it("shows Unstage Hunk button for staged diffs", async () => {
 		render(DiffPanel, {
 			props: {
