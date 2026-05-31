@@ -499,6 +499,25 @@ fn remove_review_commit_rmw(
     })
 }
 
+/// Set the session's single working-tree snapshot to `new_oid`, REPLACING any
+/// prior snapshot (locked decision: at most one snapshot, never stacked). The
+/// remove-old + add-new + field-update run in ONE `mutate_session_rmw` closure
+/// so disk and memory stay consistent and the session never holds two snapshots.
+fn set_working_tree_snapshot_rmw(
+    data_dir: &Path,
+    canonical: &Path,
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    new_oid: &str,
+) -> Result<(), TrunkError> {
+    mutate_session_rmw(data_dir, canonical, sessions, |session| {
+        if let Some(old) = session.working_tree_snapshot.take() {
+            apply_remove(&mut session.commits, &old);
+        }
+        apply_add(&mut session.commits, new_oid);
+        session.working_tree_snapshot = Some(new_oid.to_string());
+    })
+}
+
 // ── Comment capture (Phase 67, Plan 02): shared dumb writers ──────────────────
 // `add_comment_inner` and `save_draft_comment_inner` reuse the SAME serialized
 // `mutate_session_rmw` as the selection RMW functions — the comment writer pushes
@@ -757,6 +776,56 @@ pub async fn add_review_commit(
         canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
 
     add_review_commit_rmw(&data_dir, &canonical, &sessions.0, &oid)
+        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    emit_session_changed(&app, &canonical);
+    Ok(())
+}
+
+/// Capture the current working tree (staged + unstaged + untracked-not-ignored)
+/// as a dangling snapshot commit (parent = HEAD) and add it to the active
+/// session as a reviewable target, REPLACING any prior snapshot (never stacks).
+#[tauri::command]
+pub async fn add_working_tree_review(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let data_dir = resolve_data_dir(&app)?;
+    let canonical =
+        canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    // Fast-fail precheck (mirrors seed_review_range): bail before the git2 work
+    // when no session exists. The RMW would surface `no_session` anyway, but the
+    // snapshot commit would already be in the ODB — pointless work.
+    {
+        let map = sessions.0.lock().unwrap();
+        if !map.contains_key(&canonical) {
+            return Err(serde_json::to_string(&TrunkError::new(
+                "no_session",
+                "No active review session for this repository",
+            ))
+            .unwrap());
+        }
+    }
+
+    // git2::Repository is not Sync; do the snapshot off the async runtime and
+    // never hold a lock across spawn_blocking (same constraint as seed_review_range).
+    let path_for_blocking = path.clone();
+    let snapshot_oid =
+        tauri::async_runtime::spawn_blocking(move || -> Result<String, TrunkError> {
+            let repo = git2::Repository::open(&path_for_blocking).map_err(TrunkError::from)?;
+            let oid = crate::git::workdir_snapshot::snapshot_working_tree(&repo)?;
+            Ok(oid.to_string())
+        })
+        .await
+        .map_err(|e| {
+            serde_json::to_string(&TrunkError::new("spawn_error", e.to_string())).unwrap()
+        })?
+        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+
+    set_working_tree_snapshot_rmw(&data_dir, &canonical, &sessions.0, &snapshot_oid)
         .map_err(|e| serde_json::to_string(&e).unwrap())?;
     emit_session_changed(&app, &canonical);
     Ok(())
@@ -1631,6 +1700,50 @@ mod tests {
         assert!(
             !commits.contains(&"oid-0000".to_string()),
             "removed oid must be gone"
+        );
+    }
+
+    #[test]
+    fn working_tree_snapshot_replaces_not_stacks() {
+        let data_dir = TempDir::new().unwrap();
+        let canonical = data_dir.path().join("repo-canonical");
+        let sessions: Mutex<HashMap<PathBuf, ReviewSession>> = Mutex::new(HashMap::new());
+        sessions.lock().unwrap().insert(
+            canonical.clone(),
+            ReviewSession {
+                schema_version: 2,
+                commits: vec!["hand-picked".to_string()],
+                comments: vec![],
+                draft_comment: None,
+                working_tree_snapshot: None,
+            },
+        );
+
+        let first = "a".repeat(40);
+        let second = "b".repeat(40);
+        set_working_tree_snapshot_rmw(data_dir.path(), &canonical, &sessions, &first).unwrap();
+        set_working_tree_snapshot_rmw(data_dir.path(), &canonical, &sessions, &second).unwrap();
+
+        let in_memory = sessions.lock().unwrap();
+        let session = in_memory.get(&canonical).unwrap();
+        // The first snapshot oid was removed; only the second remains alongside
+        // the unrelated hand-picked commit — exactly one snapshot, never stacked.
+        assert!(
+            !session.commits.contains(&first),
+            "the replaced snapshot oid must be removed from commits"
+        );
+        assert!(
+            session.commits.contains(&second),
+            "the latest snapshot oid must be in commits"
+        );
+        assert!(
+            session.commits.contains(&"hand-picked".to_string()),
+            "re-snapshot must not disturb hand-picked commits"
+        );
+        assert_eq!(
+            session.working_tree_snapshot,
+            Some(second.clone()),
+            "the snapshot pointer must track the latest snapshot oid"
         );
     }
 
