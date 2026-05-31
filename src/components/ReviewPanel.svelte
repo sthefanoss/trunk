@@ -5,7 +5,7 @@
 // and jump-to-anchor with read-only orphan rows (D-07 / D-08). The panel lives
 // in the center pane (UI-SPEC:133); jump is driven by the host via onJump.
 
-import { Clipboard, MessageSquarePlus, Trash2 } from "@lucide/svelte";
+import { Clipboard, FilePlus, MessageSquarePlus, Trash2 } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { isTrunkError, safeInvoke, type TrunkError } from "../lib/invoke.js";
@@ -394,6 +394,20 @@ async function onEndClick() {
 	}
 }
 
+// Quick 260531-4kk — snapshot the current uncommitted changes into the session.
+// On success the backend emits session-changed; the listener below re-runs
+// reload() and the snapshot commit appears via list_session_commits (no manual
+// state mutation). Failures route through the same errorMessage/showToast shape
+// as onEndClick.
+async function onReviewWorkingTreeClick() {
+	try {
+		await session.reviewWorkingTree(repoPath);
+	} catch (e) {
+		const msg = errorMessage(e, "unknown error");
+		showToast(`Failed to snapshot working tree: ${msg}`, "error");
+	}
+}
+
 async function deleteComment(id: string) {
 	const { ask } = await import("@tauri-apps/plugin-dialog");
 	const confirmed = await ask("Delete this comment? This cannot be undone.", {
@@ -467,6 +481,15 @@ $effect(() => {
   >
     <span class="preview-spacer" style="flex: 1;"></span>
     {#if sessionState !== "none"}
+      <button
+        type="button"
+        class="snapshot-button flex items-center"
+        onclick={onReviewWorkingTreeClick}
+        title="Snapshot the current uncommitted changes as a review target"
+      >
+        <FilePlus size={14} />
+        <span>Review uncommitted changes</span>
+      </button>
       <button
         type="button"
         class="end-button {endConfirming ? 'confirming' : ''} flex items-center"
@@ -908,6 +931,27 @@ $effect(() => {
   .copy-button[disabled] {
     cursor: not-allowed;
     opacity: 0.5;
+  }
+
+  /* Quick 260531-4kk — "Review uncommitted changes" button. Visual sibling of
+     .copy-button; all colors via :root theme tokens (no hex/rgb literals). */
+  .snapshot-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .snapshot-button:hover,
+  .snapshot-button:focus-visible {
+    color: var(--color-text);
+    background: var(--color-hover);
   }
 
   /* Phase 73-02 End-review button — danger-tinted sibling of .copy-button.
