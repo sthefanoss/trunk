@@ -219,19 +219,27 @@ function openDiffComposer(
 // for the working tree, create/reuse the snapshot commit — returning the anchor's
 // commit_oid. Runs ONLY when the user submits, so opening is instant and Cancel is
 // free. Returns null on failure; the composer stays open so the draft isn't lost.
+//
+// Snapshot kind by diff (the staged/unstaged base differ — see ensure_review_snapshot):
+// - unstaged → "workdir" (HEAD→working tree); the unstaged diff's New side is the workdir.
+// - staged   → "index"   (HEAD→index); the staged diff's New side is the index, and its
+//              Old side is HEAD = the index snapshot's parent, so both sides resolve.
+// - commit   → the viewed commit's oid (no snapshot).
 async function resolveCommentCommitOid(): Promise<string | null> {
 	const ready = await ensureActiveSession();
 	if (!ready) return null;
-	if (diffKind !== "unstaged") return commitDetail?.oid ?? "";
+	if (diffKind === "commit") return commitDetail?.oid ?? "";
+	const kind = diffKind === "staged" ? "index" : "workdir";
 	try {
-		const oid = await safeInvoke<string>("ensure_working_tree_snapshot", {
+		const oid = await safeInvoke<string>("ensure_review_snapshot", {
 			path: repoPath,
+			kind,
 		});
-		workingTreeSnapshotOid = oid;
+		if (diffKind === "unstaged") workingTreeSnapshotOid = oid;
 		return oid;
 	} catch (e) {
 		showToast(
-			(e as TrunkError).message ?? "Failed to snapshot working tree",
+			(e as TrunkError).message ?? "Failed to snapshot changes",
 			"error",
 		);
 		return null;

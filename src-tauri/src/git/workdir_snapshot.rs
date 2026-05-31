@@ -40,39 +40,73 @@ pub fn workdir_tree_oid(repo: &git2::Repository) -> Result<git2::Oid, TrunkError
     Ok(idx.write_tree_to(repo)?)
 }
 
-/// Get-or-create the working-tree snapshot for a session (the reuse-vs-create
-/// decision in a pure, unit-testable surface — mirrors the validate_range /
-/// compute_range_oids pattern: takes `&Repository`, no Tauri state).
+/// Build the STAGED (index) tree and write it to the ODB, returning its Oid.
+/// Unlike `workdir_tree_oid` this captures ONLY what's staged (HEAD→index): a
+/// staged-diff comment's New side is the *index*, so it must anchor against the
+/// index tree (not the working tree — for a partially-staged file those line
+/// numbers diverge). `repo.index().write_tree()` writes a tree object from the
+/// current on-disk index WITHOUT modifying the index file.
+pub fn index_tree_oid(repo: &git2::Repository) -> Result<git2::Oid, TrunkError> {
+    Ok(repo.index()?.write_tree()?)
+}
+
+/// Which tree a review snapshot captures. `Workdir` = HEAD→working tree (the
+/// unstaged diff's New side); `Index` = HEAD→index (the staged diff's New side).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnapshotKind {
+    Workdir,
+    Index,
+}
+
+impl SnapshotKind {
+    fn tree_oid(self, repo: &git2::Repository) -> Result<git2::Oid, TrunkError> {
+        match self {
+            SnapshotKind::Workdir => workdir_tree_oid(repo),
+            SnapshotKind::Index => index_tree_oid(repo),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            SnapshotKind::Workdir => "Uncommitted changes",
+            SnapshotKind::Index => "Staged changes",
+        }
+    }
+}
+
+/// Get-or-create a review snapshot for a session (the reuse-vs-create decision in a
+/// pure, unit-testable surface — mirrors the validate_range / compute_range_oids
+/// pattern: takes `&Repository`, no Tauri state).
 ///
 /// Returns `(oid, created)`:
-/// - When `prior` is `Some` and its COMMIT TREE equals the current workdir tree,
-///   the workdir is unchanged → reuse the prior snapshot, `(prior, false)`. The
-///   comparison is tree-vs-tree: `workdir_tree_oid(repo)` against
-///   `repo.find_commit(prior)?.tree_id()`. `prior` itself is a COMMIT oid and is
-///   never compared against the tree oid directly.
-/// - Otherwise (changed workdir, or `prior` is `None`) create a fresh snapshot
-///   commit → `(new_oid, true)`.
+/// - When `prior` is `Some` and its COMMIT TREE equals the current tree for `kind`,
+///   nothing changed → reuse, `(prior, false)`. The comparison is tree-vs-tree:
+///   `kind.tree_oid(repo)` against `repo.find_commit(prior)?.tree_id()`. `prior` is
+///   a COMMIT oid, never compared against the tree oid directly.
+/// - Otherwise (changed tree, or `prior` is `None`) create a fresh snapshot commit
+///   → `(new_oid, true)`.
 pub fn decide_snapshot(
     repo: &git2::Repository,
+    kind: SnapshotKind,
     prior: Option<git2::Oid>,
 ) -> Result<(git2::Oid, bool), TrunkError> {
-    let current_tree = workdir_tree_oid(repo)?;
+    let current_tree = kind.tree_oid(repo)?;
     if let Some(prior_oid) = prior {
         let prior_tree = repo.find_commit(prior_oid)?.tree_id();
         if prior_tree == current_tree {
             return Ok((prior_oid, false));
         }
     }
-    let new_oid = snapshot_working_tree(repo)?;
+    let new_oid = snapshot(repo, kind)?;
     Ok((new_oid, true))
 }
 
-/// Snapshot the current working tree into a dangling commit (parent = HEAD) and
-/// return its Oid. Builds the tree via `workdir_tree_oid` (which never persists
-/// the real `.git/index`) then commits it parent = HEAD.
-pub fn snapshot_working_tree(repo: &git2::Repository) -> Result<git2::Oid, TrunkError> {
-    // 1–3. Build the workdir tree (no idx.write(), real index untouched).
-    let tree = repo.find_tree(workdir_tree_oid(repo)?)?;
+/// Snapshot the tree for `kind` into a dangling commit (parent = HEAD) and return
+/// its Oid. Builds the tree via the kind's tree fn (neither persists the real
+/// `.git/index`) then commits it parent = HEAD.
+pub fn snapshot(repo: &git2::Repository, kind: SnapshotKind) -> Result<git2::Oid, TrunkError> {
+    // 1–3. Build the target tree (no idx.write(), real index untouched).
+    let tree = repo.find_tree(kind.tree_oid(repo)?)?;
 
     // 4. Resolve the parent: HEAD's commit, or none when HEAD is unborn (a fresh
     //    repo with zero commits still snapshots fine — a parent-less commit).
@@ -86,13 +120,19 @@ pub fn snapshot_working_tree(repo: &git2::Repository) -> Result<git2::Oid, Trunk
     // 5. Descriptive message only — the snapshot is tracked by OID in the session
     //    field, never by parsing this string.
     let sig = git2::Signature::now("Trunk", "review@trunk.local")?;
-    let msg = format!("Uncommitted changes — {}", sig.when().seconds());
+    let msg = format!("{} — {}", kind.label(), sig.when().seconds());
 
     // 6. `None` target ref => the commit is created dangling. The session command
-    //    (ensure_working_tree_snapshot) then pins it via keep_snapshot_ref so gc can't
+    //    (ensure_review_snapshot) then pins it via keep_snapshot_ref so gc can't
     //    prune a snapshot that still has comments anchored to it (260531-l02 C3).
     let oid = repo.commit(None, &sig, &sig, &msg, &tree, &parents)?;
     Ok(oid)
+}
+
+/// Workdir convenience wrapper (the original entry point; kept for existing
+/// callers and tests).
+pub fn snapshot_working_tree(repo: &git2::Repository) -> Result<git2::Oid, TrunkError> {
+    snapshot(repo, SnapshotKind::Workdir)
 }
 
 /// HEAD is unborn when the repo has no commits yet (freshly init'd). Mirrors the
@@ -283,7 +323,7 @@ mod tests {
         fs::write(dir.path().join("new.txt"), b"uncommitted\n").unwrap();
 
         let prior = snapshot_working_tree(&repo).unwrap();
-        let (oid, created) = decide_snapshot(&repo, Some(prior)).unwrap();
+        let (oid, created) = decide_snapshot(&repo, SnapshotKind::Workdir, Some(prior)).unwrap();
 
         assert!(
             !created,
@@ -304,7 +344,7 @@ mod tests {
         let prior = snapshot_working_tree(&repo).unwrap();
 
         fs::write(dir.path().join("new.txt"), b"changed contents\n").unwrap();
-        let (oid, created) = decide_snapshot(&repo, Some(prior)).unwrap();
+        let (oid, created) = decide_snapshot(&repo, SnapshotKind::Workdir, Some(prior)).unwrap();
 
         assert!(created, "a changed workdir must create a new snapshot");
         assert_ne!(
@@ -319,7 +359,7 @@ mod tests {
         let (dir, repo) = repo_with_initial_commit();
         fs::write(dir.path().join("new.txt"), b"uncommitted\n").unwrap();
 
-        let (oid, created) = decide_snapshot(&repo, None).unwrap();
+        let (oid, created) = decide_snapshot(&repo, SnapshotKind::Workdir, None).unwrap();
 
         assert!(created, "first snapshot (prior=None) must create");
         assert!(
@@ -348,5 +388,67 @@ mod tests {
             tree_contains(&repo, oid, "first.txt"),
             "the snapshot tree must reflect the workdir even with no commits yet"
         );
+    }
+
+    // Read a file's blob bytes out of a snapshot commit's tree.
+    fn blob_at(repo: &git2::Repository, commit_oid: git2::Oid, path: &str) -> Vec<u8> {
+        let tree = repo.find_commit(commit_oid).unwrap().tree().unwrap();
+        let entry = tree.get_path(std::path::Path::new(path)).unwrap();
+        repo.find_blob(entry.id()).unwrap().content().to_vec()
+    }
+
+    // 260531-l02b: the INDEX snapshot captures staged content, NOT the working tree.
+    // For a partially-staged file the two diverge — this is exactly why staged comments
+    // anchor to the index snapshot, not the workdir one. Capture the index snapshot
+    // FIRST: workdir_tree_oid swaps a throwaway index into the repo handle, after which
+    // repo.index() would no longer reflect the on-disk staged index.
+    #[test]
+    fn index_snapshot_captures_staged_not_workdir() {
+        let (dir, repo) = repo_with_initial_commit(); // committed.txt = "original\n"
+        fs::write(dir.path().join("committed.txt"), b"staged\n").unwrap();
+        {
+            let mut idx = repo.index().unwrap();
+            idx.add_path(std::path::Path::new("committed.txt")).unwrap();
+            idx.write().unwrap();
+        }
+        // A further, UNSTAGED edit on top — so index ("staged") ≠ workdir ("workdir").
+        fs::write(dir.path().join("committed.txt"), b"workdir\n").unwrap();
+
+        let index_snap = snapshot(&repo, SnapshotKind::Index).unwrap();
+        assert_eq!(
+            blob_at(&repo, index_snap, "committed.txt"),
+            b"staged\n",
+            "index snapshot must capture the STAGED content"
+        );
+
+        let workdir_snap = snapshot(&repo, SnapshotKind::Workdir).unwrap();
+        assert_eq!(
+            blob_at(&repo, workdir_snap, "committed.txt"),
+            b"workdir\n",
+            "workdir snapshot must capture the WORKING-TREE content"
+        );
+
+        assert_ne!(
+            repo.find_commit(index_snap).unwrap().tree_id(),
+            repo.find_commit(workdir_snap).unwrap().tree_id(),
+            "index and workdir snapshots must be distinct trees when partially staged"
+        );
+    }
+
+    // 260531-l02b: decide_snapshot(Index) reuses when the index is unchanged.
+    #[test]
+    fn decide_snapshot_index_reuses_when_index_unchanged() {
+        let (dir, repo) = repo_with_initial_commit();
+        fs::write(dir.path().join("committed.txt"), b"staged\n").unwrap();
+        {
+            let mut idx = repo.index().unwrap();
+            idx.add_path(std::path::Path::new("committed.txt")).unwrap();
+            idx.write().unwrap();
+        }
+        let prior = snapshot(&repo, SnapshotKind::Index).unwrap();
+
+        let (oid, created) = decide_snapshot(&repo, SnapshotKind::Index, Some(prior)).unwrap();
+        assert_eq!(oid, prior, "unchanged index must reuse the prior snapshot");
+        assert!(!created, "reuse must not create a new commit");
     }
 }

@@ -903,6 +903,7 @@ fn anchored_session() -> ReviewSession {
         }],
         draft_comment: None,
         working_tree_snapshot: None,
+        index_snapshot: None,
     }
 }
 

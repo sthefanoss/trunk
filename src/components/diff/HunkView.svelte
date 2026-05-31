@@ -301,6 +301,25 @@ function gutterWidth(maxNum: number): string {
             {@const hunkKey = `${fd.path}-${hunkIdx}`}
             {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
             {#if hasSelection}
+              <!-- Staged Comment affordance (260531-l02b): anchors to the INDEX
+                   snapshot (HEAD→index) — both sides resolve, so no Old-side guard.
+                   Reuses the accent button; leads the cluster. -->
+              <button
+                style="
+                  background: var(--color-accent-bg, var(--color-surface));
+                  border: 1px solid var(--color-border);
+                  border-radius: 3px;
+                  color: var(--color-accent);
+                  font-size: 11px;
+                  font-family: var(--font-sans, sans-serif);
+                  padding: 2px 8px;
+                  cursor: pointer;
+                  white-space: nowrap;
+                "
+                onclick={() => oncommentlines(fd.path, hunkIdx)}
+              >
+                Comment ({selectedCount})
+              </button>
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}
@@ -321,6 +340,23 @@ function gutterWidth(maxNum: number): string {
                 Unstage Lines ({selectedCount})
               </button>
             {:else}
+              <!-- Whole-hunk staged Comment (260531-l02b): index-snapshot anchored. -->
+              <button
+                style="
+                  background: var(--color-accent-bg, var(--color-surface));
+                  border: 1px solid var(--color-border);
+                  border-radius: 3px;
+                  color: var(--color-accent);
+                  font-size: 11px;
+                  font-family: var(--font-sans, sans-serif);
+                  padding: 2px 8px;
+                  cursor: pointer;
+                  white-space: nowrap;
+                "
+                onclick={() => oncommenthunk(fd.path, hunkIdx)}
+              >
+                Comment
+              </button>
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}

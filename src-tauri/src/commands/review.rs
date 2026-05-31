@@ -89,6 +89,7 @@ pub fn start_review_session_inner(
         comments: vec![],
         draft_comment: None,
         working_tree_snapshot: None,
+        index_snapshot: None,
     };
     review_store::save_session(data_dir, &canonical, &session)?;
     Ok((canonical, session))
@@ -509,15 +510,24 @@ fn remove_review_commit_rmw(
 /// already in `commits` → apply_add is a no-op and the field is unchanged. The
 /// add + field-update run in ONE `mutate_session_rmw` closure so disk and memory
 /// stay consistent.
-fn set_working_tree_snapshot_rmw(
+fn set_review_snapshot_rmw(
     data_dir: &Path,
     canonical: &Path,
     sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    kind: crate::git::workdir_snapshot::SnapshotKind,
     new_oid: &str,
 ) -> Result<(), TrunkError> {
+    use crate::git::workdir_snapshot::SnapshotKind;
     mutate_session_rmw(data_dir, canonical, sessions, |session| {
         apply_add(&mut session.commits, new_oid);
-        session.working_tree_snapshot = Some(new_oid.to_string());
+        match kind {
+            SnapshotKind::Workdir => {
+                session.working_tree_snapshot = Some(new_oid.to_string());
+            }
+            SnapshotKind::Index => {
+                session.index_snapshot = Some(new_oid.to_string());
+            }
+        }
     })
 }
 
@@ -784,28 +794,42 @@ pub async fn add_review_commit(
     Ok(())
 }
 
-/// Get-or-create the working-tree snapshot for the active session and return its
-/// OID. On an UNCHANGED workdir the existing snapshot is reused (no redundant
-/// commit); on a changed workdir a fresh dangling snapshot commit (parent = HEAD)
-/// is created. The prior snapshot is NEVER removed — earlier comments anchored to
-/// it never orphan. This is the SINGLE working-tree-snapshot command.
+/// Get-or-create a review snapshot for the active session and return its OID.
+/// `kind` selects the tree: `"workdir"` (HEAD→working tree, for unstaged comments)
+/// or `"index"` (HEAD→index, for staged comments). On an UNCHANGED tree the existing
+/// snapshot for that kind is reused (no redundant commit); otherwise a fresh dangling
+/// snapshot commit (parent = HEAD) is created and pinned. The prior snapshot is NEVER
+/// removed — earlier comments anchored to it never orphan.
 #[tauri::command]
-pub async fn ensure_working_tree_snapshot(
+pub async fn ensure_review_snapshot(
     path: String,
+    kind: String,
     state: State<'_, RepoState>,
     sessions: State<'_, ReviewSessionsState>,
     app: AppHandle,
 ) -> Result<String, String> {
+    use crate::git::workdir_snapshot::SnapshotKind;
+    let snapshot_kind = match kind.as_str() {
+        "workdir" => SnapshotKind::Workdir,
+        "index" => SnapshotKind::Index,
+        other => {
+            return Err(serde_json::to_string(&TrunkError::new(
+                "bad_request",
+                format!("unknown snapshot kind: {other}"),
+            ))
+            .unwrap());
+        }
+    };
+
     let state_map = state.0.lock().unwrap().clone();
     let data_dir = resolve_data_dir(&app)?;
     let canonical =
         canonical_repo_path(&path, &state_map).map_err(|e| serde_json::to_string(&e).unwrap())?;
 
     // Fast-fail precheck (mirrors seed_review_range): bail before the git2 work
-    // when no session exists. Also read the prior snapshot oid under the same
-    // short lock, then DROP the guard before any git2 work — the read-prior-then-
-    // decide TOCTOU is benign (worst case one redundant snapshot), so it is NOT
-    // pulled into the lock.
+    // when no session exists. Also read the prior snapshot oid FOR THIS KIND under
+    // the same short lock, then DROP the guard before any git2 work — the
+    // read-prior-then-decide TOCTOU is benign (worst case one redundant snapshot).
     let prior_oid = {
         let map = sessions.0.lock().unwrap();
         match map.get(&canonical) {
@@ -816,7 +840,10 @@ pub async fn ensure_working_tree_snapshot(
                 ))
                 .unwrap());
             }
-            Some(session) => session.working_tree_snapshot.clone(),
+            Some(session) => match snapshot_kind {
+                SnapshotKind::Workdir => session.working_tree_snapshot.clone(),
+                SnapshotKind::Index => session.index_snapshot.clone(),
+            },
         }
     };
 
@@ -830,7 +857,8 @@ pub async fn ensure_working_tree_snapshot(
                 Some(s) => Some(git2::Oid::from_str(&s).map_err(TrunkError::from)?),
                 None => None,
             };
-            let (oid, _created) = crate::git::workdir_snapshot::decide_snapshot(&repo, prior)?;
+            let (oid, _created) =
+                crate::git::workdir_snapshot::decide_snapshot(&repo, snapshot_kind, prior)?;
             // Pin the snapshot so gc can't prune it and orphan its comments (C3).
             crate::git::workdir_snapshot::keep_snapshot_ref(&repo, oid)?;
             Ok(oid.to_string())
@@ -841,8 +869,14 @@ pub async fn ensure_working_tree_snapshot(
         })?
         .map_err(|e| serde_json::to_string(&e).unwrap())?;
 
-    set_working_tree_snapshot_rmw(&data_dir, &canonical, &sessions.0, &snapshot_oid)
-        .map_err(|e| serde_json::to_string(&e).unwrap())?;
+    set_review_snapshot_rmw(
+        &data_dir,
+        &canonical,
+        &sessions.0,
+        snapshot_kind,
+        &snapshot_oid,
+    )
+    .map_err(|e| serde_json::to_string(&e).unwrap())?;
     emit_session_changed(&app, &canonical);
     Ok(snapshot_oid)
 }
@@ -1268,6 +1302,7 @@ pub async fn resume_review_session(
                 comments: vec![],
                 draft_comment: None,
                 working_tree_snapshot: None,
+                index_snapshot: None,
             };
             review_store::save_session(&data_dir_for_save, &canonical, &fresh)
                 .map_err(|e| serde_json::to_string(&e).unwrap())?;
@@ -1672,6 +1707,7 @@ mod tests {
                 comments: vec![],
                 draft_comment: None,
                 working_tree_snapshot: None,
+                index_snapshot: None,
             },
         );
 
@@ -1742,13 +1778,15 @@ mod tests {
                 comments: vec![],
                 draft_comment: None,
                 working_tree_snapshot: None,
+                index_snapshot: None,
             },
         );
 
         let first = "a".repeat(40);
         let second = "b".repeat(40);
-        set_working_tree_snapshot_rmw(data_dir.path(), &canonical, &sessions, &first).unwrap();
-        set_working_tree_snapshot_rmw(data_dir.path(), &canonical, &sessions, &second).unwrap();
+        let kind = crate::git::workdir_snapshot::SnapshotKind::Workdir;
+        set_review_snapshot_rmw(data_dir.path(), &canonical, &sessions, kind, &first).unwrap();
+        set_review_snapshot_rmw(data_dir.path(), &canonical, &sessions, kind, &second).unwrap();
 
         let in_memory = sessions.lock().unwrap();
         let session = in_memory.get(&canonical).unwrap();
@@ -1837,6 +1875,7 @@ mod tests {
             comments: vec![],
             draft_comment: None,
             working_tree_snapshot: None,
+            index_snapshot: None,
         };
         let sessions: Mutex<HashMap<PathBuf, ReviewSession>> = Mutex::new(HashMap::new());
         sessions
@@ -1875,6 +1914,7 @@ mod tests {
                 comments: vec![],
                 draft_comment: None,
                 working_tree_snapshot: None,
+                index_snapshot: None,
             },
         );
         (canonical, Mutex::new(map))
@@ -2036,6 +2076,7 @@ mod tests {
                 comments: vec![],
                 draft_comment: None,
                 working_tree_snapshot: None,
+                index_snapshot: None,
             },
         );
 

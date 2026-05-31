@@ -296,6 +296,13 @@ const pairedData = $derived(
               {@const hunkKey = `${fd.path}-${section.hunkIdx}`}
               {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
               {#if hasSelection}
+                <!-- Staged Comment (260531-l02b): index-snapshot anchored, both sides
+                     resolve (no Old-side guard). Leads the cluster. -->
+                <button
+                  class="staging-btn accent-btn"
+                  style="cursor: pointer;"
+                  onclick={() => oncommentlines(fd.path, section.hunkIdx)}
+                >Comment ({selectedCount})</button>
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}
@@ -304,6 +311,11 @@ const pairedData = $derived(
                   onclick={() => onunstagelines(fd.path, section.hunkIdx)}
                 >Unstage Lines ({selectedCount})</button>
               {:else}
+                <button
+                  class="staging-btn accent-btn"
+                  style="cursor: pointer;"
+                  onclick={() => oncommenthunk(fd.path, section.hunkIdx)}
+                >Comment</button>
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}

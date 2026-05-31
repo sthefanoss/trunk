@@ -352,6 +352,12 @@ pub struct ReviewSession {
     // `None` and NO schema_version bump is required.
     #[serde(default)]
     pub working_tree_snapshot: Option<String>,
+    /// Latest STAGED (index) snapshot commit oid, tracked separately from
+    /// `working_tree_snapshot` so a staged comment dedups against the index tree
+    /// (HEAD→index) while an unstaged comment dedups against the workdir tree. Same
+    /// additive + `#[serde(default)]` migration-free rationale as above.
+    #[serde(default)]
+    pub index_snapshot: Option<String>,
 }
 
 #[cfg(test)]

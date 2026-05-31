@@ -18,6 +18,7 @@ fn empty_session() -> ReviewSession {
         comments: vec![],
         draft_comment: None,
         working_tree_snapshot: None,
+        index_snapshot: None,
     }
 }
 
