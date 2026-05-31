@@ -45,11 +45,6 @@ export interface ReviewSessionManager {
 	// State is untouched; the caller composes the result (e.g. writeText for
 	// clipboard). Rejection propagates verbatim.
 	generate(repoPath: string): Promise<string>;
-	// Quick 260531-4kk: calls `add_working_tree_review` IPC, which snapshots the
-	// current uncommitted changes into the active session. State is untouched —
-	// the backend emits `session-changed` and the panel reloads. Rejection
-	// propagates verbatim.
-	reviewWorkingTree(repoPath: string): Promise<void>;
 }
 
 export function createReviewSession(): ReviewSessionManager {
@@ -65,11 +60,6 @@ export function createReviewSession(): ReviewSessionManager {
 		},
 		async generate(repoPath: string): Promise<string> {
 			return await safeInvoke<string>("generate_review_doc", {
-				path: repoPath,
-			});
-		},
-		async reviewWorkingTree(repoPath: string): Promise<void> {
-			await safeInvoke("add_working_tree_review", {
 				path: repoPath,
 			});
 		},
