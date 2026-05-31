@@ -995,6 +995,7 @@ mod tests {
             commits,
             comments,
             draft_comment: None::<DraftComment>,
+            working_tree_snapshot: None,
         }
     }
 

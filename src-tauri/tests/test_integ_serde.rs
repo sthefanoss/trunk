@@ -902,6 +902,7 @@ fn anchored_session() -> ReviewSession {
             commit_oid: None,
         }],
         draft_comment: None,
+        working_tree_snapshot: None,
     }
 }
 

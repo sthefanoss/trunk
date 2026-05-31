@@ -88,6 +88,7 @@ pub fn start_review_session_inner(
         commits: vec![],
         comments: vec![],
         draft_comment: None,
+        working_tree_snapshot: None,
     };
     review_store::save_session(data_dir, &canonical, &session)?;
     Ok((canonical, session))
@@ -1181,6 +1182,7 @@ pub async fn resume_review_session(
                 commits: vec![],
                 comments: vec![],
                 draft_comment: None,
+                working_tree_snapshot: None,
             };
             review_store::save_session(&data_dir_for_save, &canonical, &fresh)
                 .map_err(|e| serde_json::to_string(&e).unwrap())?;
@@ -1574,6 +1576,7 @@ mod tests {
                 commits: vec![],
                 comments: vec![],
                 draft_comment: None,
+                working_tree_snapshot: None,
             },
         );
 
@@ -1693,6 +1696,7 @@ mod tests {
             commits: vec!["pre-existing".to_string()],
             comments: vec![],
             draft_comment: None,
+            working_tree_snapshot: None,
         };
         let sessions: Mutex<HashMap<PathBuf, ReviewSession>> = Mutex::new(HashMap::new());
         sessions
@@ -1730,6 +1734,7 @@ mod tests {
                 commits: vec![],
                 comments: vec![],
                 draft_comment: None,
+                working_tree_snapshot: None,
             },
         );
         (canonical, Mutex::new(map))
@@ -1890,6 +1895,7 @@ mod tests {
                 commits: vec![],
                 comments: vec![],
                 draft_comment: None,
+                working_tree_snapshot: None,
             },
         );
 

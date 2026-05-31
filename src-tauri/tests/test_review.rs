@@ -17,6 +17,7 @@ fn empty_session() -> ReviewSession {
         commits: vec!["abc123".to_string()],
         comments: vec![],
         draft_comment: None,
+        working_tree_snapshot: None,
     }
 }
 

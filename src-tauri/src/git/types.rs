@@ -342,6 +342,16 @@ pub struct ReviewSession {
     pub commits: Vec<String>,
     pub comments: Vec<Comment>,
     pub draft_comment: Option<DraftComment>,
+    // The OID of the working-tree snapshot commit currently in `commits`, if any.
+    // Tracking it here makes re-snapshot a REPLACE (remove old, add new) rather
+    // than a stack, and is restart-durable so a resumed session still knows which
+    // commit was the snapshot. Additive + `#[serde(default)]` keeps this
+    // migration-free: `review_store::load_session` gates only on
+    // `schema_version > CURRENT_SCHEMA_VERSION` (= 2) then `from_value` with no
+    // `deny_unknown_fields`, so existing v2 files deserialize the missing field to
+    // `None` and NO schema_version bump is required.
+    #[serde(default)]
+    pub working_tree_snapshot: Option<String>,
 }
 
 #[cfg(test)]

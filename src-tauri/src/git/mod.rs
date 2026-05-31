@@ -5,3 +5,4 @@ pub mod review;
 pub mod review_store;
 pub mod syntax;
 pub mod types;
+pub mod workdir_snapshot;
