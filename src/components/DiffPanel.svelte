@@ -87,6 +87,17 @@ let selectedLineIndices = $state<Set<number>>(new Set());
 let lastClickedIndex = $state<number | null>(null);
 let selectedCount = $derived(selectedLineIndices.size);
 
+// Drag-to-select state. A drag paints selection across contiguous lines within a
+// single hunk: the start line's current state picks the mode (start unselected →
+// the drag selects, start selected → it deselects), then each line the cursor
+// enters fills the range [anchor..current] against the snapshot taken at drag start.
+// `dragging` plus the per-event `e.buttons === 1` guard make a stuck drag inert.
+let dragging = false;
+let dragMode: "add" | "remove" = "add";
+let dragAnchorIndex: number | null = null;
+let dragBaseSet: Set<number> | null = null;
+let dragHunkLines: DiffLine[] | null = null;
+
 let collapsedFiles = $state<Set<string>>(new Set());
 
 // Commit-diff comment composer host state (Phase 67). `commitOid` and `isMerge`
@@ -442,8 +453,15 @@ $effect(() => {
 			scrollToHunk(focusedHunkIndex - 1);
 		}
 	}
+	function handleMouseUp() {
+		dragging = false;
+	}
 	window.addEventListener("keydown", handleKeydown);
-	return () => window.removeEventListener("keydown", handleKeydown);
+	window.addEventListener("mouseup", handleMouseUp);
+	return () => {
+		window.removeEventListener("keydown", handleKeydown);
+		window.removeEventListener("mouseup", handleMouseUp);
+	};
 });
 
 $effect(() => {
@@ -611,6 +629,101 @@ async function handleLineClick(
 	}
 }
 
+// Paint selectedLineIndices for the active drag: range [anchor..current] over the
+// snapshot taken at drag start, applying dragMode (Context lines never select).
+function applyDragRange(currentIndex: number) {
+	if (
+		dragAnchorIndex === null ||
+		dragBaseSet === null ||
+		dragHunkLines === null
+	)
+		return;
+	const start = Math.min(dragAnchorIndex, currentIndex);
+	const end = Math.max(dragAnchorIndex, currentIndex);
+	const newSet = new Set(dragBaseSet);
+	for (let i = start; i <= end; i++) {
+		const line = dragHunkLines[i];
+		if (!line || line.origin === "Context") continue;
+		if (dragMode === "add") newSet.add(i);
+		else newSet.delete(i);
+	}
+	selectedLineIndices = newSet;
+}
+
+// Mouse press on a line: starts a drag-paint, or extends the range on Shift.
+// Replaces the old click-to-toggle path (a plain click is a zero-length drag, so
+// it still toggles); keyboard selection continues to flow through handleLineClick.
+async function handleLineMouseDown(
+	filePath: string,
+	hunkIdx: number,
+	lineIndex: number,
+	origin: DiffOrigin,
+	hunkLines: DiffLine[],
+	e: MouseEvent,
+) {
+	if (origin === "Context") return;
+	// Suppress native text selection for the whole gesture — a drag crosses
+	// Context lines and gutters that are otherwise user-selectable.
+	e.preventDefault();
+
+	// D-02: switching to a new range while an open composer holds a dirty draft
+	// prompts a discard confirmation. On cancel, keep selection and composer.
+	if (composerOpen && composer) {
+		const proceed = await composer.confirmDiscardIfDirty();
+		if (!proceed) return;
+		composerOpen = false;
+		diffCaptured = null;
+	}
+
+	const hunkKey = `${filePath}-${hunkIdx}`;
+
+	if (e.shiftKey && hunkKey === selectedHunkKey && lastClickedIndex !== null) {
+		const start = Math.min(lastClickedIndex, lineIndex);
+		const end = Math.max(lastClickedIndex, lineIndex);
+		const newSet = new Set(selectedLineIndices);
+		for (let i = start; i <= end; i++) {
+			if (i < hunkLines.length && hunkLines[i].origin !== "Context") {
+				newSet.add(i);
+			}
+		}
+		selectedLineIndices = newSet;
+		lastClickedIndex = lineIndex;
+		return;
+	}
+
+	if (hunkKey !== selectedHunkKey) {
+		selectedHunkKey = hunkKey;
+		dragBaseSet = new Set();
+		dragMode = "add";
+	} else {
+		dragBaseSet = new Set(selectedLineIndices);
+		dragMode = selectedLineIndices.has(lineIndex) ? "remove" : "add";
+	}
+	dragAnchorIndex = lineIndex;
+	dragHunkLines = hunkLines;
+	dragging = true;
+	lastClickedIndex = lineIndex;
+	applyDragRange(lineIndex);
+}
+
+// Cursor enters a line during a drag: extend the painted range. The e.buttons
+// guard makes a stuck `dragging` flag inert — without a held button, no paint.
+function handleLineEnter(
+	filePath: string,
+	hunkIdx: number,
+	lineIndex: number,
+	e: MouseEvent,
+) {
+	if (!dragging) return;
+	if (e.buttons !== 1) {
+		dragging = false;
+		return;
+	}
+	if (`${filePath}-${hunkIdx}` !== selectedHunkKey) return;
+	applyDragRange(lineIndex);
+	lastClickedIndex = lineIndex;
+}
+
 async function handleStageLines(filePath: string, hunkIndex: number) {
 	if (hunkOperationInFlight) return;
 	hunkOperationInFlight = true;
@@ -727,6 +840,8 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		{hunkElements}
 		onfilecollapsetoggle={toggleFileCollapsed}
 		onlineclick={handleLineClick}
+		onlinemousedown={handleLineMouseDown}
+		onlineenter={handleLineEnter}
 		onstagehunk={handleStageHunk}
 		onunstagehunk={handleUnstageHunk}
 		ondiscardhunk={handleDiscardHunk}

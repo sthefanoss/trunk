@@ -1563,6 +1563,78 @@ const addedFileDiff: FileDiff = {
 	],
 };
 
+describe("DiffPanel drag-to-select", () => {
+	// testDiff hunk lines: Context(0), Delete(1), Add "const x = 2;"(2),
+	// Add "const y = 3;"(3), Context(4). In commit mode the on-selection affordance
+	// renders "Comment (N)" with N = the live selectedCount — the observable readout
+	// these tests assert on (0 when nothing is selected: the label drops the count).
+	function selectedCount(): number {
+		const btn = screen.queryByRole("button", { name: /^Comment \(/ });
+		const m = btn?.textContent?.match(/\((\d+)\)/);
+		return m ? Number(m[1]) : 0;
+	}
+
+	// mouseenter does not bubble, so fire it on the line div (which holds the
+	// handler), not the inner content span that getByText returns.
+	function lineDiv(text: string): HTMLElement {
+		const el = screen.getByText(text).closest(".diff-line");
+		if (!el) throw new Error(`no diff line for "${text}"`);
+		return el as HTMLElement;
+	}
+
+	function renderCommit() {
+		render(DiffPanel, {
+			props: {
+				fileDiffs: [testDiff],
+				commitDetail: nonMergeCommit,
+				onclose: vi.fn(),
+				diffKind: "commit",
+				repoPath: "/repo",
+			},
+		});
+		return flushPrefs();
+	}
+
+	it("paints the whole range when dragging across lines", async () => {
+		await renderCommit();
+
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
+		await tick();
+		await fireEvent.mouseEnter(lineDiv("const y = 3;"), { buttons: 1 });
+		await tick();
+
+		expect(selectedCount()).toBe(2);
+	});
+
+	it("does not extend the selection on a hover with no button held", async () => {
+		await renderCommit();
+
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
+		await tick();
+		await fireEvent.mouseEnter(lineDiv("const y = 3;"), { buttons: 0 });
+		await tick();
+
+		expect(selectedCount()).toBe(1);
+	});
+
+	it("deselects the range when the drag starts on an already-selected line", async () => {
+		await renderCommit();
+
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
+		await tick();
+		await fireEvent.mouseEnter(lineDiv("const y = 3;"), { buttons: 1 });
+		await tick();
+		expect(selectedCount()).toBe(2);
+
+		// A fresh drag from a selected line deselects as it paints across the range.
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
+		await tick();
+		await fireEvent.mouseEnter(lineDiv("const y = 3;"), { buttons: 1 });
+		await tick();
+		expect(selectedCount()).toBe(0);
+	});
+});
+
 describe("DiffPanel comment affordance (commit diffs)", () => {
 	it("shows an enabled Comment affordance on a non-merge commit selection", async () => {
 		render(DiffPanel, {
@@ -1577,7 +1649,7 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		await flushPrefs();
 
 		// Select an Add line to surface the on-selection action row.
-		await fireEvent.click(screen.getByText("const x = 2;"));
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
 		await tick();
 
 		const commentBtn = screen.getByRole("button", {
@@ -1599,7 +1671,7 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		});
 		await flushPrefs();
 
-		await fireEvent.click(screen.getByText("const x = 2;"));
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
 		await tick();
 
 		const commentBtn = screen.getByRole("button", {
@@ -1623,7 +1695,7 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		});
 		await flushPrefs();
 
-		await fireEvent.click(screen.getByText("export const a = 1;"));
+		await fireEvent.mouseDown(screen.getByText("export const a = 1;"));
 		await tick();
 
 		const commentBtn = screen.getByRole("button", {
@@ -1650,7 +1722,7 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		await flushPrefs();
 
 		// Select a line, open the composer.
-		await fireEvent.click(screen.getByText("const x = 2;"));
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
 		await tick();
 		await fireEvent.click(screen.getByRole("button", { name: /^Comment \(/ }));
 		await tick();
@@ -1661,9 +1733,9 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 		await tick();
 
 		// Attempt to switch to a different range -> ask must fire; false blocks it.
-		// handleLineClick is async (awaits a dynamic plugin-dialog import), so flush
+		// handleLineMouseDown is async (awaits a dynamic plugin-dialog import), so flush
 		// microtasks before asserting.
-		await fireEvent.click(screen.getByText("const y = 3;"));
+		await fireEvent.mouseDown(screen.getByText("const y = 3;"));
 		await new Promise((r) => setTimeout(r, 0));
 		await tick();
 
@@ -1691,7 +1763,7 @@ describe("DiffPanel comment affordance (commit diffs)", () => {
 	}
 
 	async function openComposerOnAddLine() {
-		await fireEvent.click(screen.getByText("const x = 2;"));
+		await fireEvent.mouseDown(screen.getByText("const x = 2;"));
 		await tick();
 		await fireEvent.click(screen.getByRole("button", { name: /^Comment \(/ }));
 		// Opening ensures the session (ensureActiveSession) before showing the composer

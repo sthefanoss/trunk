@@ -38,6 +38,20 @@ interface Props {
 		hunkLines: DiffLine[],
 		e: MouseEvent,
 	) => void;
+	onlinemousedown: (
+		filePath: string,
+		hunkIdx: number,
+		lineIndex: number,
+		origin: DiffOrigin,
+		hunkLines: DiffLine[],
+		e: MouseEvent,
+	) => void;
+	onlineenter: (
+		filePath: string,
+		hunkIdx: number,
+		lineIndex: number,
+		e: MouseEvent,
+	) => void;
 	onstagehunk: (filePath: string, hunkIndex: number) => void;
 	onunstagehunk: (filePath: string, hunkIndex: number) => void;
 	ondiscardhunk: (filePath: string, hunkIndex: number) => void;
@@ -72,6 +86,8 @@ let {
 	hunkElements,
 	onfilecollapsetoggle,
 	onlineclick,
+	onlinemousedown,
+	onlineenter,
 	onstagehunk,
 	onunstagehunk,
 	ondiscardhunk,
@@ -116,6 +132,8 @@ let {
       {hunkElements}
       {onfilecollapsetoggle}
       {onlineclick}
+      {onlinemousedown}
+      {onlineenter}
       onstagehunk={onstagehunk}
       onunstagehunk={onunstagehunk}
       ondiscardhunk={ondiscardhunk}
@@ -142,7 +160,7 @@ let {
       {hunkOperationInFlight} {ignoreWhitespace} {showInvisibles} {wordWrap}
       {selectedHunkKey} {selectedLineIndices} {selectedCount} {isMerge}
       {collapsedFiles} {hunkElements}
-      {onfilecollapsetoggle} {onlineclick}
+      {onfilecollapsetoggle} {onlineclick} {onlinemousedown} {onlineenter}
       onstagehunk={onstagehunk} onunstagehunk={onunstagehunk} ondiscardhunk={ondiscardhunk}
       onstagelines={onstagelines} onunstagelines={onunstagelines} ondiscardlines={ondiscardlines}
       oncommentlines={oncommentlines} oncommenthunk={oncommenthunk} />

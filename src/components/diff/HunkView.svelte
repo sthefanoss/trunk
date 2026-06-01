@@ -28,6 +28,20 @@ interface Props {
 		hunkLines: DiffLine[],
 		e: MouseEvent,
 	) => void;
+	onlinemousedown: (
+		filePath: string,
+		hunkIdx: number,
+		lineIndex: number,
+		origin: DiffOrigin,
+		hunkLines: DiffLine[],
+		e: MouseEvent,
+	) => void;
+	onlineenter: (
+		filePath: string,
+		hunkIdx: number,
+		lineIndex: number,
+		e: MouseEvent,
+	) => void;
 	onstagehunk: (filePath: string, hunkIndex: number) => void;
 	onunstagehunk: (filePath: string, hunkIndex: number) => void;
 	ondiscardhunk: (filePath: string, hunkIndex: number) => void;
@@ -54,6 +68,8 @@ let {
 	hunkElements,
 	onfilecollapsetoggle,
 	onlineclick,
+	onlinemousedown,
+	onlineenter,
 	onstagehunk,
 	onunstagehunk,
 	ondiscardhunk,
@@ -449,8 +465,8 @@ function gutterWidth(maxNum: number): string {
               display: flex;
               align-items: flex-start;
             "
-            onmousedown={(e) => { if (isSelectable && e.shiftKey) e.preventDefault(); }}
-            onclick={(e) => isSelectable && onlineclick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
+            onmousedown={(e) => isSelectable && onlinemousedown(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, e)}
+            onmouseenter={(e) => onlineenter(fd.path, hunkIdx, lineIdx, e)}
             onkeydown={(e) => { if (isSelectable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onlineclick(fd.path, hunkIdx, lineIdx, line.origin, hunk.lines, new MouseEvent('click', { shiftKey: e.shiftKey })); } }}
           ><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.old_lineno ?? ''}</span><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.new_lineno ?? ''}</span><span class="diff-line-content">{#if line.spans.length > 0}{#each line.spans as span}{@const sliced = line.content.slice(span.start, span.end)}{@const spanInTrailing = span.start >= trailStart}{#if showInvisibles}{@const segments = splitInvisibles(sliced, spanInTrailing || span.end > trailStart)}{#each segments as seg}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}{seg.isInvisible ? ' invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}">{sliced}</span>{/if}{/each}{:else}{#if showInvisibles}{@const segments = splitInvisibles(line.content, false)}{#each segments as seg}<span class="{seg.isInvisible ? 'invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}{line.content}{/if}{/if}</span></div>
         {/each}
