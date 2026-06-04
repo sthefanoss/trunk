@@ -650,7 +650,7 @@ async function showRemoteContextMenu(_e: MouseEvent, fullRefName: string) {
               }}
             />
             {#if createError}
-              <div style="color: #f87171; font-size: 11px; margin-top: 2px;">{createError}</div>
+              <div class="error-text" style="font-size: 11px; margin-top: 2px;">{createError}</div>
             {/if}
           </div>
         {/if}
@@ -835,5 +835,9 @@ async function showRemoteContextMenu(_e: MouseEvent, fullRefName: string) {
 
   .stash-entry-error {
     padding-left: 24px;
+  }
+
+  .error-text {
+    color: var(--color-danger);
   }
 </style>

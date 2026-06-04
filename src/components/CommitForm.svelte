@@ -168,7 +168,7 @@ async function handleSubmit() {
     "
   />
   {#if subjectError}
-    <span style="font-size: 11px; color: #f87171;">{subjectError}</span>
+    <span class="error-text" style="font-size: 11px;">{subjectError}</span>
   {/if}
 
   <!-- Body field -->
@@ -191,7 +191,7 @@ async function handleSubmit() {
 
   <!-- Staged error -->
   {#if stagedError}
-    <span style="font-size: 11px; color: #f87171;">{stagedError}</span>
+    <span class="error-text" style="font-size: 11px;">{stagedError}</span>
   {/if}
 
   <!-- Commit button -->
@@ -214,3 +214,9 @@ async function handleSubmit() {
     {buttonLabel}
   </button>
 </div>
+
+<style>
+  .error-text {
+    color: var(--color-danger);
+  }
+</style>

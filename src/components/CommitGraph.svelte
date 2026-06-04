@@ -1732,10 +1732,7 @@ $effect(() => {
       {/each}
     {:else if commits.length === 0 && error}
       <!-- Initial load error -->
-      <div
-        class="m-4 rounded-md px-4 py-3 text-sm"
-        style="background: #3d1c1c; border: 1px solid #6b2a2a; color: #f87171;"
-      >
+      <div class="error-banner m-4 rounded-md px-4 py-3 text-sm">
         {error}
       </div>
     {:else}
@@ -2022,7 +2019,7 @@ $effect(() => {
       <!-- Mid-scroll error + retry -->
       {#if error && commits.length > 0}
         <div class="flex items-center gap-3 px-4 py-2">
-          <span class="text-sm" style="color: #f87171;">{error}</span>
+          <span class="error-text text-sm">{error}</span>
           <button
             onclick={loadMore}
             class="rounded px-3 py-1 text-xs font-medium"
@@ -2065,5 +2062,13 @@ $effect(() => {
     padding-bottom: 8px;
     box-sizing: border-box;
     overflow-x: hidden;
+  }
+  .error-banner {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
+  }
+  .error-text {
+    color: var(--color-danger);
   }
 </style>

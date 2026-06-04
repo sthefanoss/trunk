@@ -78,8 +78,16 @@ let hovered = $state(false);
   </div>
 
   {#if isError}
-    <div style="background: #3d1c1c; border: 1px solid #6b2a2a; color: #f87171; font-size: 11px; padding: 6px 10px; margin: 0 8px 4px; border-radius: 3px;">
+    <div class="error-banner" style="font-size: 11px; padding: 6px 10px; margin: 0 8px 4px; border-radius: 3px;">
       {errorText ?? 'Cannot checkout — working tree has uncommitted changes. Commit or stash your changes first.'}
     </div>
   {/if}
 </div>
+
+<style>
+  .error-banner {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
+  }
+</style>

@@ -8,12 +8,23 @@ import { toasts } from "../lib/toast.svelte.js";
     <div
       role="status"
       transition:fly={{ y: 8, duration: 150 }}
-      class="px-4 py-2 rounded-lg text-sm font-medium shadow-lg pointer-events-auto"
-      style="background: {toast.kind === 'error' ? '#3d1c1c' : 'var(--color-surface)'};
-             border: 1px solid {toast.kind === 'error' ? '#6b2a2a' : 'var(--color-border)'};
-             color: {toast.kind === 'error' ? '#f87171' : 'var(--color-text)'};"
+      class="toast px-4 py-2 rounded-lg text-sm font-medium shadow-lg pointer-events-auto"
+      class:error={toast.kind === 'error'}
     >
       {toast.message}
     </div>
   {/each}
 </div>
+
+<style>
+  .toast {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+  .toast.error {
+    background: var(--color-danger-bg);
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+  }
+</style>

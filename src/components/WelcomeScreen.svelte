@@ -83,10 +83,7 @@ async function handleRemoveRecent(path: string, event: MouseEvent) {
     <p class="text-sm" style="color: var(--color-text-muted);">Git history, beautifully visualized</p>
 
     {#if error}
-      <div
-        class="w-full rounded-md px-4 py-2 text-sm"
-        style="background: #3d1c1c; border: 1px solid #6b2a2a; color: #f87171;"
-      >
+      <div class="error-banner w-full rounded-md px-4 py-2 text-sm">
         {error}
       </div>
     {/if}
@@ -137,3 +134,11 @@ async function handleRemoveRecent(path: string, event: MouseEvent) {
   {/if}
   </div>
 </div>
+
+<style>
+  .error-banner {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
+  }
+</style>
