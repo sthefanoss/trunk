@@ -114,7 +114,7 @@ by rewriting behavior.
   distinct `no_session` code (8 sites: `review.rs:465,714,757,846,1074,1140,1175,1232`).
   The taxonomy is already clean. Kept as a record that this was checked.
 
-### C5 — Internal helpers marked `pub` for testability
+### C5 — ✅ PAID in `7a6f10f` — Internal helpers marked `pub` for testability
 - **Severity:** low · **Effort:** trivial
 - **Problem:** `validate_range` (`review.rs:193`), `compute_range_oids` (`:223`),
   `apply_add` (`:248`), `apply_remove` (`:255`), `union_dedup` (`:262`),
@@ -141,14 +141,28 @@ by rewriting behavior.
   `<ErrorText>` component) backed by the existing `--color-danger*` tokens;
   replace all 26 inline literals. Direct CLAUDE.md-rule cleanup.
 
-### D2 — File-status color map duplicated
-- **Severity:** med · **Effort:** small · **Verified:** `CommitDetail.svelte:14-19`
-  and `FileRow.svelte:47-52` (same status→hex map); plus a one-off
-  `#22c55e/#f87171` in `FileRow.svelte:117`
-- **Problem:** Status-to-color knowledge lives in two component files; changing a
-  status color means editing both.
-- **Fix:** Extract `src/lib/status-colors.ts` (and add the colors to `app.css` as
-  tokens to satisfy D1's rule); import in both components and the action button.
+### D2 — File-status color hex in two component maps — RECLASSIFIED (needs a decision)
+- **Severity:** med · **Effort:** small · **Needs input** before action.
+- **What the first audit claimed:** "same status→hex map duplicated" in
+  `CommitDetail.svelte:13-20` and `FileRow.svelte:47-52`.
+- **What's actually true (checked 2026-06-05):** the two maps key on *different*
+  enums — `CommitDetail` on `DiffStatus` (Added/Deleted/Modified/Renamed/Copied/
+  Untracked/Unknown), `FileRow` on `FileStatusType` (New/Modified/Deleted/Renamed/
+  Typechange/Conflicted). They share *some* colors (Deleted `#f87171`, Modified
+  `#fb923c`, Renamed `#60a5fa`) but **disagree on green**: Added=`#4ade80` vs
+  New=`#22c55e`. Plus a third one-off `#22c55e/#f87171` in the FileRow
+  stage/unstage button (`:117`). So this is not clean duplicate-knowledge — it's
+  two overlapping maps with a latent inconsistency.
+- **Why deferred:** "unify to one source" forces a visual call — which green wins
+  for added/new? — and most of these hexes have no exact existing token
+  (`#fb923c`≠`--color-warning` `#fbbf24`). Doing it safely means *adding* a
+  `--color-status-*` token set with today's exact values, deciding the green, then
+  pointing both maps at the tokens.
+- **Proposed fix (pending the green decision):** add `--color-status-added/
+  -modified/-deleted/-renamed/-copied/-untracked/-typechange/-conflicted` to
+  `app.css`; map both component enums onto those tokens; fold the `:117` button
+  colors in too. **Open question for the owner:** unify added/new to one green
+  (which?) or keep them deliberately distinct?
 
 ### D3 — `VirtualList` piggybacks state via `as unknown as` casts (6 sites)
 - **Severity:** high · **Effort:** small · **Verified:**
@@ -160,7 +174,7 @@ by rewriting behavior.
 - **Fix:** Give the height manager an explicit `pendingDelta` field with
   `getPendingDelta()` / `addDelta(n)` / `clearPending()`; delete the cast chain.
 
-### D4 — `rgba()`/shadow literals not tokenized
+### D4 — ✅ PAID in `63b1756` — `rgba()`/shadow literals not tokenized
 - **Severity:** low · **Effort:** small · **Verified:** 5 `rgba(` literals in
   components (drop-shadows in `PullDropdown.svelte:139`, `SearchBar.svelte:67`,
   `RebaseEditor.svelte`; search highlight in `CommitRow.svelte`)
@@ -263,5 +277,16 @@ _Append `- [ID] paid in <sha> — note` as items are closed._
   6 components (incl. Toast.svelte). **Visual note:** error-box backgrounds shift
   opaque→translucent (intentional convergence to the design system). Status-color
   maps (D2) left untouched.
-- Verified by `just check` (fmt, biome, svelte-check, clippy `-D warnings`,
-  cargo-test, 603 vitest) — all green.
+- **C5** paid in `7a6f10f` — narrowed the 6 review.rs helpers to `pub(crate)`
+  (verified not used by the integration test crate first).
+- **D4** paid in `63b1756` — added `--shadow-sm/-md/-lg` and
+  `--color-search-current/-match`; swapped the rgba literals in PullDropdown,
+  SearchBar, RebaseEditor, CommitRow. Token values byte-equal the literals — zero
+  visual change.
+- All paydowns verified by `just check` (fmt, biome, svelte-check, clippy
+  `-D warnings`, cargo-test, vitest) — green.
+
+### Reclassified, not paid
+- **D2** — reopened as "needs a decision" (2026-06-05): the two status maps key on
+  different enums and disagree on the added/new green. Not blind dedup; awaiting
+  the owner's green call before action. See the D2 entry.
