@@ -113,7 +113,6 @@ pub fn run() {
             commands::commit::get_head_commit_message,
             commands::diff::diff_unstaged,
             commands::diff::diff_staged,
-            commands::diff::diff_commit,
             commands::diff::list_commit_files,
             commands::diff::diff_commit_file,
             commands::diff::get_commit_detail,

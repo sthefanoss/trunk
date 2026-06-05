@@ -539,22 +539,6 @@ pub async fn diff_staged(
 }
 
 #[tauri::command]
-pub async fn diff_commit(
-    path: String,
-    oid: String,
-    options: DiffRequestOptions,
-    state: State<'_, RepoState>,
-) -> Result<Vec<FileDiff>, String> {
-    let state_map = state.0.lock().unwrap().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        diff_commit_inner(&path, &oid, &state_map, &options)
-    })
-    .await
-    .map_err(|e| TrunkError::new("spawn_error", e.to_string()).to_json())?
-    .map_err(|e| e.to_json())
-}
-
-#[tauri::command]
 pub async fn list_commit_files(
     path: String,
     oid: String,
