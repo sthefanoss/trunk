@@ -36,15 +36,22 @@ These are not bugs; they are leaky abstractions that slow every future change.
 Pay by *mechanical extraction behind passing tests* (refactor on green), never
 by rewriting behavior.
 
-### B1 — `commands/review.rs` is 2730 lines, four concerns interleaved
-- **Severity:** med · **Effort:** medium
-- **Problem:** Session I/O + comment management + range/snapshot logic + rendering
-  hints + 350+ lines of tests in one file.
-- **Fix:** Split into submodules: `review_session.rs` (start/resume/end),
-  `review_comments.rs` (add/edit/delete/resolve), `review_rendering.rs`
-  (render/snapshot). Pure extraction — no behavior change. Run `just check`
-  after (the integration binary in `src-tauri/tests/` compiles independently;
-  a filtered `cargo test --lib` will lie — see MEMORY).
+### B1 — 🟡 PARTIAL — `commands/review.rs` was 2687 lines
+- **Done (pure cores extracted, behind green):**
+  - `review/range.rs` in `5ac15c1` — selection algebra (validate_range,
+    compute_range_oids, apply_add/remove, union_dedup, intersect_graph_order) +
+    12 tests + range fixtures.
+  - `review/resolution.rs` in `ec37588` — orphan classifier (OrphanReason,
+    CommentResolution, classify_anchor, resolve_all) + 10 tests; re-exported so
+    `git/review.rs`'s import path holds.
+  - review.rs: **2687 → 1873 lines** (−30%). Pure moves, no behavior change.
+- **Deferred deliberately:** splitting the stateful Tauri command wrappers
+  (session lifecycle, comments, RMW). Per the advisor, don't reorganize the
+  least-tested stateful code for aesthetics — **gate that split on E2** (add the
+  command-wrapper tests first, then split, or not at all). The two pure cores
+  were the high-value, low-risk slice; the wrappers are neither.
+- Note: the integration binary in `src-tauri/tests/` compiles independently — a
+  filtered `cargo test --lib` will lie; verify with full `just check` (MEMORY).
 
 ### B2 — `git/review.rs` is 1746 lines, monolithic `render()`
 - **Severity:** med · **Effort:** medium
@@ -284,6 +291,12 @@ _Append `- [ID] paid in <sha> — note` as items are closed._
 - **A1** closed as **obsolete** — filed flow (`add_working_tree_review`) was
   removed in a refactor; todo moved to `.planning/todos/done/`.
 
+### Third pass (2026-06-05)
+- **B1** partial — extracted the two pure cores `review/range.rs` (`5ac15c1`) and
+  `review/resolution.rs` (`ec37588`); review.rs 2687→1873 (−30%). Wrapper split
+  deferred behind E2 (see B1 entry).
+
 ### Still open
-- B1–B3 (file splits), D3 (VirtualList casts), D5 (RepoView prop-drilling),
-  E2/E3 (test coverage), E4 (CI gate), E5/E6, D2b (FileRow button colors).
+- B1 wrappers (gate on E2), B2 (`git/review.rs` render split), B3 (CommitGraph),
+  D3 (VirtualList casts), D5 (RepoView prop-drilling), E2/E3 (test coverage),
+  E4 (CI gate), E5/E6, D2b (FileRow button colors).
