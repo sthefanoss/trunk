@@ -1,7 +1,21 @@
 # Snapshot of a clean working tree adds a changeless commit to the review session
 
+> **RESOLUTION — OBSOLETE (2026-06-05).** The flow this describes no longer
+> exists. `add_working_tree_review` was removed in the 260531-l02 refactor; the
+> only snapshot entry point is now `ensure_review_snapshot`
+> (`commands/review.rs`), invoked solely at **comment-submit** time from
+> `resolveCommentCommitOid` (`DiffPanel.svelte`). You can only reach it by
+> commenting on a real diff hunk, so the tree is never clean on that path — the
+> "changeless entry in the commit list" symptom can't occur as described. The
+> only residual is a narrow TOCTOU (revert the change while the composer is open,
+> then submit), which is a degenerate action and not worth speculative defensive
+> code (YAGNI). That submit path already toasts any error
+> (`DiffPanel.svelte:260`), so if a `nothing_to_review` guard is ever added it
+> would surface automatically. Closing as obsolete; reopen if the TOCTOU guard is
+> wanted as defense-in-depth.
+
 **Filed:** 2026-05-31 (quick task 260531-4kk)
-**Severity:** low (UX wart, not a crash)
+**Severity:** low (UX wart, not a crash) — now OBSOLETE, see resolution above
 
 ## Problem
 

@@ -15,22 +15,18 @@ _Last audited: 2026-06-04 (`main` @ 8869754)_
 
 ## A. Tracked & ready
 
-### A1 — Clean-tree snapshot adds a changeless review commit
-- **Severity:** low · **Effort:** small · **Source:** `.planning/todos/pending/2026-05-31-snapshot-empty-working-tree-no-op-guard.md`
-- **Problem:** `snapshot_working_tree` (`src-tauri/src/git/workdir_snapshot.rs`) has no
-  empty-diff guard. On a clean tree the snapshot tree equals HEAD's tree, so
-  `add_working_tree_review` creates a dangling commit whose diff against its
-  parent is empty and adds it to the session. It renders as an
-  "Uncommitted changes — …" entry with no diff. Not a crash — just confusing.
-- **Fix:** In `snapshot_working_tree` (or `add_working_tree_review`), compare the
-  snapshot tree OID to HEAD's tree OID. If equal, return a distinct
-  `nothing_to_review` `TrunkError` code; surface it in `commands/review.rs` and
-  show a "nothing to review" toast instead of adding the commit. ~3 files:
-  `workdir_snapshot.rs`, `commands/review.rs`, `review-session.svelte.ts` /
-  `ReviewPanel.svelte`.
-- **Bonus:** add a `ReviewPanel` test locking the snapshot-button gate
-  (`sessionState === "active"`, fixed in 8dc2e7b) — hidden in `resume-available`,
-  shown in `active`.
+### A1 — ✅ CLOSED as OBSOLETE (2026-06-05) — Clean-tree snapshot changeless commit
+- **Source:** `.planning/todos/done/2026-05-31-snapshot-empty-working-tree-no-op-guard.md`
+- **Why obsolete:** the flow no longer exists. `add_working_tree_review` was
+  removed in the 260531-l02 refactor; the only snapshot entry point is now
+  `ensure_review_snapshot` (`commands/review.rs`), invoked solely at
+  **comment-submit** time from `resolveCommentCommitOid` (`DiffPanel.svelte`).
+  Reaching it requires commenting on a real diff hunk, so the tree is never clean
+  there — the "changeless entry in the commit list" symptom can't occur as filed.
+  The only residual is a narrow TOCTOU (revert while the composer is open, then
+  submit); that submit path already toasts any error (`DiffPanel.svelte:260`).
+  Not worth speculative defensive code (YAGNI). Reopen if the TOCTOU guard is
+  wanted as defense-in-depth.
 
 ---
 
@@ -141,28 +137,23 @@ by rewriting behavior.
   `<ErrorText>` component) backed by the existing `--color-danger*` tokens;
   replace all 26 inline literals. Direct CLAUDE.md-rule cleanup.
 
-### D2 — File-status color hex in two component maps — RECLASSIFIED (needs a decision)
-- **Severity:** med · **Effort:** small · **Needs input** before action.
-- **What the first audit claimed:** "same status→hex map duplicated" in
-  `CommitDetail.svelte:13-20` and `FileRow.svelte:47-52`.
-- **What's actually true (checked 2026-06-05):** the two maps key on *different*
-  enums — `CommitDetail` on `DiffStatus` (Added/Deleted/Modified/Renamed/Copied/
-  Untracked/Unknown), `FileRow` on `FileStatusType` (New/Modified/Deleted/Renamed/
-  Typechange/Conflicted). They share *some* colors (Deleted `#f87171`, Modified
-  `#fb923c`, Renamed `#60a5fa`) but **disagree on green**: Added=`#4ade80` vs
-  New=`#22c55e`. Plus a third one-off `#22c55e/#f87171` in the FileRow
-  stage/unstage button (`:117`). So this is not clean duplicate-knowledge — it's
-  two overlapping maps with a latent inconsistency.
-- **Why deferred:** "unify to one source" forces a visual call — which green wins
-  for added/new? — and most of these hexes have no exact existing token
-  (`#fb923c`≠`--color-warning` `#fbbf24`). Doing it safely means *adding* a
-  `--color-status-*` token set with today's exact values, deciding the green, then
-  pointing both maps at the tokens.
-- **Proposed fix (pending the green decision):** add `--color-status-added/
-  -modified/-deleted/-renamed/-copied/-untracked/-typechange/-conflicted` to
-  `app.css`; map both component enums onto those tokens; fold the `:117` button
-  colors in too. **Open question for the owner:** unify added/new to one green
-  (which?) or keep them deliberately distinct?
+### D2 — ✅ PAID — File-status color hex in component maps
+- **The twist:** the audit's "duplicated map" was half **dead code**. The
+  `CommitDetail.svelte` `STATUS_ICONS` map (`DiffStatus`-keyed) was defined but
+  **referenced nowhere** (the live render uses `DIFF_STATUS_MAP`). So there was no
+  real duplication to reconcile.
+- **What shipped (zero visual change):** (1) deleted the dead `STATUS_ICONS` map +
+  its now-unused `DiffStatus` import from CommitDetail (removes 7 hex literals);
+  (2) extracted `--color-status-{new,modified,deleted,renamed,typechange,conflicted}`
+  tokens in `app.css` at the **exact** current values; (3) pointed the live
+  `FileRow` `STATUS_ICON_COMPONENTS` map at `var(--color-status-*)`.
+- **Deliberately NOT done:** the greens *differ* (`#4ade80` add vs `#22c55e` new) —
+  that's a discrepancy, not duplication. Unifying them is an aesthetic call, kept
+  out of this refactor (and now moot since the dead map is gone). The coincidental
+  `#facc15` (Untracked vs Conflicted) is two separate tokens by meaning, not merged.
+- **Remaining (D2b, tiny):** the FileRow stage/unstage button (`:117`) still has
+  inline `#22c55e/#f87171` — action-coloring, a separate concern from the status
+  map; left as a noted one-off.
 
 ### D3 — `VirtualList` piggybacks state via `as unknown as` casts (6 sites)
 - **Severity:** high · **Effort:** small · **Verified:**
@@ -193,16 +184,13 @@ by rewriting behavior.
 
 ## E. Test & tooling debt
 
-### E1 — `diff_commit` command has no production caller
-- **Severity:** med · **Effort:** trivial · **Verified:** defined
-  `commands/diff.rs:552`, registered `lib.rs:116`, exercised by
-  `tests/test_diff.rs` + `tests/common/drivers/diff.rs`, **never `invoke`d from
-  `src/`** (frontend uses `diff_commit_file`).
-- **Problem:** A registered IPC command with tests but no caller — maintenance
-  surface with no user. (Not pure dead code: tests/driver keep it alive.)
-- **Fix:** Decide deliberately — either delete it (command + lib.rs registration +
-  test + driver) or document why it's retained (e.g. future/external use). Don't
-  leave it ambiguous.
+### E1 — ✅ PAID — `diff_commit` command had no production caller
+- **Decision:** deleted the command wrapper. The trace showed the test drivers
+  call `diff_commit_inner` **directly** (`tests/common/drivers/diff.rs:42,55`),
+  not the command — so the `diff_commit` *command* (diff.rs) was referenced only
+  by its `lib.rs` registration: zero real callers. Removed the wrapper + the
+  registration line; kept `diff_commit_inner` and every test/driver (they exercise
+  the inner). Net: one less registered IPC command (less surface), zero test loss.
 
 ### E2 — Review system is the most complex backend feature and the least tested
 - **Severity:** high · **Effort:** large · **Verified:** `commands/review.rs`
@@ -286,7 +274,16 @@ _Append `- [ID] paid in <sha> — note` as items are closed._
 - All paydowns verified by `just check` (fmt, biome, svelte-check, clippy
   `-D warnings`, cargo-test, vitest) — green.
 
-### Reclassified, not paid
-- **D2** — reopened as "needs a decision" (2026-06-05): the two status maps key on
-  different enums and disagree on the added/new green. Not blind dedup; awaiting
-  the owner's green call before action. See the D2 entry.
+### Second pass (2026-06-05)
+- **C5** paid in `7a6f10f`; **D4** paid in `63b1756` (see above).
+- **D2** paid — the "duplicate map" was half dead code; deleted the dead
+  `CommitDetail.STATUS_ICONS`, tokenized the live `FileRow` map at exact values
+  (zero visual change). Green-unification deliberately left as an aesthetic call.
+- **E1** paid — deleted the caller-less `diff_commit` command wrapper + its
+  `lib.rs` registration; kept `diff_commit_inner` and all tests.
+- **A1** closed as **obsolete** — filed flow (`add_working_tree_review`) was
+  removed in a refactor; todo moved to `.planning/todos/done/`.
+
+### Still open
+- B1–B3 (file splits), D3 (VirtualList casts), D5 (RepoView prop-drilling),
+  E2/E3 (test coverage), E4 (CI gate), E5/E6, D2b (FileRow button colors).
