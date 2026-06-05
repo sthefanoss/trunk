@@ -190,7 +190,7 @@ fn emit_session_changed(app: &AppHandle, canonical: &Path) {
 /// case (valid under D-02 inclusive semantics → set `{base}`) MUST short-circuit
 /// before the descendant check. Unrelated histories surface as a `merge_base`
 /// error; a base that is not an ancestor of the tip is a `bad_range`.
-pub fn validate_range(
+pub(crate) fn validate_range(
     repo: &git2::Repository,
     base: git2::Oid,
     tip: git2::Oid,
@@ -220,7 +220,7 @@ pub fn validate_range(
 /// leave the second-parent side branch reachable from `tip` and leak it into the
 /// selection (CR-01). A root-commit base (`parent_count() == 0`) hides nothing,
 /// mirroring the verified `interactive_rebase.rs` fallback, so it never panics.
-pub fn compute_range_oids(
+pub(crate) fn compute_range_oids(
     repo: &git2::Repository,
     base: git2::Oid,
     tip: git2::Oid,
@@ -245,21 +245,21 @@ pub fn compute_range_oids(
 }
 
 /// Add `oid` to the selection if absent — idempotent (SEL-02, D-06).
-pub fn apply_add(commits: &mut Vec<String>, oid: &str) {
+pub(crate) fn apply_add(commits: &mut Vec<String>, oid: &str) {
     if !commits.iter().any(|c| c == oid) {
         commits.push(oid.to_string());
     }
 }
 
 /// Remove every occurrence of `oid` from the selection; missing is a no-op (SEL-03).
-pub fn apply_remove(commits: &mut Vec<String>, oid: &str) {
+pub(crate) fn apply_remove(commits: &mut Vec<String>, oid: &str) {
     commits.retain(|c| c != oid);
 }
 
 /// Union `incoming` into `existing`, preserving hand-picked commits and deduping
 /// (D-03). Store order is irrelevant — `intersect_graph_order` re-imposes graph
 /// order on read, so the set is the only thing that matters here.
-pub fn union_dedup(existing: &[String], incoming: Vec<String>) -> Vec<String> {
+pub(crate) fn union_dedup(existing: &[String], incoming: Vec<String>) -> Vec<String> {
     let mut set: std::collections::HashSet<String> = existing.iter().cloned().collect();
     set.extend(incoming);
     set.into_iter().collect()
@@ -270,7 +270,7 @@ pub fn union_dedup(existing: &[String], incoming: Vec<String>) -> Vec<String> {
 /// selected OID absent from the graph is appended via `repo.find_commit`, and an
 /// OID that even `find_commit` can't resolve is included with an `(unavailable)`
 /// summary rather than silently dropped (Phase 65 "never silently destroy").
-pub fn intersect_graph_order(
+pub(crate) fn intersect_graph_order(
     commits: &[String],
     graph: &crate::git::types::GraphResult,
     repo: &git2::Repository,
