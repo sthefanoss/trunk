@@ -930,6 +930,8 @@ mod tests {
 
     use crate::git::types::{Comment, DraftComment, ReviewSession};
 
+    // fixture builder: arg count is intentional
+    #[allow(clippy::too_many_arguments)]
     fn line_comment(
         id: &str,
         text: &str,
@@ -952,6 +954,8 @@ mod tests {
         }
     }
 
+    // fixture builder: arg count is intentional
+    #[allow(clippy::too_many_arguments)]
     fn orphan_line_comment(
         id: &str,
         text: &str,

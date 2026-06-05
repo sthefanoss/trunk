@@ -35,7 +35,7 @@ svelte-check:
 
 # Clippy lints
 clippy:
-    cargo clippy --manifest-path {{manifest}} -- -D warnings
+    cargo clippy --manifest-path {{manifest}} --all-targets -- -D warnings
 
 # Run Rust tests
 cargo-test:

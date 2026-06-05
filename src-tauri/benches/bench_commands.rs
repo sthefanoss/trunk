@@ -192,7 +192,7 @@ fn bench_get_status(c: &mut Criterion) {
 fn bench_stage_hunk(c: &mut Criterion) {
     c.bench_function("stage_hunk_inner", |b| {
         b.iter_batched(
-            || make_repo_for_stage_hunk(),
+            make_repo_for_stage_hunk,
             |(_dir, path, state_map)| {
                 trunk_lib::commands::staging::stage_hunk_inner(&path, "README.md", 0, &state_map)
                     .unwrap();

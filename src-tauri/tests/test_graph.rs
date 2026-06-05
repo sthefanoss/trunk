@@ -99,10 +99,9 @@ fn raw_commit_in(
     idx.write().unwrap();
     let tree_oid = idx.write_tree().unwrap();
     let tree = repo.find_tree(tree_oid).unwrap();
-    let oid = repo
-        .commit(Some(refname), sig, sig, msg, &tree, parents)
-        .unwrap();
-    oid
+
+    repo.commit(Some(refname), sig, sig, msg, &tree, parents)
+        .unwrap()
 }
 
 /// Helper: create a commit in a raw repo. Returns the new commit OID.
@@ -1091,7 +1090,7 @@ fn multiple_stashes_on_same_parent() {
 fn stash_branches_right_when_head_chain_occupies_lane() {
     // Stash on a MID-CHAIN HEAD commit (C1) where C2 occupies column 0 between stash and C1.
     let dir = tempfile::tempdir().unwrap();
-    let stash_oid;
+
     {
         let repo = git2::Repository::init(dir.path()).unwrap();
         let mut cfg = repo.config().unwrap();
@@ -1139,7 +1138,7 @@ fn stash_branches_right_when_head_chain_occupies_lane() {
         idx.write().unwrap();
     }
     let sig2 = git2::Signature::now("T", "t@t.com").unwrap();
-    stash_oid = repo.stash_save(&sig2, "test stash on C1", None).unwrap();
+    let stash_oid = repo.stash_save(&sig2, "test stash on C1", None).unwrap();
     repo.set_head("refs/heads/main").unwrap();
 
     let result = walk_commits(&mut repo, 0, usize::MAX).unwrap();

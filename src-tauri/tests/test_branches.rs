@@ -384,7 +384,7 @@ fn delete_remote_branch_removes_ref() {
 
     // Verify the remote branch exists
     let refs_before = trunk_lib::commands::branches::list_refs_inner(
-        &work_dir.path().to_string_lossy().to_string(),
+        work_dir.path().to_string_lossy().as_ref(),
         &{
             let mut m = std::collections::HashMap::new();
             m.insert(
@@ -425,7 +425,7 @@ fn delete_remote_branch_removes_ref() {
 
     // Verify the remote branch is gone
     let refs_after = trunk_lib::commands::branches::list_refs_inner(
-        &work_dir.path().to_string_lossy().to_string(),
+        work_dir.path().to_string_lossy().as_ref(),
         &{
             let mut m = std::collections::HashMap::new();
             m.insert(
