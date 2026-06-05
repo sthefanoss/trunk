@@ -44,12 +44,15 @@ type StatusIconConfig = {
 };
 
 const STATUS_ICON_COMPONENTS: Record<FileStatusType, StatusIconConfig> = {
-	New: { component: FilePlus, color: "#22c55e" },
-	Modified: { component: FilePen, color: "#fb923c" },
-	Deleted: { component: FileMinus, color: "#f87171" },
-	Renamed: { component: FileSymlink, color: "#60a5fa" },
-	Typechange: { component: FileType2, color: "#a78bfa" },
-	Conflicted: { component: FileWarning, color: "#facc15" },
+	New: { component: FilePlus, color: "var(--color-status-new)" },
+	Modified: { component: FilePen, color: "var(--color-status-modified)" },
+	Deleted: { component: FileMinus, color: "var(--color-status-deleted)" },
+	Renamed: { component: FileSymlink, color: "var(--color-status-renamed)" },
+	Typechange: { component: FileType2, color: "var(--color-status-typechange)" },
+	Conflicted: {
+		component: FileWarning,
+		color: "var(--color-status-conflicted)",
+	},
 };
 
 let iconConfig = $derived(

@@ -3,22 +3,11 @@ import { FolderTree, List } from "@lucide/svelte";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import type {
 	CommitDetail,
-	DiffStatus,
 	FileDiff,
 	FileStatus,
 	FileStatusType,
 } from "../lib/types.js";
 import TreeFileList from "./TreeFileList.svelte";
-
-const STATUS_ICONS: Record<DiffStatus, { symbol: string; color: string }> = {
-	Added: { symbol: "+", color: "#4ade80" },
-	Deleted: { symbol: "−", color: "#f87171" },
-	Modified: { symbol: "✎", color: "#fb923c" },
-	Renamed: { symbol: "→", color: "#60a5fa" },
-	Copied: { symbol: "⎘", color: "#c084fc" },
-	Untracked: { symbol: "?", color: "#facc15" },
-	Unknown: { symbol: "?", color: "var(--color-text-muted)" },
-};
 
 interface Props {
 	commitDetail: CommitDetail;

@@ -64,6 +64,14 @@
 	--color-accent-border: #58a6ff;
 	--color-muted-bg: rgba(139, 148, 158, 0.1);
 
+	/* File-status icon colors (FileRow status map) */
+	--color-status-new: #22c55e;
+	--color-status-modified: #fb923c;
+	--color-status-deleted: #f87171;
+	--color-status-renamed: #60a5fa;
+	--color-status-typechange: #a78bfa;
+	--color-status-conflicted: #facc15;
+
 	/* Banner colors */
 	--color-banner-warning-bg: rgba(250, 204, 21, 0.08);
 	--color-banner-warning-border: #facc15;
