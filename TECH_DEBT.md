@@ -225,6 +225,12 @@ by rewriting behavior.
 - **Fix:** Ensure CI runs the full `cargo test` (lib + integration) and treats
   integration-compile failure as a gate. Already noted in CLAUDE.md/MEMORY —
   make it a CI assertion, not tribal knowledge.
+- **Partial hardening (`6883c6b`, adjacent — NOT a full E4 fix):** the `clippy`
+  recipe now runs `--all-targets`, so tests + benches + the integration binary
+  are linted under `-D warnings`. Previously lib-only, so `#[cfg(test)]` warnings
+  (e.g. the unused `git2` import in the B1 work) passed `just check` green and
+  surfaced only on a raw `cargo test`. This closes the *lint* blind spot; the
+  *compile/run* gate (E4 proper — CI asserting full `cargo test`) is still open.
 
 ### E5 — Component test files dwarf their components
 - **Severity:** low · **Effort:** medium · **Verified:** `DiffPanel.test.ts`
@@ -295,6 +301,10 @@ _Append `- [ID] paid in <sha> — note` as items are closed._
 - **B1** partial — extracted the two pure cores `review/range.rs` (`5ac15c1`) and
   `review/resolution.rs` (`ec37588`); review.rs 2687→1873 (−30%). Wrapper split
   deferred behind E2 (see B1 entry).
+- **E4** partial (`6883c6b`) — hardened the clippy gate with `--all-targets` so
+  test/bench/integration warnings can't pass green; fixed the 5 pre-existing
+  test-code warnings it surfaced. Lint blind spot closed; the CI full-`cargo test`
+  assertion (E4 proper) remains open. See E4 entry.
 
 ### Still open
 - B1 wrappers (gate on E2), B2 (`git/review.rs` render split), B3 (CommitGraph),
