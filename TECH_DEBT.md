@@ -217,17 +217,29 @@ by rewriting behavior.
   (`resolve_all`, resolution.rs ×10) · snapshot (workdir_snapshot.rs ×11) ·
   doc-gen (`render`, git/review.rs ×31 incl. 14 goldens) · selection algebra
   (range.rs ×12) · session store/lifecycle (review_store + test_review.rs).
-- **Genuine residual (small):** the untested branches live *inside* the
-  `#[tauri::command]` bodies, above the `_inner` seam line — `ensure_review_snapshot`
-  Index-kind dispatch + `bad_request` parse; `generate_review_doc` `no_comments`/
-  `no_session` gates; `resolve_session_comments` `no_session` gate; and the
-  `no_session` precheck **duplicated** between `seed_review_range`/`ensure_review_snapshot`
-  and their inner.
-- **Dependency w/ B1 is INVERTED (see B1):** these branches aren't testable under
-  the project's `_inner` convention as-is (they need `State`/`AppHandle`;
-  `mock_app()` is reserved for the watcher tests because `MockRuntime` drops
-  `emit()`→`listen()`). Extracting them into `_inner` seams *is* the B1 wrapper
-  split — not a precursor to it. Pay E2-residual and B1-wrappers as one move.
+- **Residual is thin and mostly NOT worth paying standalone** (verified by test-run,
+  not grep, 2026-06-05 — an earlier grep falsely flagged the Index-snapshot path as
+  a gap; it is in fact covered by `index_snapshot_captures_staged_not_workdir` +
+  `decide_snapshot_index_reuses_when_index_unchanged`). The untested branches live
+  *inside* the `#[tauri::command]` bodies, above the `_inner` line, and each is a
+  conscious call, not an oversight:
+  - `generate_review_doc` `no_comments` (D-11) gate — the command docstring (review.rs
+    ~931) **deliberately** documents skipping an `_inner` here: the pure `render()` (31
+    tests) is the testable surface; the one-line `is_empty()` gate doesn't warrant
+    indirection. Extracting it would contradict a reasoned decision and pin a trivial
+    branch (low protection + low resistance = Khorikov noise).
+  - `ensure_review_snapshot` `bad_request` (unknown-kind) parse — a defensive boundary
+    parse on an IPC contract we largely control; low value.
+  - `generate_review_doc`/`resolve_session_comments` `no_session`-on-read + the
+    `no_session` precheck **duplicated** in `seed_review_range`/`ensure_review_snapshot`
+    — `no_session` is already exercised via the rmw tests; the dedup + read-lock
+    restructure is the genuinely-deferred B1 wrapper work.
+- **Pay any true residual WITH B1, not before:** these branches aren't testable under
+  the project's `_inner` convention as-is (they need `State`/`AppHandle`; `mock_app()`
+  is reserved for the watcher tests because `MockRuntime` drops `emit()`→`listen()`).
+  The `no_session`-lock + wrapper restructure is the B1 split itself. The `no_comments`
+  gate and kind-parse are separable top-of-body logic, but low enough value that
+  folding them into the B1 pass (if it happens) beats a standalone test-padding commit.
 
 ### E3 — `operation_state` / `commit_actions` thinly tested
 - **Severity:** med · **Effort:** medium · **Verified:** `operation_state.rs`
