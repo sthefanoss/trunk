@@ -731,7 +731,7 @@ let lastVisibleColumn = $derived.by(() => {
   .rebase-branch-pill {
     display: inline-block;
     background: var(--color-accent);
-    color: white;
+    color: var(--accent-fg);
     font-size: 11px;
     font-weight: 600;
     padding: 1px 6px;

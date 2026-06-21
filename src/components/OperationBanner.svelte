@@ -157,7 +157,7 @@ async function handleRevertAbort() {
         padding: 0 6px;
         font-size: 11px;
         line-height: 16px;
-        color: white;
+        color: var(--bg-0);
         font-weight: 700;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -170,7 +170,7 @@ async function handleRevertAbort() {
         padding: 0 6px;
         font-size: 11px;
         line-height: 16px;
-        color: white;
+        color: var(--bg-0);
         font-weight: 700;
         overflow: hidden;
         text-overflow: ellipsis;
