@@ -419,9 +419,14 @@ $effect(() => {
 	};
 });
 
-// Apply zoom to webview
+// Apply zoom to webview, and tell the backend so it can re-center the macOS
+// traffic lights — their on-screen size is fixed, so the inset must track the
+// zoom-scaled top bar height.
 $effect(() => {
 	getCurrentWebview().setZoom(zoomLevel);
+	void safeInvoke("set_traffic_light_zoom", { zoom: zoomLevel }).catch(
+		() => {},
+	);
 });
 
 // Keyboard shortcuts

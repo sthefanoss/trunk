@@ -4620,6 +4620,8 @@ dependencies = [
  "libc",
  "notify",
  "notify-debouncer-mini",
+ "objc2",
+ "objc2-app-kit",
  "serde",
  "serde_json",
  "similar",

@@ -1,6 +1,8 @@
 pub mod commands;
 pub mod error;
 pub mod git;
+#[cfg(target_os = "macos")]
+mod macos_traffic_lights;
 pub mod shell_env;
 pub mod state;
 pub mod watcher;
@@ -8,7 +10,28 @@ pub mod watcher;
 use state::{CommitCache, RepoState, ReviewSessionsState, RunningOp};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
+#[cfg(target_os = "macos")]
+use tauri::Manager;
 use watcher::WatcherState;
+
+/// Current webview zoom factor, so the window-event handler can re-center the
+/// macOS traffic lights (whose on-screen size is fixed) in the zoom-scaled bar.
+pub struct TrafficLightZoom(pub std::sync::Mutex<f64>);
+
+#[tauri::command]
+fn set_traffic_light_zoom(
+    window: tauri::WebviewWindow,
+    zoom: f64,
+    zoom_state: tauri::State<'_, TrafficLightZoom>,
+) {
+    *zoom_state.0.lock().unwrap() = zoom;
+    #[cfg(target_os = "macos")]
+    if let Ok(ns_window) = window.ns_window() {
+        macos_traffic_lights::reposition(ns_window, zoom);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +40,28 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .on_window_event(|_window, _event| {
+            // AppKit resets the traffic-light inset on every title-bar relayout —
+            // resize (also fullscreen + window-state restore) and appearance change.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::WindowEvent;
+                if matches!(
+                    _event,
+                    WindowEvent::Resized(_)
+                        | WindowEvent::ThemeChanged(_)
+                        | WindowEvent::ScaleFactorChanged { .. }
+                ) {
+                    if let Ok(ns_window) = _window.ns_window() {
+                        let zoom = _window
+                            .try_state::<TrafficLightZoom>()
+                            .map(|s| *s.0.lock().unwrap())
+                            .unwrap_or(1.0);
+                        macos_traffic_lights::reposition(ns_window, zoom);
+                    }
+                }
+            }
+        })
         .setup(|app| {
             let find = MenuItemBuilder::with_id("find", "Find")
                 .accelerator("CmdOrCtrl+F")
@@ -70,6 +115,17 @@ pub fn run() {
                 }
             });
 
+            // Position the lights once before the first paint; the frontend reports
+            // the restored zoom on mount (set_traffic_light_zoom), and later relayouts
+            // are handled by the on_window_event handler above.
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(ns_window) = window.ns_window() {
+                    let zoom = *app.state::<TrafficLightZoom>().0.lock().unwrap();
+                    macos_traffic_lights::reposition(ns_window, zoom);
+                }
+            }
+
             Ok(())
         })
         .manage(RepoState(Default::default()))
@@ -77,7 +133,9 @@ pub fn run() {
         .manage(RunningOp(Default::default()))
         .manage(WatcherState(Default::default()))
         .manage(ReviewSessionsState(Default::default()))
+        .manage(TrafficLightZoom(std::sync::Mutex::new(1.0)))
         .invoke_handler(tauri::generate_handler![
+            set_traffic_light_zoom,
             commands::repo::open_repo,
             commands::repo::close_repo,
             commands::repo::force_close_repo,
