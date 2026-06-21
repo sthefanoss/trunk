@@ -75,6 +75,14 @@ const reviewMarker = $derived(
 		.filter(Boolean)
 		.join(", "),
 );
+
+// Selected rows get the design's left accent bar; it layers ahead of the review
+// markers so an in-session selection still shows its 3px review edge on top.
+const rowShadow = $derived(
+	[selected ? "inset 2px 0 0 var(--accent)" : "", reviewMarker]
+		.filter(Boolean)
+		.join(", "),
+);
 </script>
 
 <div
@@ -82,9 +90,9 @@ const reviewMarker = $derived(
   role="row"
   tabindex="0"
   class="relative flex items-center cursor-pointer text-[13px]"
-  class:hover:bg-[var(--color-surface)]={!selected && !isCurrentMatch && !isSearchMatch}
+  class:hover:bg-[var(--bg-hover)]={!selected && !isCurrentMatch && !isSearchMatch}
   style:height="{rowHeight}px"
-  style="color: var(--color-text); {isCurrentMatch ? 'background: var(--color-search-current);' : isSearchMatch ? 'background: var(--color-search-match);' : selected ? 'background: var(--color-selected-row);' : ''} {isSearchActive && !isSearchMatch && !isCurrentMatch ? 'opacity: 0.35;' : ''} {reviewMarker ? `box-shadow: ${reviewMarker};` : ''}"
+  style="color: var(--color-text); {isCurrentMatch ? 'background: var(--color-search-current);' : isSearchMatch ? 'background: var(--color-search-match);' : selected ? 'background: var(--color-selected-row);' : ''} {isSearchActive && !isSearchMatch && !isCurrentMatch ? 'opacity: 0.35;' : ''} {rowShadow ? `box-shadow: ${rowShadow};` : ''}"
   onclick={() => onselect?.(commit.oid)}
   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onselect?.(commit.oid); } }}
   oncontextmenu={(e: MouseEvent) => { if (oncontextmenu && !isWip) { e.preventDefault(); oncontextmenu(e, commit); } }}

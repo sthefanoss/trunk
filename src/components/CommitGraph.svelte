@@ -1621,7 +1621,7 @@ $effect(() => {
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="h-full overflow-hidden flex flex-col"
-  style="background: var(--color-bg); outline: none;"
+  style="background: var(--bg-1); outline: none;"
   tabindex="0"
   role="listbox"
   bind:this={containerRef}
@@ -1791,7 +1791,7 @@ $effect(() => {
                   stroke-dasharray="3 3" />
               {:else if node.isMerge}
                 <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
-                  fill="var(--color-bg)" stroke={laneColor(node.colorIndex)}
+                  fill="var(--bg-1)" stroke={laneColor(node.colorIndex)}
                   stroke-width={displaySettings.mergeStroke} />
               {:else}
                 <circle cx={clampedCx} cy={cy(node.y)} r={displaySettings.dotRadius}
@@ -1857,7 +1857,7 @@ $effect(() => {
                     style="
                       display: block;
                       line-height: {PILL_HEIGHT}px;
-                      color: white;
+                      color: var(--bg-0);
                       font-size: {PILL_FONT_SIZE}px;
                       font-family: var(--font-sans);
                       font-weight: {pill.isHead ? 700 : 500};
@@ -1895,7 +1895,7 @@ $effect(() => {
                   >
                     <span
                       style="
-                        color: white;
+                        color: var(--bg-0);
                         font-size: {BADGE_FONT_SIZE}px;
                         font-family: var(--font-sans);
                         font-weight: 500;
@@ -1932,8 +1932,8 @@ $effect(() => {
               {#each hoveredPill.allRefs as ref}
                 {@const ri = refFromLabel(ref)}
                 <div
-                  style="display: flex; align-items: center; gap: 3px; cursor: {ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? 'pointer' : 'context-menu'}; border-radius: 4px;"
-                  class="text-[11px] leading-5 font-medium text-white whitespace-nowrap hover:bg-white/15 px-1 -mx-1"
+                  style="display: flex; align-items: center; gap: 3px; cursor: {ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? 'pointer' : 'context-menu'}; border-radius: 4px; color: var(--bg-0);"
+                  class="text-[11px] leading-5 font-medium whitespace-nowrap hover:bg-white/15 px-1 -mx-1"
                   oncontextmenu={(e) => showRefContextMenu(e, ri)}
                   ondblclick={ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? (e: MouseEvent) => handleRefCheckout(e, ri) : undefined}
                 >
@@ -1968,7 +1968,7 @@ $effect(() => {
               oncontextmenu={(e) => showRefContextMenu(e, refFromPill(hoveredPill!))}
               ondblclick={hoveredPill.refType === 'LocalBranch' || hoveredPill.refType === 'RemoteBranch' ? (e: MouseEvent) => handleRefCheckout(e, refFromPill(hoveredPill!)) : undefined}
             >
-              <span style="display: flex; align-items: center; gap: 2px; font-weight: {hoveredPill.isHead ? 700 : 500};" class="text-[11px] font-medium text-white whitespace-nowrap">
+              <span style="display: flex; align-items: center; gap: 2px; font-weight: {hoveredPill.isHead ? 700 : 500}; color: var(--bg-0);" class="text-[11px] font-medium whitespace-nowrap">
                 {#if PILL_ICONS[hoveredPill.refType]}
                   {@const HoverIcon = PILL_ICONS[hoveredPill.refType]}
                   <HoverIcon size={10} style="flex-shrink: 0; opacity: 0.9;" />
