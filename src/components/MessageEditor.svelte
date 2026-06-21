@@ -68,10 +68,10 @@ $effect(() => {
 {#if isOpen}
 	<dialog
 		bind:this={dialogEl}
-		class="rounded-lg shadow-xl"
+		class="rounded-lg"
 		data-testid="message-editor-backdrop"
 		aria-labelledby={titleId}
-		style="background: var(--bg-2); border: 1px solid var(--line); min-width: 420px; max-width: 640px; padding: 16px;"
+		style="background: var(--bg-2); border: 1px solid var(--line); box-shadow: var(--shadow-2); min-width: 420px; max-width: 640px; padding: 16px;"
 		onkeydown={handleKeydown}
 		onclick={handleBackdropClick}
 	>

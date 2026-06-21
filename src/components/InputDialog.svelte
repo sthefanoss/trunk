@@ -83,8 +83,8 @@ function autofocus(node: HTMLElement) {
   onclick={handleBackdropClick}
 >
   <div
-    class="rounded-lg shadow-xl"
-    style="background: var(--color-surface); border: 1px solid var(--color-border); min-width: 340px; max-width: 480px; padding: 16px;"
+    class="rounded-lg"
+    style="background: var(--bg-2); border: 1px solid var(--line); box-shadow: var(--shadow-2); min-width: 340px; max-width: 480px; padding: 16px;"
   >
     <h3 class="text-sm font-semibold mb-3" style="color: var(--color-text);">{title}</h3>
 

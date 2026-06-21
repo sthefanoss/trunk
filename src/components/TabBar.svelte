@@ -170,7 +170,7 @@ $effect(() => {
     border-radius: var(--radius-s);
     border: none;
     background: none;
-    color: var(--fg-3);
+    color: var(--fg-2);
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;

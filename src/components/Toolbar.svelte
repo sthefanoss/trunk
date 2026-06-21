@@ -235,7 +235,7 @@ async function handleBranchCreate(values: Record<string, string>) {
   .toolbar-divider {
     width: 1px;
     height: 18px;
-    background: var(--line);
+    background: var(--line-strong);
     flex-shrink: 0;
   }
 
