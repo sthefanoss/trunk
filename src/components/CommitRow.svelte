@@ -1,5 +1,6 @@
 <script lang="ts">
 import { copySha } from "../lib/clipboard.js";
+import { parseSummary, prefixToneVar } from "../lib/commit-prefix.js";
 import {
 	COLUMN_PADDING_X,
 	LANE_WIDTH,
@@ -7,6 +8,7 @@ import {
 } from "../lib/graph-constants.js";
 import type { ColumnVisibility, ColumnWidths } from "../lib/store.js";
 import type { GraphCommit } from "../lib/types.js";
+import Avatar from "./Avatar.svelte";
 
 interface Props {
 	commit: GraphCommit;
@@ -63,6 +65,7 @@ function relativeDate(ts: number): string {
 
 const isWip = $derived(commit.oid === "__wip__");
 const isStash = $derived(commit.is_stash);
+const parsed = $derived(parseSummary(commit.summary));
 
 // D-04 in-session + D-01 pending-base markers: theme-variable inset accents on
 // distinct edges so they compose with the background ternaries (and each other)
@@ -114,15 +117,14 @@ const rowShadow = $derived(
       {commit.summary}
     </div>
   {:else}
-    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap" style="padding: 0 {COLUMN_PADDING_X}px;">
-      {commit.summary}
-    </div>
+    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap" style="padding: 0 {COLUMN_PADDING_X}px;"
+    >{#if parsed.prefix}<span class="font-mono font-medium" style="color: {prefixToneVar(parsed.prefix)};">{parsed.prefix}{parsed.scope}{parsed.bang}</span><span style="color: var(--fg-4);">{": "}</span>{parsed.rest}{:else}{commit.summary}{/if}</div>
   {/if}
 
   <!-- Column 4: Author -->
   {#if columnVisibility.author}
-    <div class="flex-shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px]" style="width: {columnWidths.author}px; color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;">
-      {#if !isWip && !isStash}{commit.author_name}{/if}
+    <div class="flex-shrink-0 flex items-center gap-2 text-[12px]" style="width: {columnWidths.author}px; color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;">
+      {#if !isWip && !isStash}<Avatar name={commit.author_name} /><span class="overflow-hidden text-ellipsis whitespace-nowrap">{commit.author_name}</span>{/if}
     </div>
   {/if}
 

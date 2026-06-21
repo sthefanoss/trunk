@@ -195,6 +195,9 @@ const AUTHOR_CONTENT_FONT = "12px ui-sans-serif, system-ui, sans-serif";
 const DATE_CONTENT_FONT = "11px ui-sans-serif, system-ui, sans-serif";
 const SHA_CONTENT_FONT = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
 
+// Author cell reserves space for the initials avatar (diameter + gap) before the name.
+const AUTHOR_AVATAR_WIDTH = 18 + 8;
+
 // Minimum column widths = header label text width + column padding (border-box) + breathing room
 const HEADER_PAD = 4 * COLUMN_PADDING_X; // 2× for CSS padding + 2× for breathing room
 const headerMinRef = measureTextWidth("Branch/Tag", HEADER_FONT) + HEADER_PAD;
@@ -233,7 +236,8 @@ function updateContentWidths(newCommits: GraphCommit[], reset = false) {
 		if (c.oid === "__wip__" || c.is_stash) continue;
 		const aw =
 			measureTextWidth(c.author_name, AUTHOR_CONTENT_FONT) +
-			2 * COLUMN_PADDING_X;
+			2 * COLUMN_PADDING_X +
+			AUTHOR_AVATAR_WIDTH;
 		if (aw > maxAuthorContentWidth) maxAuthorContentWidth = aw;
 		const dw =
 			measureTextWidth(relativeDateStr(c.author_timestamp), DATE_CONTENT_FONT) +
@@ -1631,7 +1635,7 @@ $effect(() => {
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="flex items-center flex-shrink-0"
-    style="height: 24px; background: var(--color-surface); border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); padding: 0 {COLUMN_PADDING_X}px;"
+    style="height: {displaySettings.rowHeight}px; background: var(--bg-1); border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); padding: 0 {COLUMN_PADDING_X}px;"
     oncontextmenu={showHeaderContextMenu}
   >
     {#if columnVisibility.ref}

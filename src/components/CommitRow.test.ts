@@ -39,7 +39,9 @@ describe("CommitRow", () => {
 				columnVisibility: allVisible,
 			},
 		});
-		expect(screen.getByText("fix: bug")).toBeInTheDocument();
+		expect(screen.getByTestId("commit-row-summary")).toHaveTextContent(
+			"fix: bug",
+		);
 	});
 
 	it("renders author name when column visible", () => {
