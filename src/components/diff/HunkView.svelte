@@ -200,7 +200,7 @@ function gutterWidth(maxNum: number): string {
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;
@@ -259,7 +259,7 @@ function gutterWidth(maxNum: number): string {
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;
@@ -321,7 +321,7 @@ function gutterWidth(maxNum: number): string {
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;
@@ -358,7 +358,7 @@ function gutterWidth(maxNum: number): string {
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;
@@ -400,7 +400,7 @@ function gutterWidth(maxNum: number): string {
                 title={isMerge ? "Diff comments aren't available on merge commits" : ""}
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;
@@ -422,7 +422,7 @@ function gutterWidth(maxNum: number): string {
                 title={isMerge ? "Diff comments aren't available on merge commits" : ""}
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
-                  border: 1px solid var(--color-border);
+                  border: 1px solid var(--color-accent-border);
                   border-radius: 3px;
                   color: var(--color-accent);
                   font-size: 11px;

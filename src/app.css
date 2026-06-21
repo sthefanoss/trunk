@@ -92,7 +92,7 @@
 	--color-accent: var(--accent);
 	--color-accent-alt: var(--lane-3);
 	--color-accent-bg: color-mix(in oklch, var(--accent) 15%, transparent);
-	--color-accent-border: var(--accent);
+	--color-accent-border: color-mix(in oklch, var(--accent) 30%, transparent);
 	--color-on-accent: var(--accent-fg);
 
 	/* Rows & overlays */

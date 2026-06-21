@@ -512,7 +512,7 @@ const pairedData = $derived(
 
   .accent-btn {
     background: var(--color-accent-bg);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-accent-border);
     color: var(--color-accent);
   }
 

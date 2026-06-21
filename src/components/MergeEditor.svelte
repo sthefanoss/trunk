@@ -574,7 +574,7 @@ function isHunkAllTaken(side: "ours" | "theirs", regionIdx: number): boolean {
         <div style="
           height: 28px;
           background: var(--color-accent-bg);
-          border-bottom: 1px solid var(--color-accent-border);
+          border-bottom: 1px solid var(--accent);
           display: flex;
           align-items: center;
           padding: 0 8px;

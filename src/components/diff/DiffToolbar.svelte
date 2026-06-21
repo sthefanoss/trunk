@@ -190,7 +190,7 @@ let {
 
   .comment-btn {
     background: var(--color-accent-bg, var(--color-surface));
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-accent-border);
     color: var(--color-accent);
     cursor: pointer;
   }
