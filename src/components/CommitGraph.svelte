@@ -1631,7 +1631,7 @@ $effect(() => {
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="flex items-center flex-shrink-0"
-    style="height: 24px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); font-size: 11px; color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;"
+    style="height: 24px; background: var(--color-surface); border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); padding: 0 {COLUMN_PADDING_X}px;"
     oncontextmenu={showHeaderContextMenu}
   >
     {#if columnVisibility.ref}
@@ -1827,8 +1827,9 @@ $effect(() => {
                   rx={PILL_HEIGHT / 2}
                   ry={PILL_HEIGHT / 2}
                   fill={laneColor(pill.colorIndex)}
-                  opacity={pill.isRemoteOnly ? 0.67 : 1}
-                  style={pill.isNonHead && !pill.isRemoteOnly ? 'filter: brightness(0.75)' : ''}
+                  fill-opacity={pill.isRemoteOnly ? 0.12 : 0.2}
+                  stroke={laneColor(pill.colorIndex)}
+                  stroke-opacity="0.5"
                   pointer-events="auto"
                   style:cursor={pill.refType === 'LocalBranch' || pill.refType === 'RemoteBranch' ? 'pointer' : 'context-menu'}
                   onmouseenter={() => pillMouseEnter(pill)}
@@ -1857,7 +1858,7 @@ $effect(() => {
                     style="
                       display: block;
                       line-height: {PILL_HEIGHT}px;
-                      color: var(--bg-0);
+                      color: {laneColor(pill.colorIndex)};
                       font-size: {PILL_FONT_SIZE}px;
                       font-family: var(--font-sans);
                       font-weight: {pill.isHead ? 700 : 500};
@@ -1882,7 +1883,9 @@ $effect(() => {
                     rx={BADGE_HEIGHT / 2}
                     ry={BADGE_HEIGHT / 2}
                     fill={laneColor(pill.colorIndex)}
-                    style="filter: brightness(0.65)"
+                    fill-opacity="0.2"
+                    stroke={laneColor(pill.colorIndex)}
+                    stroke-opacity="0.5"
                     pointer-events="auto"
                     onmouseenter={() => pillMouseEnter(pill)}
                     onmouseleave={pillMouseLeave}
@@ -1895,7 +1898,7 @@ $effect(() => {
                   >
                     <span
                       style="
-                        color: var(--bg-0);
+                        color: {laneColor(pill.colorIndex)};
                         font-size: {BADGE_FONT_SIZE}px;
                         font-family: var(--font-sans);
                         font-weight: 500;
@@ -1919,7 +1922,8 @@ $effect(() => {
               style="
                 left: {hoveredPill.x}px;
                 top: {hoveredPill.y - PILL_HEIGHT / 2}px;
-                background: var(--lane-{hoveredPill.colorIndex % 8});
+                background: var(--bg-2);
+                border: 1px solid var(--line);
                 padding: 4px 8px;
                 z-index: 50;
                 pointer-events: auto;
@@ -1932,7 +1936,7 @@ $effect(() => {
               {#each hoveredPill.allRefs as ref}
                 {@const ri = refFromLabel(ref)}
                 <div
-                  style="display: flex; align-items: center; gap: 3px; cursor: {ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? 'pointer' : 'context-menu'}; border-radius: 4px; color: var(--bg-0);"
+                  style="display: flex; align-items: center; gap: 3px; cursor: {ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? 'pointer' : 'context-menu'}; border-radius: 4px; color: var(--lane-{ref.color_index % 8});"
                   class="text-[11px] leading-5 font-medium whitespace-nowrap hover:bg-white/15 px-1 -mx-1"
                   oncontextmenu={(e) => showRefContextMenu(e, ri)}
                   ondblclick={ri.refType === 'LocalBranch' || ri.refType === 'RemoteBranch' ? (e: MouseEvent) => handleRefCheckout(e, ri) : undefined}
@@ -1953,7 +1957,8 @@ $effect(() => {
                 left: {hoveredPill.x}px;
                 top: {hoveredPill.y - PILL_HEIGHT / 2}px;
                 height: {PILL_HEIGHT}px;
-                background: var(--lane-{hoveredPill.colorIndex % 8});
+                background: color-mix(in oklch, var(--lane-{hoveredPill.colorIndex % 8}) 20%, var(--bg-2));
+                box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lane-{hoveredPill.colorIndex % 8}) 50%, transparent);
                 padding: 0 {PILL_PADDING_X}px;
                 z-index: 50;
                 pointer-events: auto;
@@ -1968,7 +1973,7 @@ $effect(() => {
               oncontextmenu={(e) => showRefContextMenu(e, refFromPill(hoveredPill!))}
               ondblclick={hoveredPill.refType === 'LocalBranch' || hoveredPill.refType === 'RemoteBranch' ? (e: MouseEvent) => handleRefCheckout(e, refFromPill(hoveredPill!)) : undefined}
             >
-              <span style="display: flex; align-items: center; gap: 2px; font-weight: {hoveredPill.isHead ? 700 : 500}; color: var(--bg-0);" class="text-[11px] font-medium whitespace-nowrap">
+              <span style="display: flex; align-items: center; gap: 2px; font-weight: {hoveredPill.isHead ? 700 : 500}; color: var(--lane-{hoveredPill.colorIndex % 8});" class="text-[11px] font-medium whitespace-nowrap">
                 {#if PILL_ICONS[hoveredPill.refType]}
                   {@const HoverIcon = PILL_ICONS[hoveredPill.refType]}
                   <HoverIcon size={10} style="flex-shrink: 0; opacity: 0.9;" />
