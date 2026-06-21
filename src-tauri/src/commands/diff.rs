@@ -30,46 +30,46 @@ fn apply_request_options(opts: &mut git2::DiffOptions, req: &DiffRequestOptions)
 }
 
 /// Compute word spans for a paired delete/add line.
-/// Returns (delete_spans, add_spans) with byte-offset ranges and emphasis flags.
+/// Returns (delete_spans, add_spans) — byte-offset ranges of the *changed* words,
+/// each flagged `emphasized`. A word-level diff (`from_words`) is used so only the
+/// words that actually differ are emphasized; a line-level diff would treat the
+/// single line as one token and emphasize the whole line.
 fn compute_word_spans_for_pair(
     old_content: &str,
     new_content: &str,
 ) -> (Vec<WordSpan>, Vec<WordSpan>) {
-    // Normalize: ensure newline-terminated for from_lines (Pitfall 5)
-    let old = if old_content.ends_with('\n') {
-        old_content.to_string()
-    } else {
-        format!("{}\n", old_content)
-    };
-    let new = if new_content.ends_with('\n') {
-        new_content.to_string()
-    } else {
-        format!("{}\n", new_content)
-    };
-
-    let diff = TextDiff::from_lines(&old, &new);
+    let diff = TextDiff::from_unicode_words(old_content, new_content);
     let mut del_spans = Vec::new();
     let mut add_spans = Vec::new();
+    let mut del_offset: u32 = 0;
+    let mut add_offset: u32 = 0;
 
-    for op in diff.ops() {
-        for change in diff.iter_inline_changes(op) {
-            let mut offset: u32 = 0;
-            let mut spans = Vec::new();
-            for (emphasized, value) in change.iter_strings_lossy() {
-                let len = value.len() as u32;
+    for change in diff.iter_all_changes() {
+        let len = change.value().len() as u32;
+        match change.tag() {
+            ChangeTag::Delete => {
                 if len > 0 {
-                    spans.push(WordSpan {
-                        start: offset,
-                        end: offset + len,
-                        emphasized,
+                    del_spans.push(WordSpan {
+                        start: del_offset,
+                        end: del_offset + len,
+                        emphasized: true,
                     });
                 }
-                offset += len;
+                del_offset += len;
             }
-            match change.tag() {
-                ChangeTag::Delete => del_spans = spans,
-                ChangeTag::Insert => add_spans = spans,
-                ChangeTag::Equal => {}
+            ChangeTag::Insert => {
+                if len > 0 {
+                    add_spans.push(WordSpan {
+                        start: add_offset,
+                        end: add_offset + len,
+                        emphasized: true,
+                    });
+                }
+                add_offset += len;
+            }
+            ChangeTag::Equal => {
+                del_offset += len;
+                add_offset += len;
             }
         }
     }
@@ -579,4 +579,49 @@ pub async fn get_commit_detail(
         .await
         .map_err(|e| TrunkError::new("spawn_error", e.to_string()).to_json())?
         .map_err(|e| e.to_json())
+}
+
+#[cfg(test)]
+mod word_span_tests {
+    use super::*;
+
+    fn emphasized(content: &str, spans: &[WordSpan]) -> Vec<String> {
+        spans
+            .iter()
+            .filter(|s| s.emphasized)
+            .map(|s| content[s.start as usize..s.end as usize].to_string())
+            .collect()
+    }
+
+    #[test]
+    fn emphasizes_only_the_changed_word() {
+        let old = "expect(cat.permissions.length).toBe(64);";
+        let new = "expect(cat.permissions.length).toBe(63);";
+
+        let (del, add) = compute_word_spans_for_pair(old, new);
+
+        assert_eq!(emphasized(old, &del), vec!["64"]);
+        assert_eq!(emphasized(new, &add), vec!["63"]);
+    }
+
+    #[test]
+    fn emphasizes_nothing_for_identical_lines() {
+        let line = "let total = sum(values);";
+
+        let (del, add) = compute_word_spans_for_pair(line, line);
+
+        assert!(emphasized(line, &del).is_empty());
+        assert!(emphasized(line, &add).is_empty());
+    }
+
+    #[test]
+    fn emphasizes_each_changed_word_independently() {
+        let old = "const a = foo(1);";
+        let new = "const b = foo(2);";
+
+        let (del, add) = compute_word_spans_for_pair(old, new);
+
+        assert_eq!(emphasized(old, &del), vec!["a", "1"]);
+        assert_eq!(emphasized(new, &add), vec!["b", "2"]);
+    }
 }
