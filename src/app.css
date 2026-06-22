@@ -127,11 +127,13 @@
 	--color-diff-add-bg-selected: var(--diff-add-hi);
 	--color-diff-delete-bg-selected: var(--diff-del-hi);
 
-	/* Word-level diff highlights (Phase 60) — capped so the emphasis patch,
-	   which stacks on top of the line tint, doesn't lift the background past
-	   the readability ceiling for colored text. */
-	--color-diff-word-add-bg: color-mix(in oklch, var(--ok) 22%, transparent);
-	--color-diff-word-delete-bg: color-mix(in oklch, var(--err) 22%, transparent);
+	/* Word-level diff highlights (Phase 60) — kept low so the emphasis patch,
+	   which stacks on top of the line tint, leaves a dark-enough background for
+	   colored tokens. Same-hue cases (a green number on the green add patch, a
+	   green number on the red delete patch) need the extra headroom for both
+	   luminance and hue separation, not just the WCAG ratio. */
+	--color-diff-word-add-bg: color-mix(in oklch, var(--ok) 16%, transparent);
+	--color-diff-word-delete-bg: color-mix(in oklch, var(--err) 16%, transparent);
 	--color-diff-phantom-bg: color-mix(in oklch, var(--fg-3) 5%, transparent);
 
 	/* Syntax highlighting (Phase 61) — VSCode-dark base, lifted for contrast.
