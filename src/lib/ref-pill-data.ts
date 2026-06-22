@@ -44,7 +44,6 @@ export function sortRefs(refs: RefLabel[]): RefLabel[] {
 /**
  * Checks if a ref is "remote only" — it's a RemoteBranch with no sibling
  * LocalBranch or Tag on the same commit.
- * Preserves exact logic from RefPill.svelte.
  */
 export function isRemoteOnlyRef(ref: RefLabel, allRefs: RefLabel[]): boolean {
 	if (ref.ref_type !== "RemoteBranch") return false;
