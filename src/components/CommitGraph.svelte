@@ -13,6 +13,7 @@ import { ask, message } from "@tauri-apps/plugin-dialog";
 import { tick, untrack } from "svelte";
 import { buildGraphData } from "../lib/active-lanes.js";
 import { copySha } from "../lib/clipboard.js";
+import { computeCommitNav } from "../lib/commitNav.js";
 import {
 	BADGE_FONT_SIZE,
 	BADGE_HEIGHT,
@@ -40,6 +41,7 @@ import {
 import { measureTextWidth } from "../lib/text-measure.js";
 import { showToast } from "../lib/toast.svelte.js";
 import type {
+	CommitNav,
 	EdgeType,
 	GraphCommit,
 	GraphResponse,
@@ -59,6 +61,7 @@ import VirtualList from "./VirtualList.svelte";
 interface Props {
 	repoPath: string;
 	oncommitselect?: (oid: string) => void;
+	oncommitnavchange?: (nav: CommitNav | null) => void;
 	wipCount?: number;
 	wipMessage?: string;
 	onWipClick?: () => void;
@@ -75,6 +78,7 @@ interface Props {
 let {
 	repoPath,
 	oncommitselect,
+	oncommitnavchange,
 	wipCount = 0,
 	wipMessage = "WIP",
 	onWipClick,
@@ -1283,6 +1287,15 @@ const displayItems = $derived.by(() => {
 		return [makeWipItem(wipMessage, col, colorIdx), ...commits];
 	}
 	return [...commits];
+});
+
+// Emit the selected commit's nav context (pager position + topology neighbors)
+// whenever the loaded list, selection, or load-more state changes. Reading
+// `commits` (deeply reactive) covers loadMore extending the tail.
+$effect(() => {
+	oncommitnavchange?.(
+		computeCommitNav(displayItems, selectedCommitOid ?? null, hasMore),
+	);
 });
 
 const laneColor = (idx: number) => `var(--lane-${idx % 8})`;

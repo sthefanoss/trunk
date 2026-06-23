@@ -20,6 +20,7 @@ import { showToast } from "../lib/toast.svelte.js";
 import type {
 	Comment,
 	CommitDetail as CommitDetailType,
+	CommitNav,
 	DiffRequestOptions,
 	FileDiff,
 	RebaseTodoItem,
@@ -197,6 +198,7 @@ let selectedCommitOid = $state<string | null>(null);
 let commitDetail = $state<CommitDetailType | null>(null);
 let commitFileDiffs = $state<FileDiff[]>([]);
 let selectedCommitFile = $state<string | null>(null);
+let commitNav = $state<CommitNav | null>(null);
 
 // CommitGraph component ref -- used to call scrollToOid for ref navigation (GRAPH-03)
 let commitGraphRef = $state<{
@@ -432,6 +434,14 @@ async function handleCommitSelect(oid: string) {
 		return;
 	}
 	await selectCommitIdempotent(oid);
+}
+
+/** Navigate to a commit from the detail-pane pager or topology chips: select it
+ * (idempotent — never toggles) and center the graph on it. Mirrors the tail of
+ * handleRefNavigate without the toggle hazard of handleCommitSelect. */
+async function navigateToCommit(oid: string) {
+	await selectCommitIdempotent(oid);
+	await commitGraphRef?.scrollToOid(oid);
 }
 
 /** Resolve a ref name or OID to a commit OID, select it, and scroll the graph to it (GRAPH-03). */
@@ -935,7 +945,7 @@ function startRightResize(e: MouseEvent) {
           : handleDiffClose}
       />
     {:else}
-      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} clearRedoStack={undoRedo.clear} />
+      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} oncommitnavchange={(nav) => (commitNav = nav)} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} clearRedoStack={undoRedo.clear} />
     {/if}
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -951,6 +961,8 @@ function startRightResize(e: MouseEvent) {
         {repoPath}
         {treeViewEnabled}
         ontreeviewtoggle={handleTreeViewToggle}
+        nav={commitNav}
+        onnavigate={navigateToCommit}
       />
     {:else}
       <StagingPanel

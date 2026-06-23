@@ -83,6 +83,102 @@ describe("CommitDetail", () => {
 		expect(screen.getByText("parent1")).toBeInTheDocument();
 	});
 
+	it("navigates to the parent when the parent chip is clicked", async () => {
+		const onnavigate = vi.fn();
+		render(CommitDetailComponent, {
+			props: {
+				commitDetail: detail,
+				fileDiffs,
+				selectedFile: null,
+				onfileselect: vi.fn(),
+				onclose: vi.fn(),
+				onnavigate,
+			},
+		});
+
+		await fireEvent.click(screen.getByText("parent1"));
+
+		expect(onnavigate).toHaveBeenCalledWith("parent1abc");
+	});
+
+	describe("pager", () => {
+		const nav = {
+			index: 12,
+			total: 340,
+			hasMore: true,
+			newerOid: "newerOid123",
+			olderOid: "olderOid456",
+			childOids: [],
+		};
+
+		it("shows the position readout with a + when hasMore", () => {
+			render(CommitDetailComponent, {
+				props: {
+					commitDetail: detail,
+					fileDiffs,
+					selectedFile: null,
+					onfileselect: vi.fn(),
+					onclose: vi.fn(),
+					nav,
+				},
+			});
+			expect(screen.getByText("12 / 340+")).toBeInTheDocument();
+		});
+
+		it("navigates newer/older from the chevrons", async () => {
+			const onnavigate = vi.fn();
+			render(CommitDetailComponent, {
+				props: {
+					commitDetail: detail,
+					fileDiffs,
+					selectedFile: null,
+					onfileselect: vi.fn(),
+					onclose: vi.fn(),
+					nav,
+					onnavigate,
+				},
+			});
+
+			await fireEvent.click(screen.getByLabelText("Go to newer commit"));
+			expect(onnavigate).toHaveBeenCalledWith("newerOid123");
+
+			await fireEvent.click(screen.getByLabelText("Go to older commit"));
+			expect(onnavigate).toHaveBeenCalledWith("olderOid456");
+		});
+
+		it("disables the newer chevron at the top of history", () => {
+			render(CommitDetailComponent, {
+				props: {
+					commitDetail: detail,
+					fileDiffs,
+					selectedFile: null,
+					onfileselect: vi.fn(),
+					onclose: vi.fn(),
+					nav: { ...nav, newerOid: null },
+				},
+			});
+			expect(screen.getByLabelText("Go to newer commit")).toBeDisabled();
+		});
+
+		it("renders child chips that navigate", async () => {
+			const onnavigate = vi.fn();
+			render(CommitDetailComponent, {
+				props: {
+					commitDetail: detail,
+					fileDiffs,
+					selectedFile: null,
+					onfileselect: vi.fn(),
+					onclose: vi.fn(),
+					nav: { ...nav, childOids: ["childOid789"] },
+					onnavigate,
+				},
+			});
+
+			await fireEvent.click(screen.getByText("childOi"));
+			expect(onnavigate).toHaveBeenCalledWith("childOid789");
+		});
+	});
+
 	it("renders short oid in toolbar", () => {
 		render(CommitDetailComponent, {
 			props: {
@@ -147,22 +243,6 @@ describe("CommitDetail", () => {
 			await fireEvent.click(screen.getByText("abc123d"));
 
 			expect(vi.mocked(writeText)).toHaveBeenCalledWith("abc123def456");
-		});
-
-		it("copies the full parent oid from the parent SHA", async () => {
-			render(CommitDetailComponent, {
-				props: {
-					commitDetail: detail,
-					fileDiffs,
-					selectedFile: null,
-					onfileselect: vi.fn(),
-					onclose: vi.fn(),
-				},
-			});
-
-			await fireEvent.click(screen.getByText("parent1"));
-
-			expect(vi.mocked(writeText)).toHaveBeenCalledWith("parent1abc");
 		});
 	});
 

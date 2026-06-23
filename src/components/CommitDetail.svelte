@@ -1,9 +1,17 @@
 <script lang="ts">
-import { FolderTree, List } from "@lucide/svelte";
+import {
+	ArrowDown,
+	ArrowUp,
+	ChevronDown,
+	ChevronUp,
+	FolderTree,
+	List,
+} from "@lucide/svelte";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { copySha } from "../lib/clipboard.js";
 import type {
 	CommitDetail,
+	CommitNav,
 	FileDiff,
 	FileStatus,
 	FileStatusType,
@@ -20,6 +28,8 @@ interface Props {
 	repoPath?: string;
 	treeViewEnabled?: boolean;
 	ontreeviewtoggle?: () => void;
+	nav?: CommitNav | null;
+	onnavigate?: (oid: string) => void;
 }
 
 let {
@@ -31,6 +41,8 @@ let {
 	repoPath = "",
 	treeViewEnabled = false,
 	ontreeviewtoggle,
+	nav = null,
+	onnavigate,
 }: Props = $props();
 
 const DIFF_STATUS_MAP: Record<string, FileStatusType> = {
@@ -78,11 +90,41 @@ let authorDate = $derived(
 	new Date(commitDetail.author_timestamp * 1000).toLocaleString(),
 );
 
-let parentShort = $derived(
-	commitDetail.parent_oids.length > 0
-		? commitDetail.parent_oids[0].slice(0, 7)
-		: null,
-);
+// j/k step older/newer through the same navigate path as the pager, so review
+// flows without focusing the graph. Vim-style: j = down = older, k = up = newer.
+// Arrow keys are left to CommitGraph's own (container-scoped) handler to avoid
+// double-firing; j/k aren't bound anywhere else.
+function handlePaneKeydown(e: KeyboardEvent) {
+	if (!nav || (e.key !== "j" && e.key !== "k")) return;
+	const active = document.activeElement;
+	if (
+		active instanceof HTMLInputElement ||
+		active instanceof HTMLTextAreaElement ||
+		(active instanceof HTMLElement && active.isContentEditable)
+	) {
+		return;
+	}
+	const target = e.key === "j" ? nav.olderOid : nav.newerOid;
+	if (target === null) return;
+	e.preventDefault();
+	onnavigate?.(target);
+}
+
+async function showShaContextMenu(e: MouseEvent, oid: string) {
+	e.preventDefault();
+	const { Menu, MenuItem } = await import("@tauri-apps/api/menu");
+	const menu = await Menu.new({
+		items: [
+			await MenuItem.new({
+				text: "Copy SHA",
+				action: () => {
+					void copySha(oid);
+				},
+			}),
+		],
+	});
+	await menu.popup();
+}
 
 function countOrigin(origin: "Add" | "Delete"): number {
 	return fileDiffs.reduce(
@@ -99,6 +141,8 @@ function countOrigin(origin: "Add" | "Delete"): number {
 let totalAdds = $derived(countOrigin("Add"));
 let totalDels = $derived(countOrigin("Delete"));
 </script>
+
+<svelte:window onkeydown={handlePaneKeydown} />
 
 <div style="
   width: 100%;
@@ -131,6 +175,29 @@ let totalDels = $derived(countOrigin("Delete"));
     ">
       commit: <button type="button" title="Copy SHA" class="sha-copy" style="display: inline-flex; align-items: center; padding: 2px 6px; border-radius: var(--radius-s); background: var(--bg-3); color: var(--fg-0);" onclick={() => copySha(commitDetail.oid)}>{commitDetail.short_oid}</button>
     </span>
+    {#if nav}
+      <span class="pager">
+        <button
+          type="button"
+          class="pager-btn"
+          aria-label="Go to newer commit"
+          title="Newer commit"
+          disabled={nav.newerOid === null}
+          aria-disabled={nav.newerOid === null}
+          onclick={() => nav?.newerOid && onnavigate?.(nav.newerOid)}
+        ><ChevronUp size={13} /></button>
+        <span class="pager-pos">{nav.index} / {nav.total}{nav.hasMore ? '+' : ''}</span>
+        <button
+          type="button"
+          class="pager-btn"
+          aria-label="Go to older commit"
+          title="Older commit"
+          disabled={nav.olderOid === null}
+          aria-disabled={nav.olderOid === null}
+          onclick={() => nav?.olderOid && onnavigate?.(nav.olderOid)}
+        ><ChevronDown size={13} /></button>
+      </span>
+    {/if}
     <button
       onclick={onclose}
       aria-label="Close commit detail"
@@ -193,8 +260,38 @@ let totalDels = $derived(countOrigin("Delete"));
         </div>
         <span style="margin-left: auto; flex-shrink: 0; color: var(--fg-3); font-family: var(--font-mono); font-size: 11px;">{authorDate}</span>
       </div>
-      {#if parentShort}
-        <div style="margin-top: 6px;">parent: <button type="button" title="Copy SHA" class="sha-copy" onclick={() => copySha(commitDetail.parent_oids[0])}>{parentShort}</button></div>
+      {#if commitDetail.parent_oids.length > 0 || (nav && nav.childOids.length > 0)}
+        <div class="topo">
+          {#if nav && nav.childOids.length > 0}
+            <div class="topo-row">
+              <span class="topo-lbl">{nav.childOids.length > 1 ? 'Children' : 'Child'}</span>
+              {#each nav.childOids as childOid (childOid)}
+                <button
+                  type="button"
+                  class="chip"
+                  title="Go to child {childOid.slice(0, 7)} (right-click to copy SHA)"
+                  onclick={() => onnavigate?.(childOid)}
+                  oncontextmenu={(e) => showShaContextMenu(e, childOid)}
+                ><ArrowUp size={11} />{childOid.slice(0, 7)}</button>
+              {/each}
+            </div>
+          {/if}
+          {#if commitDetail.parent_oids.length > 0}
+            <div class="topo-row">
+              <span class="topo-lbl">{commitDetail.parent_oids.length > 1 ? 'Parents' : 'Parent'}</span>
+              {#each commitDetail.parent_oids as parentOid, i (parentOid)}
+                <button
+                  type="button"
+                  class="chip"
+                  class:merge={i > 0}
+                  title="Go to parent {parentOid.slice(0, 7)} (right-click to copy SHA)"
+                  onclick={() => onnavigate?.(parentOid)}
+                  oncontextmenu={(e) => showShaContextMenu(e, parentOid)}
+                ><ArrowDown size={11} />{parentOid.slice(0, 7)}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
 
@@ -273,5 +370,87 @@ let totalDels = $derived(countOrigin("Delete"));
   }
   .sha-copy:hover {
     text-decoration: underline;
+  }
+
+  /* Toolbar pager — step to the newer/older adjacent commit in graph order. */
+  .pager {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 20px;
+    border-radius: var(--radius-s);
+    background: var(--bg-3);
+    color: var(--fg-2);
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  .pager-btn:hover:not(:disabled) {
+    color: var(--accent-hi);
+    border-color: color-mix(in oklch, var(--accent) 30%, transparent);
+  }
+  .pager-btn:disabled {
+    color: var(--fg-3);
+    opacity: 0.4;
+    cursor: default;
+  }
+  .pager-pos {
+    font-size: 10px;
+    color: var(--fg-3);
+    font-family: var(--font-mono);
+    padding: 0 2px;
+  }
+
+  /* Topology chips — clickable parent/child lineage links. */
+  .topo {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .topo-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .topo-lbl {
+    font-size: 10px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    width: 62px;
+    flex-shrink: 0;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px 1px 5px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    background: color-mix(in oklch, var(--accent) 12%, transparent);
+    color: var(--accent-hi);
+    border: 1px solid color-mix(in oklch, var(--accent) 25%, transparent);
+  }
+  .chip:hover {
+    background: color-mix(in oklch, var(--accent) 20%, transparent);
+  }
+  .chip.merge {
+    background: color-mix(in oklch, var(--fg-3) 10%, transparent);
+    color: var(--fg-1);
+    border-color: var(--color-border);
+  }
+  .chip.merge:hover {
+    background: color-mix(in oklch, var(--fg-3) 18%, transparent);
   }
 </style>

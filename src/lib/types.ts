@@ -76,6 +76,17 @@ export interface GraphResponse {
 	max_columns: number;
 }
 
+// Navigation context for the currently-selected commit, derived from the
+// loaded graph list. Emitted by CommitGraph, consumed by CommitDetail.
+export interface CommitNav {
+	index: number; // 1-based position among real commits (WIP row excluded)
+	total: number; // count of loaded real commits
+	hasMore: boolean; // true if older commits exist but aren't loaded yet
+	newerOid: string | null; // adjacent commit toward HEAD (up); null at top
+	olderOid: string | null; // adjacent commit toward root (down); null at loaded tail
+	childOids: string[]; // loaded commits whose parent_oids include this commit
+}
+
 export type MatchType = "Sha" | "Message" | "Ref" | "Author";
 
 export interface SearchResult {
