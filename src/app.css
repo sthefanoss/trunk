@@ -100,6 +100,13 @@
 	--color-border: var(--line);
 	--color-input-bg: var(--bg-0);
 
+	/* Comment card — its own elevated surface so the card reads identically on
+	   every host (diff area sits on --bg-0, the review panel on --bg-1; --bg-2 is
+	   lighter than both, so the card pops uniformly instead of blending into one
+	   host and inverting against the other). */
+	--color-comment-card-bg: var(--bg-2);
+	--color-comment-card-header-bg: var(--bg-3);
+
 	/* Text */
 	--color-text: var(--fg-1);
 	--color-text-muted: var(--fg-2);

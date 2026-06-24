@@ -198,7 +198,7 @@ async function requestDelete() {
     flex-direction: column;
     border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: var(--color-bg);
+    background: var(--color-comment-card-bg);
     overflow: hidden;
   }
   /* Inline hosts (diff / commit-detail) span the full row width naturally; the
@@ -212,7 +212,7 @@ async function requestDelete() {
     align-items: center;
     gap: 6px;
     padding: 4px 8px;
-    background: var(--color-surface);
+    background: var(--color-comment-card-header-bg);
     border-bottom: 1px solid var(--color-border);
     font-size: 11px;
   }
@@ -307,7 +307,7 @@ async function requestDelete() {
   .card-textarea {
     width: 100%;
     resize: vertical;
-    background: var(--color-bg);
+    background: var(--color-comment-card-bg);
     color: var(--color-text);
     border: 1px solid var(--color-border);
     border-radius: 4px;
