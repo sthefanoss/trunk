@@ -141,6 +141,27 @@ export function countFiles(nodes: TreeNode[]): number {
 }
 
 /**
+ * Sum review-comment counts across all file descendants of a tree node array.
+ * Mirrors countFiles, but reads each file's count from a `path → count` map
+ * instead of counting 1 per file. Used to roll a collapsed directory's badge
+ * up from its descendants.
+ */
+export function sumCommentsInSubtree(
+	nodes: TreeNode[],
+	perFileCounts: Map<string, number>,
+): number {
+	let sum = 0;
+	for (const node of nodes) {
+		if (node.type === "file") {
+			sum += perFileCounts.get(node.path) ?? 0;
+		} else {
+			sum += sumCommentsInSubtree(node.children, perFileCounts);
+		}
+	}
+	return sum;
+}
+
+/**
  * Collect all file paths recursively from a tree node array.
  */
 export function collectFilePaths(nodes: TreeNode[]): string[] {

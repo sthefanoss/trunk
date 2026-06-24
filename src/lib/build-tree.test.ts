@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { makeFile } from "../__tests__/helpers/factories.js";
 import type { DirectoryNode, FileNode, TreeNode } from "./build-tree.js";
-import { buildTree, collectFilePaths, countFiles } from "./build-tree.js";
+import {
+	buildTree,
+	collectFilePaths,
+	countFiles,
+	sumCommentsInSubtree,
+} from "./build-tree.js";
 import type { FileStatus } from "./types.js";
 
 /** Extract names from a TreeNode[] for concise assertions */
@@ -274,5 +279,36 @@ describe("collectFilePaths", () => {
 		expect(paths).toContain("src/a.ts");
 		expect(paths).toContain("README.md");
 		expect(paths).toContain("package.json");
+	});
+});
+
+describe("sumCommentsInSubtree", () => {
+	it("returns 0 when no descendant has a comment", () => {
+		const tree = buildTree([makeFile("src/a.ts"), makeFile("src/b.ts")]);
+		expect(sumCommentsInSubtree(tree, new Map())).toBe(0);
+	});
+
+	it("rolls up counts across nested directories full-depth", () => {
+		const tree = buildTree([
+			makeFile("src/lib/a.ts"),
+			makeFile("src/components/b.ts"),
+			makeFile("README.md"),
+		]);
+		const counts = new Map([
+			["src/lib/a.ts", 2],
+			["src/components/b.ts", 3],
+			["README.md", 1],
+		]);
+		expect(sumCommentsInSubtree(tree, counts)).toBe(6);
+	});
+
+	it("sums the whole subtree of a compressed single-child directory chain", () => {
+		// src/lib/utils compresses into one directory node; its descendant file
+		// still rolls up.
+		const tree = buildTree([makeFile("src/lib/utils/helper.ts")]);
+		const dir = tree[0];
+		if (dir.type !== "directory") throw new Error("expected directory");
+		const counts = new Map([["src/lib/utils/helper.ts", 4]]);
+		expect(sumCommentsInSubtree(dir.children, counts)).toBe(4);
 	});
 });

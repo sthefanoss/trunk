@@ -9,6 +9,7 @@ import {
 import type { ColumnVisibility, ColumnWidths } from "../lib/store.js";
 import type { GraphCommit } from "../lib/types.js";
 import Avatar from "./Avatar.svelte";
+import CommentBadge from "./CommentBadge.svelte";
 
 interface Props {
 	commit: GraphCommit;
@@ -32,6 +33,9 @@ interface Props {
 	inSession?: boolean;
 	/** True when this commit is the transient range-base highlight (D-01 support) */
 	isPendingBase?: boolean;
+	/** Review-comment count anchored to this commit (line comments + notes).
+	 *  Parent zeroes it to enforce the toggle/active gate; badge self-hides at 0. */
+	commentCount?: number;
 }
 
 let {
@@ -49,6 +53,7 @@ let {
 	isSearchActive = false,
 	inSession = false,
 	isPendingBase = false,
+	commentCount = 0,
 }: Props = $props();
 
 function relativeDate(ts: number): string {
@@ -111,15 +116,16 @@ const rowShadow = $derived(
     </div>
   {/if}
 
-  <!-- Column 3: Message (flex-1, always visible) -->
-  {#if isWip || isStash}
-    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic" style="color: var(--color-text-muted); padding: 0 {COLUMN_PADDING_X}px;">
-      {commit.summary}
-    </div>
-  {:else}
-    <div data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap" style="padding: 0 {COLUMN_PADDING_X}px;"
-    >{#if parsed.prefix}<span style="color: {prefixToneVar(parsed.prefix)};">{parsed.prefix}{parsed.scope}{parsed.bang}</span><span style="color: var(--fg-2);">{": "}</span>{parsed.rest}{:else}{commit.summary}{/if}</div>
-  {/if}
+  <!-- Column 3: Message (flex-1, always visible) + trailing comment badge -->
+  <div class="flex-1 flex items-center gap-2 overflow-hidden" style="padding: 0 {COLUMN_PADDING_X}px;">
+    {#if isWip || isStash}
+      <span data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic" style="color: var(--color-text-muted);">{commit.summary}</span>
+    {:else}
+      <span data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+      >{#if parsed.prefix}<span style="color: {prefixToneVar(parsed.prefix)};">{parsed.prefix}{parsed.scope}{parsed.bang}</span><span style="color: var(--fg-2);">{": "}</span>{parsed.rest}{:else}{commit.summary}{/if}</span>
+    {/if}
+    <CommentBadge count={commentCount} />
+  </div>
 
   <!-- Column 4: Author -->
   {#if columnVisibility.author}

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { Minus, Plus } from "@lucide/svelte";
 import type { FileStatus, FileStatusType } from "../lib/types.js";
+import CommentBadge from "./CommentBadge.svelte";
 
 interface Props {
 	file: FileStatus;
@@ -12,6 +13,7 @@ interface Props {
 	depth?: number;
 	displayName?: string;
 	focused?: boolean;
+	commentCount?: number;
 }
 
 let {
@@ -24,6 +26,7 @@ let {
 	depth = 0,
 	displayName,
 	focused = false,
+	commentCount = 0,
 }: Props = $props();
 
 let hovered = $state(false);
@@ -100,6 +103,9 @@ let badgeBg = $derived(
   ">
     {displayName ?? file.path}
   </span>
+
+  <!-- Review-comment count for this file -->
+  <CommentBadge count={commentCount} />
 
   <!-- Hover action button (hidden during loading or when no actionLabel) -->
   {#if hovered && !isLoading && actionLabel}

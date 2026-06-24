@@ -30,6 +30,7 @@ import { isTrunkError, safeInvoke, type TrunkError } from "../lib/invoke.js";
 import { buildOverlayPaths } from "../lib/overlay-paths.js";
 import { getVisibleOverlayElements } from "../lib/overlay-visible.js";
 import { buildRefPillData } from "../lib/ref-pill-data.js";
+import type { ReviewCommentsManager } from "../lib/review-comments.svelte.js";
 import {
 	type ColumnVisibility,
 	type ColumnWidths,
@@ -73,6 +74,10 @@ interface Props {
 		title: string,
 	) => Promise<string | null>;
 	clearRedoStack: () => void;
+	/** Center-pane inline-comments toggle; gates the per-row comment badge. */
+	showInlineComments?: boolean;
+	/** Shared comments store; supplies the per-commit count map. */
+	reviewComments?: ReviewCommentsManager;
 }
 
 let {
@@ -87,7 +92,17 @@ let {
 	onopenrebaseeditor,
 	onopenmessageeditor,
 	clearRedoStack,
+	showInlineComments = false,
+	reviewComments,
 }: Props = $props();
+
+// Per-row comment badge count. Gated on the toggle + an active session so the
+// badge's self-hide at 0 also enforces the gate (children stay dumb). The WIP
+// row's oid is the literal "__wip__" key the store folds snapshot counts into.
+function commentCountFor(oid: string): number {
+	if (!showInlineComments || !reviewComments?.active) return 0;
+	return reviewComments.countByCommit.get(oid) ?? 0;
+}
 
 const BATCH = 200;
 const SKELETON_COUNT = 10;
@@ -2028,7 +2043,7 @@ $effect(() => {
         overlaySnippet={graphOverlay}
       >
         {#snippet renderItem(commit, index)}
-          <CommitRow {commit} rowIndex={index} onselect={commit.oid === '__wip__' ? () => onWipClick?.() : oncommitselect} oncontextmenu={handleRowContextMenu} {maxColumns} {columnWidths} {columnVisibility} selected={commit.oid === selectedCommitOid && commit.oid !== '__wip__'} rowHeight={displaySettings.rowHeight} isSearchMatch={searchMatchOids.has(commit.oid)} isCurrentMatch={commit.oid === searchCurrentOid} isSearchActive={searchOpen && searchQuery.length > 0 && searchResults.length > 0} inSession={sessionOids.has(commit.oid)} isPendingBase={pendingBase === commit.oid} />
+          <CommitRow {commit} rowIndex={index} onselect={commit.oid === '__wip__' ? () => onWipClick?.() : oncommitselect} oncontextmenu={handleRowContextMenu} {maxColumns} {columnWidths} {columnVisibility} selected={commit.oid === selectedCommitOid && commit.oid !== '__wip__'} rowHeight={displaySettings.rowHeight} isSearchMatch={searchMatchOids.has(commit.oid)} isCurrentMatch={commit.oid === searchCurrentOid} isSearchActive={searchOpen && searchQuery.length > 0 && searchResults.length > 0} inSession={sessionOids.has(commit.oid)} isPendingBase={pendingBase === commit.oid} commentCount={commentCountFor(commit.oid)} />
         {/snippet}
       </VirtualList>
       {/key}

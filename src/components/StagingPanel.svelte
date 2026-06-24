@@ -11,7 +11,10 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { buildTree, collectFilePaths } from "../lib/build-tree.js";
+import { fileCountsForOid } from "../lib/comment-counts.js";
+import { resolveViewOid } from "../lib/comment-matching.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
+import type { ReviewCommentsManager } from "../lib/review-comments.svelte.js";
 import { showToast } from "../lib/toast.svelte.js";
 import type {
 	FileStatusType,
@@ -50,6 +53,10 @@ interface Props {
 		defaultValue: string,
 		title: string,
 	) => Promise<string | null>;
+	// Shared comments store + center-pane toggle, threaded from RepoView so the
+	// per-file count badges read the one source of truth.
+	reviewComments?: ReviewCommentsManager;
+	showInlineComments?: boolean;
 }
 
 let {
@@ -66,9 +73,33 @@ let {
 	treeViewEnabled = false,
 	ontreeviewtoggle,
 	onopenmessageeditor,
+	reviewComments,
+	showInlineComments = false,
 }: Props = $props();
 
 let status = $state<WorkingTreeStatus | null>(null);
+
+// Per-section comment counts. Each section keys its map through the SAME
+// resolveViewOid the diff uses, so a badge can never disagree with the diff:
+// unstaged → working_tree_snapshot, staged → index_snapshot. Conflicted files
+// render via MergeEditor (no inline comments), so resolveViewOid('conflicted')
+// is null → no badges there, matching what their merge view shows.
+let countsEnabled = $derived(
+	showInlineComments && (reviewComments?.active ?? false),
+);
+
+function sectionCounts(kind: "unstaged" | "staged"): Map<string, number> {
+	if (!countsEnabled || !reviewComments) return new Map();
+	const oid = resolveViewOid({
+		kind,
+		commitOid: null,
+		snapshots: reviewComments.snapshots,
+	});
+	return fileCountsForOid(reviewComments.countByFile, oid);
+}
+
+let unstagedCommentCounts = $derived(sectionCounts("unstaged"));
+let stagedCommentCounts = $derived(sectionCounts("staged"));
 
 export function optimisticMove(
 	filePath: string,
@@ -1107,6 +1138,7 @@ $effect(() => {
             ondirectoryaction={(dirPath) => stageDirectory(dirPath)}
             ondirectorycontextmenu={(e, dirPath) => showUnstagedDirContextMenu(e, dirPath)}
             selectedPath={selectedKind === 'unstaged' ? selectedPath : null}
+            commentCounts={unstagedCommentCounts}
             {expandAllSignal}
             {collapseAllSignal}
           />
@@ -1176,6 +1208,7 @@ $effect(() => {
           ondirectoryaction={(dirPath) => unstageDirectory(dirPath)}
           ondirectorycontextmenu={(e, dirPath) => showStagedDirContextMenu(e, dirPath)}
           selectedPath={selectedKind === 'staged' ? selectedPath : null}
+          commentCounts={stagedCommentCounts}
           {expandAllSignal}
           {collapseAllSignal}
         />

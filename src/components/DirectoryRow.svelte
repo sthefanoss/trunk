@@ -1,7 +1,8 @@
 <script lang="ts">
 import { ChevronDown, ChevronRight, Minus, Plus } from "@lucide/svelte";
 import type { DirectoryNode } from "../lib/build-tree.js";
-import { countFiles } from "../lib/build-tree.js";
+import { countFiles, sumCommentsInSubtree } from "../lib/build-tree.js";
+import CommentBadge from "./CommentBadge.svelte";
 
 interface Props {
 	node: DirectoryNode;
@@ -12,6 +13,7 @@ interface Props {
 	actionLabel?: string;
 	onaction?: () => void;
 	oncontextmenu?: (e: MouseEvent) => void;
+	commentCounts?: Map<string, number>;
 }
 
 let {
@@ -23,11 +25,18 @@ let {
 	actionLabel = "",
 	onaction,
 	oncontextmenu,
+	commentCounts,
 }: Props = $props();
 
 let hovered = $state(false);
 
 let fileCount = $derived(countFiles(node.children));
+
+// Collapsed-only rollup: an expanded directory's comments already show on its
+// visible descendant rows, so showing a sum too would double-read.
+let commentCount = $derived(
+	commentCounts ? sumCommentsInSubtree(node.children, commentCounts) : 0,
+);
 </script>
 
 <div
@@ -74,6 +83,9 @@ let fileCount = $derived(countFiles(node.children));
     flex-shrink: 0;
   ">({fileCount})</span>
   <span style="flex: 1;"></span>
+  {#if !expanded}
+    <CommentBadge count={commentCount} />
+  {/if}
   {#if hovered && actionLabel && onaction}
     <button
       onclick={(e) => { e.stopPropagation(); onaction(); }}

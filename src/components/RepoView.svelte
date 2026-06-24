@@ -1047,7 +1047,7 @@ function startRightResize(e: MouseEvent) {
           : handleDiffClose}
       />
     {:else}
-      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} oncommitnavchange={(nav) => (commitNav = nav)} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} clearRedoStack={undoRedo.clear} />
+      <CommitGraph bind:this={commitGraphRef} {repoPath} oncommitselect={handleCommitSelect} oncommitnavchange={(nav) => (commitNav = nav)} {wipCount} wipMessage={wipSubject.trim() || 'WIP'} onWipClick={handleWipClick} {refreshSignal} {selectedCommitOid} onopenrebaseeditor={handleOpenRebaseEditor} onopenmessageeditor={handleOpenMessageEditor} clearRedoStack={undoRedo.clear} {showInlineComments} {reviewComments} />
     {/if}
   </div>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1062,6 +1062,7 @@ function startRightResize(e: MouseEvent) {
         onclose={clearCommit}
         {repoPath}
         {reviewComments}
+        {showInlineComments}
         {treeViewEnabled}
         ontreeviewtoggle={handleTreeViewToggle}
         nav={commitNav}
@@ -1087,6 +1088,8 @@ function startRightResize(e: MouseEvent) {
         {treeViewEnabled}
         ontreeviewtoggle={handleTreeViewToggle}
         onopenmessageeditor={handleOpenMessageEditor}
+        {reviewComments}
+        {showInlineComments}
       />
     {/if}
   </div>

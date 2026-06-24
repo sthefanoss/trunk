@@ -25,6 +25,9 @@ interface Props {
 	selectedPath?: string | null;
 	expandAllSignal?: number;
 	collapseAllSignal?: number;
+	/** path → review-comment count for this list's OID. Empty (default) hides
+	 *  all badges, which is how the toggle/active gate reaches the rows. */
+	commentCounts?: Map<string, number>;
 }
 
 let {
@@ -40,6 +43,7 @@ let {
 	selectedPath = null,
 	expandAllSignal = 0,
 	collapseAllSignal = 0,
+	commentCounts,
 }: Props = $props();
 
 let expanded = $state<Set<string>>(new Set());
@@ -225,6 +229,7 @@ function handleKeydown(e: KeyboardEvent) {
         actionLabel={ondirectoryaction ? actionLabel : ''}
         onaction={ondirectoryaction ? () => ondirectoryaction!(row.node.path) : undefined}
         oncontextmenu={ondirectorycontextmenu ? (e) => ondirectorycontextmenu!(e, row.node.path) : undefined}
+        {commentCounts}
       />
     {:else}
       <FileRow
@@ -237,6 +242,7 @@ function handleKeydown(e: KeyboardEvent) {
         depth={treeMode ? row.depth : 0}
         displayName={treeMode ? row.node.name : undefined}
         focused={i === focusIndex}
+        commentCount={commentCounts?.get(row.node.file.path) ?? 0}
       />
     {/if}
   {/each}

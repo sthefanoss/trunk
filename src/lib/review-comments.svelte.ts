@@ -1,4 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
+import { buildCommentCounts } from "./comment-counts.js";
 import { safeInvoke } from "./invoke.js";
 import type { Comment, ReviewSnapshots, SessionStatus } from "./types";
 
@@ -16,6 +17,11 @@ export interface ReviewCommentsManager {
 	readonly snapshots: ReviewSnapshots;
 	readonly active: boolean;
 	readonly totalCount: number;
+	// Derived comment counts shared by every count badge (commit graph, file
+	// lists, WIP row). Sourced once here so the graph total always equals the
+	// sum of its file badges plus its notes.
+	readonly countByCommit: Map<string, number>;
+	readonly countByFile: Map<string, number>;
 	refresh(): Promise<void>;
 	destroy(): void;
 }
@@ -31,6 +37,8 @@ export function createReviewComments(repoPath: string): ReviewCommentsManager {
 	});
 
 	const totalCount = $derived(state.comments.length);
+
+	const counts = $derived(buildCommentCounts(state.comments, state.snapshots));
 
 	// The canonical path the backend reports for this repo. The session-changed
 	// payload is that canonical string, so the listener filters on it. Tracked
@@ -100,6 +108,12 @@ export function createReviewComments(repoPath: string): ReviewCommentsManager {
 		},
 		get totalCount() {
 			return totalCount;
+		},
+		get countByCommit() {
+			return counts.byCommit;
+		},
+		get countByFile() {
+			return counts.byFile;
 		},
 		refresh,
 		destroy() {

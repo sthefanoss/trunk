@@ -9,6 +9,7 @@ import { Clipboard, MessageSquarePlus, Trash2 } from "@lucide/svelte";
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { copySha } from "../lib/clipboard.js";
+import { commitOidForComment } from "../lib/comment-counts.js";
 import { isTrunkError, safeInvoke, type TrunkError } from "../lib/invoke.js";
 import type { ReviewSessionManager } from "../lib/review-session.svelte.js";
 import { showToast } from "../lib/toast.svelte.js";
@@ -60,13 +61,6 @@ const ORPHAN_LABEL: Record<OrphanReason, string> = {
 // Resolution lookup by id (D-08): a comment is an orphan when its resolution
 // exists and resolvable is false.
 const resolutionById = $derived(new Map(resolutions.map((r) => [r.id, r])));
-
-function commitOidForComment(c: Comment): string {
-	// Line-anchored comments group under their anchor's commit; commit-level
-	// notes (anchor null) group under their own commit_oid (D-09).
-	if (c.anchor !== null) return c.anchor.commit_oid;
-	return c.commit_oid ?? "";
-}
 
 interface CommitGroup {
 	oid: string;

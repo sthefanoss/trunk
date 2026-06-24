@@ -10,6 +10,7 @@ import {
 } from "@lucide/svelte";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { copySha } from "../lib/clipboard.js";
+import { fileCountsForOid } from "../lib/comment-counts.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import {
 	addCommitComment,
@@ -44,6 +45,8 @@ interface Props {
 	// The shared comments store, threaded from RepoView so the commit-notes block
 	// (later task) reads one source of truth. Optional until that render lands.
 	reviewComments?: ReviewCommentsManager;
+	// Center-pane inline-comments toggle; gates the per-file count badges.
+	showInlineComments?: boolean;
 }
 
 let {
@@ -58,7 +61,17 @@ let {
 	nav = null,
 	onnavigate,
 	reviewComments,
+	showInlineComments = false,
 }: Props = $props();
+
+// Per-file comment counts for this commit's file list. Gated so the badges
+// follow the toggle + an active session; keyed by the commit's own OID so the
+// badge can never disagree with what the diff pane shows for the same file.
+let fileCommentCounts = $derived(
+	showInlineComments && reviewComments?.active
+		? fileCountsForOid(reviewComments.countByFile, commitDetail.oid)
+		: new Map<string, number>(),
+);
 
 const DIFF_STATUS_MAP: Record<string, FileStatusType> = {
 	Added: "New",
@@ -500,6 +513,7 @@ async function saveNote() {
         onfileaction={() => {}}
         onfileclick={(path) => onfileselect(path)}
         onfilecontextmenu={(e, path) => showFileContextMenu(e, path)}
+        commentCounts={fileCommentCounts}
       />
     </div>
 
