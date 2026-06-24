@@ -1,8 +1,15 @@
 <script lang="ts">
 import { listen } from "@tauri-apps/api/event";
+import { onDestroy, untrack } from "svelte";
 import { buildTree, collectFilePaths } from "../lib/build-tree.js";
+import {
+	commentsForView,
+	type DiffKind,
+	type ViewDescriptor,
+} from "../lib/comment-matching.js";
 import { safeInvoke, type TrunkError } from "../lib/invoke.js";
 import type { RemoteState } from "../lib/remote-state.svelte.js";
+import { createReviewComments } from "../lib/review-comments.svelte.js";
 import { createReviewSession } from "../lib/review-session.svelte.js";
 import {
 	getDiffContextLines,
@@ -58,11 +65,18 @@ interface Props {
 	// Review mode is toggled by the OS menu (review-toggle) at the App level so the
 	// global event only affects the active tab; App passes the flag down per tab.
 	reviewActive: boolean;
+	// Global "show inline comments" toggle, owned by App (persisted pref). Defaulted
+	// here so the gate stays green until App threads it down.
+	showInlineComments?: boolean;
 	// Reports whether the active review tab's center pane is showing the review PANEL
 	// (vs. a diff) up to App, so the Toolbar Review button shares one source of truth
 	// with what's rendered: it's lit only when the panel shows, and a click while a
 	// diff is up returns to the panel rather than ending the session (260531-l02e).
 	onreviewpanelshowingchange: (showing: boolean) => void;
+	// Reports the inline-comment badge count up to App for the Toolbar bubble. The
+	// predicate (which view's count to report) lives here because RepoView owns the
+	// view state. Optional so the gate stays green until App provides it.
+	oninlinecommentcountchange?: (count: number) => void;
 	onleftpanecollapsedchange: (collapsed: boolean) => void;
 	onrightpanecollapsedchange: (collapsed: boolean) => void;
 	onleftpanewidthchange: (width: number) => void;
@@ -80,7 +94,9 @@ let {
 	rightPaneCollapsed,
 	windowVisible,
 	reviewActive,
+	showInlineComments = true,
 	onreviewpanelshowingchange,
+	oninlinecommentcountchange,
 	onleftpanecollapsedchange,
 	onrightpanecollapsedchange,
 	onleftpanewidthchange,
@@ -92,6 +108,14 @@ let {
 // selection/scroll machinery via injected deps. App's review-toggle flag syncs
 // into the rune so only the active tab enters review mode.
 const reviewSession = createReviewSession();
+
+// The single reactive comments source for this tab (plan §3). Lifted here so
+// ReviewPanel, DiffPanel/diff views, and CommitDetail all read one store with
+// one session-changed subscription. repoPath is stable for this tab's RepoView
+// instance (App keys it by tab.id), so the one-time capture is intentional;
+// the rune owns its own listener teardown via destroy().
+const reviewComments = createReviewComments(untrack(() => repoPath));
+onDestroy(() => reviewComments.destroy());
 
 $effect(() => {
 	reviewSession.setReviewActive(reviewActive);
@@ -230,6 +254,71 @@ let currentDiffFiles = $derived(
 		? commitFileDiffs.filter((f) => f.path === selectedCommitFile)
 		: stagingDiffFiles,
 );
+
+// The diffKind the active DiffPanel renders under — mirrors the template prop
+// (a conflicted file shows via MergeEditor, never DiffPanel, so it folds to the
+// commit kind there too). Lifted to a derived so the matcher's ViewDescriptor
+// and the rendered DiffPanel agree on one source of truth. The conflicted case
+// is folded out, so this never widens to DiffKind's "conflicted" variant —
+// keeping it assignable to DiffPanel's narrower prop union.
+let diffKind = $derived<Exclude<DiffKind, "conflicted">>(
+	selectedCommitFile
+		? "commit"
+		: selectedFile?.kind === "conflicted"
+			? "commit"
+			: (selectedFile?.kind ?? "commit"),
+);
+
+// The new-side path of the file shown in DiffPanel. FileDiff carries only a
+// single (current) path — no old/new pair — so Old-side rename comments match
+// by this new path and otherwise fall to panel-only (plan §6, acceptable v1).
+let selectedDiffPath = $derived(
+	selectedCommitFile ?? selectedFile?.path ?? null,
+);
+
+// ViewDescriptor for the current diff. resolveViewOid handles per-kind OID
+// selection (commit→commitOid, unstaged/staged→snapshots, conflicted→null), so
+// we only supply the commit oid + the session's current snapshot OIDs.
+let viewDescriptor = $derived<ViewDescriptor>({
+	kind: diffKind,
+	commitOid: commitDetail?.oid ?? null,
+	snapshots: reviewComments.snapshots,
+});
+
+// Comments matching the file currently shown in DiffPanel. Empty when no file
+// is selected or no session is active.
+let viewComments = $derived(
+	selectedDiffPath
+		? commentsForView(reviewComments.comments, viewDescriptor, selectedDiffPath)
+		: [],
+);
+
+// Inline-comment badge count reported to App for the Toolbar bubble.
+//   no session            → 0 (badge hidden)
+//   a diff open for a file → comments for that view/file
+//   CommitDetail is the active right pane → commit-level notes for its oid
+//   otherwise (commit graph / staging, no file) → totalCount
+let inlineCommentCount = $derived(
+	!reviewComments.active
+		? 0
+		: showDiff && selectedDiffPath
+			? viewComments.length
+			: selectedCommitOid && commitDetail
+				? reviewComments.comments.filter(
+						(c) => c.anchor === null && c.commit_oid === commitDetail?.oid,
+					).length
+				: reviewComments.totalCount,
+);
+
+// Report the count up through untrack: App's setInlineCommentCount copies the
+// counts map (`new Map(inlineCommentCounts)`) before writing it, so calling the
+// callback inside a tracked effect would make this effect depend on the very
+// state it writes → effect_update_depth_exceeded. Tracking only inlineCommentCount
+// keeps the report strictly one-way.
+$effect(() => {
+	const count = inlineCommentCount;
+	untrack(() => oninlinecommentcountchange?.(count));
+});
 
 async function loadDirtyCounts() {
 	try {
@@ -900,9 +989,11 @@ function startRightResize(e: MouseEvent) {
         bind:this={diffPanelRef}
         fileDiffs={currentDiffFiles}
         commitDetail={commitDetail}
-        selectedPath={selectedCommitFile ?? selectedFile?.path ?? null}
-        diffKind={selectedCommitFile ? 'commit' : (selectedFile?.kind === 'conflicted' ? 'commit' : selectedFile?.kind ?? 'commit')}
+        selectedPath={selectedDiffPath}
+        {diffKind}
         {repoPath}
+        {showInlineComments}
+        {viewComments}
         loading={stagingDiffLoading}
         onhunkaction={async (filePath) => {
           if (selectedFile) {
@@ -959,6 +1050,7 @@ function startRightResize(e: MouseEvent) {
         onfileselect={handleCommitFileSelect}
         onclose={clearCommit}
         {repoPath}
+        {reviewComments}
         {treeViewEnabled}
         ontreeviewtoggle={handleTreeViewToggle}
         nav={commitNav}

@@ -225,4 +225,68 @@ describe("Toolbar", () => {
 		await fireEvent.click(reviewBtn);
 		expect(vi.mocked(emit)).toHaveBeenCalledWith("review-toggle");
 	});
+
+	it("shows the inline-comment count on the toggle badge", () => {
+		render(Toolbar, {
+			props: {
+				repoPath: "/test/repo",
+				remoteState: makeRemoteState(),
+				undoRedo: makeUndoRedo(),
+				reviewActive: false,
+				inlineCommentCount: 3,
+			},
+		});
+		expect(screen.getByText("3")).toBeInTheDocument();
+	});
+
+	it("hides the inline-comment badge when count is zero", () => {
+		render(Toolbar, {
+			props: {
+				repoPath: "/test/repo",
+				remoteState: makeRemoteState(),
+				undoRedo: makeUndoRedo(),
+				reviewActive: false,
+				inlineCommentCount: 0,
+			},
+		});
+		const btn = screen.getByRole("button", {
+			name: /Toggle inline comments/,
+		});
+		expect(btn.querySelector(".toolbar-badge")).toBeNull();
+	});
+
+	it("fires ontoggleinlinecomments when the toggle is clicked", async () => {
+		const ontoggleinlinecomments = vi.fn();
+		render(Toolbar, {
+			props: {
+				repoPath: "/test/repo",
+				remoteState: makeRemoteState(),
+				undoRedo: makeUndoRedo(),
+				reviewActive: false,
+				ontoggleinlinecomments,
+			},
+		});
+		const btn = screen.getByRole("button", {
+			name: /Toggle inline comments/,
+		});
+		await fireEvent.click(btn);
+		expect(ontoggleinlinecomments).toHaveBeenCalledTimes(1);
+	});
+
+	it("reflects active state from showInlineComments", () => {
+		render(Toolbar, {
+			props: {
+				repoPath: "/test/repo",
+				remoteState: makeRemoteState(),
+				undoRedo: makeUndoRedo(),
+				reviewActive: false,
+				showInlineComments: true,
+			},
+		});
+		const btn = screen.getByRole("button", {
+			name: /Toggle inline comments/,
+		});
+		expect(btn).toHaveClass("toolbar-btn-active");
+		expect(btn).toHaveAttribute("aria-pressed", "true");
+	});
 });

@@ -352,6 +352,13 @@ export interface SessionStatus {
 	canonical_path: string;
 }
 
+// Current snapshot OIDs for the active session (mirrors the Rust ReviewSnapshots
+// struct from Plan 65; Serialize snake_case, nullable for Rust Option<String>).
+export interface ReviewSnapshots {
+	working_tree_snapshot: string | null;
+	index_snapshot: string | null;
+}
+
 // A commit hand-picked into the active review session (mirrors the Rust
 // SessionCommit struct from Plan 66-01, Serialize-default snake_case fields).
 export interface SessionCommit {

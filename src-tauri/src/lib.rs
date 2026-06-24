@@ -185,6 +185,7 @@ pub fn run() {
             commands::review::edit_comment,
             commands::review::delete_comment,
             commands::review::list_session_comments,
+            commands::review::get_review_snapshots,
             commands::review::resolve_session_comments,
             commands::review::generate_review_doc,
             commands::review::ensure_review_snapshot,

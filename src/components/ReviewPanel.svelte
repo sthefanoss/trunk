@@ -20,6 +20,7 @@ import type {
 	SessionState,
 	SessionStatus,
 } from "../lib/types.js";
+import CommentCard from "./CommentCard.svelte";
 
 interface Props {
 	repoPath: string;
@@ -41,10 +42,10 @@ let comments = $state<Comment[]>([]);
 let resolutions = $state<CommentResolution[]>([]);
 let canonicalPath = $state<string | null>(null);
 
-// Inline composer / editor state. Only one is open at a time; both reuse the same
-// textarea primitive (draftText) and the trim-empty-disables-Save rule.
+// Inline add-note composer state. The per-comment edit flow now lives inside
+// CommentCard; the panel only drives the per-commit "Add note" composer, which
+// reuses the textarea primitive (draftText) and the trim-empty-disables-Save rule.
 let addNoteForCommit = $state<string | null>(null);
-let editingCommentId = $state<string | null>(null);
 let draftText = $state("");
 
 const draftValid = $derived(draftText.trim().length > 0);
@@ -186,38 +187,6 @@ function isJumpable(c: Comment): boolean {
 	return c.anchor !== null && !isOrphan(c);
 }
 
-// Parse the comment's cached_excerpt into rendered lines. Diff-source excerpts
-// carry +/-/space prefixes per `prefixLine` in diff-anchor.ts; full-file ones
-// are plain code with no prefix. Splitting the gutter out (vs. inlining the
-// `+/-` into the content span) keeps copy-paste clean.
-interface ExcerptLine {
-	kind: "add" | "del" | "context" | "plain";
-	gutter: string;
-	content: string;
-}
-function parseExcerpt(
-	text: string,
-	source: "Diff" | "FullFile",
-): ExcerptLine[] {
-	const lines = text.split("\n");
-	if (source === "FullFile") {
-		return lines.map((content) => ({ kind: "plain", gutter: " ", content }));
-	}
-	return lines.map((line) => {
-		if (line.startsWith("+")) {
-			return { kind: "add", gutter: "+", content: line.slice(1) };
-		}
-		if (line.startsWith("-")) {
-			return { kind: "del", gutter: "-", content: line.slice(1) };
-		}
-		if (line.startsWith(" ")) {
-			return { kind: "context", gutter: " ", content: line.slice(1) };
-		}
-		// Defensive fallback (e.g. blank line in the source slice).
-		return { kind: "plain", gutter: " ", content: line };
-	});
-}
-
 // Reads. list_session_commits / list_session_comments / resolve_session_comments
 // all require an active session; a missing session is a normal state, so swallow
 // no_session silently and surface only genuine load failures (UI-SPEC error copy).
@@ -290,20 +259,12 @@ async function reload() {
 }
 
 function openAddNote(oid: string) {
-	editingCommentId = null;
 	addNoteForCommit = oid;
 	draftText = "";
 }
 
-function openEdit(c: Comment) {
-	addNoteForCommit = null;
-	editingCommentId = c.id;
-	draftText = c.text;
-}
-
 function cancelComposer() {
 	addNoteForCommit = null;
-	editingCommentId = null;
 	draftText = "";
 }
 
@@ -322,10 +283,7 @@ async function saveAddNote(oid: string) {
 	}
 }
 
-async function saveEdit(id: string) {
-	if (!draftValid) return;
-	const text = draftText;
-	cancelComposer();
+async function saveEdit(id: string, text: string) {
 	try {
 		await safeInvoke("edit_comment", { path: repoPath, id, text });
 	} catch (e) {
@@ -405,12 +363,6 @@ async function onEndClick() {
 }
 
 async function deleteComment(id: string) {
-	const { ask } = await import("@tauri-apps/plugin-dialog");
-	const confirmed = await ask("Delete this comment? This cannot be undone.", {
-		title: "Delete comment",
-		kind: "warning",
-	});
-	if (!confirmed) return;
 	try {
 		await safeInvoke("delete_comment", { path: repoPath, id });
 	} catch (e) {
@@ -680,82 +632,18 @@ $effect(() => {
           {:else}
             <ul class="flex flex-col" style="gap: 4px; list-style: none; margin: 0; padding: 0;">
               {#each group.comments as comment (comment.id)}
-                <li class="comment-card">
-                  <!-- Header: file ref (jump affordance) + orphan badge + actions -->
-                  <header class="comment-card-header">
-                    {#if comment.anchor !== null}
-                      {#if isJumpable(comment)}
-                        <button
-                          type="button"
-                          aria-label="Jump to code"
-                          onclick={() => onJump(comment)}
-                          class="jump-ref font-mono comment-card-fileref"
-                        >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</button>
-                      {:else}
-                        <span
-                          class="font-mono comment-card-fileref"
-                          class:comment-card-fileref-dim={isOrphan(comment)}
-                        >{comment.anchor.file_path}:L{comment.anchor.start_line}-L{comment.anchor.end_line}</span>
-                      {/if}
-                    {/if}
-                    <span class="comment-card-spacer"></span>
-                    {#if orphanLabel(comment)}
-                      <span class="orphan-badge">{orphanLabel(comment)}</span>
-                    {/if}
-                    {#if editingCommentId !== comment.id}
-                      <button
-                        type="button"
-                        class="card-action"
-                        onclick={() => openEdit(comment)}
-                      >Edit</button>
-                      <button
-                        type="button"
-                        class="card-action card-action-danger"
-                        onclick={() => deleteComment(comment.id)}
-                      >Delete</button>
-                    {/if}
-                  </header>
-
-                  <!-- Diff hunk: line-anchored comments only. The cached_excerpt
-                       is the canonical body; render with red/green per-line bg
-                       for Diff-source +/- lines, plain for full-file content.
-                       No syntax highlighting (the project's syntect-based path
-                       isn't wired into the panel — deferred). -->
-                  {#if comment.anchor !== null && comment.cached_excerpt}
-                    <div class="comment-card-diff">
-                      {#each parseExcerpt(comment.cached_excerpt, comment.anchor.source) as line, i (i)}
-                        <div class="diff-line diff-line-{line.kind}">
-                          <span class="diff-gutter">{line.gutter}</span>
-                          <span class="diff-content">{line.content}</span>
-                        </div>
-                      {/each}
-                    </div>
-                  {/if}
-
-                  <!-- Body: comment text or inline editor (D-10). Comment text
-                       stays at full --color-text even when orphaned (D-08). -->
-                  <div class="comment-card-body">
-                    {#if editingCommentId === comment.id}
-                      <textarea
-                        bind:value={draftText}
-                        rows="3"
-                        class="card-textarea"
-                      ></textarea>
-                      <div class="card-editor-actions">
-                        <button
-                          type="button"
-                          onclick={() => saveEdit(comment.id)}
-                          disabled={!draftValid}
-                        >Save</button>
-                        <button
-                          type="button"
-                          onclick={cancelComposer}
-                        >Cancel</button>
-                      </div>
-                    {:else}
-                      <span class="comment-card-text">{comment.text}</span>
-                    {/if}
-                  </div>
+                <li>
+                  <CommentCard
+                    {comment}
+                    onedit={(id, text) => saveEdit(id, text)}
+                    ondelete={(id) => deleteComment(id)}
+                    confirmDelete={true}
+                    variant="panel"
+                    onjump={onJump}
+                    jumpable={isJumpable(comment)}
+                    orphaned={isOrphan(comment)}
+                    orphanLabel={orphanLabel(comment)}
+                  />
                 </li>
               {/each}
             </ul>
@@ -772,141 +660,6 @@ $effect(() => {
   .jump-ref:focus-visible {
     color: var(--color-accent);
     text-decoration: underline;
-  }
-
-  /* GitHub-review-style card per comment. */
-  .comment-card {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    background: var(--color-bg);
-    overflow: hidden;
-  }
-  .comment-card-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
-    font-size: 11px;
-  }
-  .comment-card-spacer { flex: 1; }
-  .comment-card-fileref {
-    font-size: 11px;
-    line-height: 1.4;
-    color: var(--color-text-muted);
-    background: transparent;
-    border: none;
-    padding: 0;
-    text-align: left;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  /* Orphan de-emphasis via a solid dim color, not opacity-on-text (which would
-     composite the glyph toward the card and drop it below AAA). --fg-3 on the
-     card surface is 7.68:1 (AAA) while still reading as muted. */
-  .comment-card-fileref-dim { color: var(--fg-3); }
-
-  /* Diff hunk inside the card — line-level red/green backgrounds, no
-     syntax highlighting (deferred). */
-  .comment-card-diff {
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 11px;
-    line-height: 1.5;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .diff-line {
-    display: flex;
-  }
-  .diff-line-add { background: var(--color-diff-add-bg); }
-  .diff-line-del { background: var(--color-diff-delete-bg); }
-  .diff-line-context,
-  .diff-line-plain { background: transparent; }
-  .diff-gutter {
-    flex-shrink: 0;
-    width: 18px;
-    padding: 0 4px;
-    text-align: center;
-    user-select: none;
-    color: var(--color-text-muted);
-  }
-  .diff-content {
-    flex: 1;
-    min-width: 0;
-    padding-right: 8px;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  /* Body */
-  .comment-card-body {
-    padding: 6px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .comment-card-text {
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  /* Inline action buttons in the header. */
-  .card-action {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0 4px;
-    font-size: 12px;
-    color: var(--color-text-muted);
-  }
-  .card-action:hover,
-  .card-action:focus-visible { color: var(--color-text); }
-  .card-action-danger { color: var(--color-danger); }
-  .card-action-danger:hover,
-  .card-action-danger:focus-visible { color: var(--color-danger); }
-
-  /* Orphan badge */
-  .orphan-badge {
-    font-size: 11px;
-    line-height: 1.4;
-    color: var(--color-warning);
-    background: var(--color-warning-bg);
-    border-radius: 4px;
-    padding: 0 6px;
-    white-space: nowrap;
-  }
-
-  /* Inline editor inside the body. */
-  .card-textarea {
-    width: 100%;
-    resize: vertical;
-    background: var(--color-bg);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 12px;
-    font-family: inherit;
-  }
-  .card-editor-actions {
-    display: flex;
-    gap: 4px;
-  }
-  .card-editor-actions button {
-    background: transparent;
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 2px 8px;
-    font-size: 12px;
-  }
-  .card-editor-actions button[disabled] {
-    cursor: not-allowed;
-    opacity: 0.5;
   }
 
   /* Phase 72 Copy button — lives in the panel header. Carry-forward from the

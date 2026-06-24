@@ -2,6 +2,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { untrack } from "svelte";
 import RecentReposPicker from "./components/RecentReposPicker.svelte";
 import RepoView from "./components/RepoView.svelte";
 import TabBar from "./components/TabBar.svelte";
@@ -22,6 +23,7 @@ import {
 	getOpenTabs,
 	getRightPaneCollapsed,
 	getRightPaneWidth,
+	getShowInlineComments,
 	getZoomLevel,
 	removeRecentRepo,
 	setActiveTabId,
@@ -31,6 +33,7 @@ import {
 	setOpenTabs,
 	setRightPaneCollapsed,
 	setRightPaneWidth,
+	setShowInlineComments,
 	setZoomLevel,
 } from "./lib/store.js";
 import type { TabInfo } from "./lib/tab-types.js";
@@ -61,9 +64,52 @@ let reviewPanelOpen = $state(false);
 // ending review (260531-l02e). Defaults true (panel shows on review entry).
 let activeReviewPanelShowing = $state(true);
 
+// Inline review comments: App owns the persisted global toggle; RepoView reports a
+// per-tab badge count up. The badge reflects only the ACTIVE tab's count (mirrors the
+// per-tab `reviewActive` scoping), so the map is keyed by tab id.
+let showInlineComments = $state(true);
+let inlineCommentCounts = $state<Map<string, number>>(new Map());
+
+function setInlineCommentCount(tabId: string, count: number) {
+	const next = new Map(inlineCommentCounts);
+	next.set(tabId, count);
+	inlineCommentCounts = next;
+}
+
+async function toggleInlineComments() {
+	showInlineComments = !showInlineComments;
+	await setShowInlineComments(showInlineComments);
+}
+
 // Tab state
 let tabs = $state<TabInfo[]>([]);
 let activeTabId = $state<string>("");
+
+const activeInlineCommentCount = $derived(
+	inlineCommentCounts.get(activeTabId) ?? 0,
+);
+
+// Drop counts for closed tabs so the per-tab map can't grow unbounded across a
+// long session. Every close path removes the tab from `tabs`, so pruning against
+// the live ids here covers all of them without editing each close function.
+$effect(() => {
+	const live = new Set(tabs.map((t) => t.id));
+	untrack(() => {
+		let stale = false;
+		for (const id of inlineCommentCounts.keys()) {
+			if (!live.has(id)) {
+				stale = true;
+				break;
+			}
+		}
+		if (!stale) return;
+		const next = new Map<string, number>();
+		for (const [id, count] of inlineCommentCounts) {
+			if (live.has(id)) next.set(id, count);
+		}
+		inlineCommentCounts = next;
+	});
+});
 
 // Per-tab state management (App.svelte owns creation, passes as props)
 interface TabState {
@@ -376,6 +422,13 @@ $effect(() => {
 	});
 });
 
+// Inline-comments toggle persistence
+$effect(() => {
+	getShowInlineComments().then((show) => {
+		showInlineComments = show;
+	});
+});
+
 // Track fullscreen state (hide traffic-light padding when fullscreen)
 $effect(() => {
 	const appWindow = getCurrentWindow();
@@ -591,7 +644,7 @@ $effect(() => {
     <div data-tauri-drag-region class="flex-1 h-full"></div>
     {#if activeTab?.repoPath}
       {@const activeState = getOrCreateTabState(activeTabId)}
-      <Toolbar repoPath={activeTab.repoPath} remoteState={activeState.remoteState} undoRedo={activeState.undoRedo} reviewActive={reviewPanelOpen} reviewPanelShowing={activeReviewPanelShowing} />
+      <Toolbar repoPath={activeTab.repoPath} remoteState={activeState.remoteState} undoRedo={activeState.undoRedo} reviewActive={reviewPanelOpen} reviewPanelShowing={activeReviewPanelShowing} {showInlineComments} inlineCommentCount={activeInlineCommentCount} ontoggleinlinecomments={toggleInlineComments} />
     {/if}
   </div>
 
@@ -611,6 +664,8 @@ $effect(() => {
             {rightPaneCollapsed}
             {windowVisible}
             reviewActive={reviewPanelOpen && tab.id === activeTabId}
+            {showInlineComments}
+            oninlinecommentcountchange={(count) => setInlineCommentCount(tab.id, count)}
             onreviewpanelshowingchange={(s) => { activeReviewPanelShowing = s; }}
             onleftpanecollapsedchange={(c) => { leftPaneCollapsed = c; setLeftPaneCollapsed(c); }}
             onrightpanecollapsedchange={(c) => { rightPaneCollapsed = c; setRightPaneCollapsed(c); }}

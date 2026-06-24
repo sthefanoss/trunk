@@ -4,6 +4,7 @@ import {
 	ArrowDown,
 	ArrowUp,
 	GitBranch,
+	MessageSquare,
 	MessagesSquare,
 	PackageOpen,
 	Redo2,
@@ -27,6 +28,9 @@ interface Props {
 	// Defaults true so a consumer that only sets reviewActive still styles correctly
 	// (260531-l02e).
 	reviewPanelShowing?: boolean;
+	showInlineComments?: boolean;
+	inlineCommentCount?: number;
+	ontoggleinlinecomments?: () => void;
 }
 
 let {
@@ -35,6 +39,9 @@ let {
 	undoRedo,
 	reviewActive,
 	reviewPanelShowing = true,
+	showInlineComments = true,
+	inlineCommentCount = 0,
+	ontoggleinlinecomments,
 }: Props = $props();
 
 // The Review button reflects whether the review PANEL is showing, not merely that a
@@ -278,6 +285,28 @@ async function handleBranchCreate(values: Record<string, string>) {
     border-color: var(--accent-hi);
   }
 
+  .toolbar-btn-badged {
+    position: relative;
+  }
+
+  .toolbar-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
   .btn-group {
     display: inline-flex;
     align-items: stretch;
@@ -332,6 +361,18 @@ async function handleBranchCreate(values: Record<string, string>) {
   <div class="toolbar-divider"></div>
 
   <div class="toolbar-group">
+    <button
+      class="toolbar-btn toolbar-btn-badged"
+      class:toolbar-btn-active={showInlineComments}
+      aria-pressed={showInlineComments}
+      aria-label="Toggle inline comments"
+      onclick={ontoggleinlinecomments}
+    >
+      <MessageSquare size={14} />
+      {#if inlineCommentCount > 0}
+        <span class="toolbar-badge">{inlineCommentCount}</span>
+      {/if}
+    </button>
     <button
       class="toolbar-btn"
       class:toolbar-btn-active={reviewButtonActive}

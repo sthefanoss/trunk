@@ -1,5 +1,6 @@
 <script lang="ts">
 import type {
+	Comment,
 	CommitDetail,
 	ContentMode,
 	DiffLine,
@@ -62,6 +63,8 @@ interface Props {
 	oncommenthunk: (filePath: string, hunkIndex: number) => void;
 	commitOid: string;
 	repoPath: string;
+	showInlineComments?: boolean;
+	viewComments?: Comment[];
 	oncommentfullfile: (filePath: string, selectedIndices: Set<number>) => void;
 	fullFileView?: import("./FullFileView.svelte").default | null;
 }
@@ -98,6 +101,8 @@ let {
 	oncommenthunk,
 	commitOid,
 	repoPath,
+	showInlineComments = true,
+	viewComments = [],
 	oncommentfullfile,
 	fullFileView = $bindable(null),
 }: Props = $props();
@@ -142,6 +147,9 @@ let {
       ondiscardlines={ondiscardlines}
       oncommentlines={oncommentlines}
       oncommenthunk={oncommenthunk}
+      {repoPath}
+      {showInlineComments}
+      {viewComments}
     />
   {:else if layoutMode === "inline" && contentMode === "full"}
     <FullFileView
@@ -154,6 +162,8 @@ let {
       {diffKind}
       {isMerge}
       {oncommentfullfile}
+      {showInlineComments}
+      {viewComments}
     />
   {:else}
     <SplitView {contentMode} {fileDiffs} {selectedPath} {diffKind}
@@ -163,6 +173,7 @@ let {
       {onfilecollapsetoggle} {onlineclick} {onlinemousedown} {onlineenter}
       onstagehunk={onstagehunk} onunstagehunk={onunstagehunk} ondiscardhunk={ondiscardhunk}
       onstagelines={onstagelines} onunstagelines={onunstagelines} ondiscardlines={ondiscardlines}
-      oncommentlines={oncommentlines} oncommenthunk={oncommenthunk} />
+      oncommentlines={oncommentlines} oncommenthunk={oncommenthunk}
+      {repoPath} {showInlineComments} {viewComments} />
   {/if}
 </div>

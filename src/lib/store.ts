@@ -250,6 +250,18 @@ export async function setTreeViewEnabled(enabled: boolean): Promise<void> {
 	await store.save();
 }
 
+// Inline review comments preference
+const SHOW_INLINE_COMMENTS_KEY = "show_inline_comments";
+
+export async function getShowInlineComments(): Promise<boolean> {
+	return (await store.get<boolean>(SHOW_INLINE_COMMENTS_KEY)) ?? true;
+}
+
+export async function setShowInlineComments(show: boolean): Promise<void> {
+	await store.set(SHOW_INLINE_COMMENTS_KEY, show);
+	await store.save();
+}
+
 // Diff display preferences (global, shared across tabs — per D-06)
 const DIFF_CONTEXT_LINES_KEY = "diff_context_lines";
 const DIFF_IGNORE_WHITESPACE_KEY = "diff_ignore_whitespace";

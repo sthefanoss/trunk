@@ -6,17 +6,28 @@ import {
 	ChevronUp,
 	FolderTree,
 	List,
+	MessageSquarePlus,
 } from "@lucide/svelte";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { copySha } from "../lib/clipboard.js";
+import { safeInvoke, type TrunkError } from "../lib/invoke.js";
+import {
+	addCommitComment,
+	deleteComment,
+	editComment,
+} from "../lib/review-comment-actions.js";
+import type { ReviewCommentsManager } from "../lib/review-comments.svelte.js";
+import { showToast } from "../lib/toast.svelte.js";
 import type {
 	CommitDetail,
 	CommitNav,
 	FileDiff,
 	FileStatus,
 	FileStatusType,
+	SessionStatus,
 } from "../lib/types.js";
 import Avatar from "./Avatar.svelte";
+import CommentCard from "./CommentCard.svelte";
 import TreeFileList from "./TreeFileList.svelte";
 
 interface Props {
@@ -30,6 +41,9 @@ interface Props {
 	ontreeviewtoggle?: () => void;
 	nav?: CommitNav | null;
 	onnavigate?: (oid: string) => void;
+	// The shared comments store, threaded from RepoView so the commit-notes block
+	// (later task) reads one source of truth. Optional until that render lands.
+	reviewComments?: ReviewCommentsManager;
 }
 
 let {
@@ -43,6 +57,7 @@ let {
 	ontreeviewtoggle,
 	nav = null,
 	onnavigate,
+	reviewComments,
 }: Props = $props();
 
 const DIFF_STATUS_MAP: Record<string, FileStatusType> = {
@@ -140,6 +155,83 @@ function countOrigin(origin: "Add" | "Delete"): number {
 
 let totalAdds = $derived(countOrigin("Add"));
 let totalDels = $derived(countOrigin("Delete"));
+
+// Commit-level notes (anchor === null) for THIS commit, read from the shared
+// rune. Whole-commit notes carry no anchor; they belong to the commit by
+// commit_oid (plan §2).
+let commitNotes = $derived(
+	(reviewComments?.comments ?? []).filter(
+		(c) => c.anchor === null && c.commit_oid === commitDetail.oid,
+	),
+);
+
+let addingNote = $state(false);
+let noteText = $state("");
+let noteSaving = $state(false);
+const noteValid = $derived(noteText.trim().length > 0);
+
+function openAddNote() {
+	noteText = "";
+	addingNote = true;
+}
+
+function cancelAddNote() {
+	addingNote = false;
+	noteText = "";
+}
+
+// Mirror DiffPanel's ensureActiveSession (DiffPanel.svelte:169-201): adding a
+// commit note must work with no session open, so check status and start/resume
+// before writing. add_commit_comment emits session-changed → the rune refreshes
+// and the new note appears.
+async function ensureActiveSession(): Promise<boolean> {
+	let state: SessionStatus["state"];
+	try {
+		const status = await safeInvoke<SessionStatus>(
+			"get_review_session_status",
+			{ path: repoPath },
+		);
+		state = status.state;
+	} catch (e) {
+		showToast(
+			(e as TrunkError).message ?? "Failed to load review session",
+			"error",
+		);
+		return false;
+	}
+
+	if (state === "active") return true;
+
+	const command =
+		state === "resume-available"
+			? "resume_review_session"
+			: "start_review_session";
+	try {
+		await safeInvoke(command, { path: repoPath });
+		return true;
+	} catch (e) {
+		showToast(
+			(e as TrunkError).message ?? "Failed to start review session",
+			"error",
+		);
+		return false;
+	}
+}
+
+async function saveNote() {
+	if (!noteValid || noteSaving) return;
+	noteSaving = true;
+	try {
+		if (!(await ensureActiveSession())) return;
+		await addCommitComment(repoPath, commitDetail.oid, noteText.trim());
+		addingNote = false;
+		noteText = "";
+	} catch (e) {
+		showToast((e as TrunkError).message ?? "Failed to add note", "error");
+	} finally {
+		noteSaving = false;
+	}
+}
 </script>
 
 <svelte:window onkeydown={handlePaneKeydown} />
@@ -292,6 +384,63 @@ let totalDels = $derived(countOrigin("Delete"));
             </div>
           {/if}
         </div>
+      {/if}
+    </div>
+
+    <!-- Commit-level notes (whole-commit, anchor === null) -->
+    <div class="commit-notes">
+      <div class="commit-notes-head">
+        <span class="commit-notes-title">
+          Notes{#if commitNotes.length > 0} ({commitNotes.length}){/if}
+        </span>
+        {#if !addingNote}
+          <button
+            type="button"
+            class="add-note-btn"
+            onclick={openAddNote}
+          >
+            <MessageSquarePlus size={14} />
+            <span>Add note</span>
+          </button>
+        {/if}
+      </div>
+
+      {#if addingNote}
+        <div class="add-note-composer">
+          <textarea
+            bind:value={noteText}
+            rows="3"
+            placeholder="Leave a note on this commit…"
+            class="add-note-textarea"
+          ></textarea>
+          <div class="add-note-actions">
+            <button
+              type="button"
+              onclick={saveNote}
+              disabled={!noteValid || noteSaving}
+            >Save</button>
+            <button
+              type="button"
+              onclick={cancelAddNote}
+            >Cancel</button>
+          </div>
+        </div>
+      {/if}
+
+      {#if commitNotes.length > 0}
+        <ul class="commit-notes-list">
+          {#each commitNotes as comment (comment.id)}
+            <li>
+              <CommentCard
+                {comment}
+                variant="inline"
+                confirmDelete={false}
+                onedit={(id, text) => editComment(repoPath, id, text)}
+                ondelete={(id) => deleteComment(repoPath, id)}
+              />
+            </li>
+          {/each}
+        </ul>
       {/if}
     </div>
 
@@ -452,5 +601,86 @@ let totalDels = $derived(countOrigin("Delete"));
   }
   .chip.merge:hover {
     background: color-mix(in oklch, var(--fg-3) 18%, transparent);
+  }
+
+  /* Commit-level notes block — whole-commit review comments. */
+  .commit-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .commit-notes-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .commit-notes-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex: 1;
+  }
+  .add-note-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    color: var(--color-text-muted);
+    border: none;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .add-note-btn:hover,
+  .add-note-btn:focus-visible {
+    color: var(--color-text);
+    background: var(--color-hover);
+  }
+  .add-note-composer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .add-note-textarea {
+    width: 100%;
+    resize: vertical;
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .add-note-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .add-note-actions button {
+    background: transparent;
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+  .add-note-actions button[disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .commit-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 </style>

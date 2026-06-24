@@ -874,6 +874,54 @@ pub async fn list_session_comments(
     Ok(comments)
 }
 
+/// The two snapshot OIDs the active session currently tracks. Both `None` when
+/// no in-memory session exists for the repo — a missing session is "no snapshots",
+/// not an error, because the frontend gates inline rendering on session existence
+/// anyway. Serialize snake_case (the fields already are) mirrors `Comment`.
+#[derive(Debug, Serialize, Clone)]
+pub struct ReviewSnapshots {
+    pub working_tree_snapshot: Option<String>,
+    pub index_snapshot: Option<String>,
+}
+
+/// Read the in-memory session's current snapshot OIDs by canonical key. A missing
+/// session yields both `None` (not an error). No `save_session`, no emit — the
+/// testable read core behind `get_review_snapshots`.
+fn read_snapshots(
+    sessions: &Mutex<HashMap<PathBuf, ReviewSession>>,
+    canonical: &Path,
+) -> ReviewSnapshots {
+    let map = sessions.lock().unwrap();
+    match map.get(canonical) {
+        Some(session) => ReviewSnapshots {
+            working_tree_snapshot: session.working_tree_snapshot.clone(),
+            index_snapshot: session.index_snapshot.clone(),
+        },
+        None => ReviewSnapshots {
+            working_tree_snapshot: None,
+            index_snapshot: None,
+        },
+    }
+}
+
+/// Expose the active session's current working-tree / index snapshot OIDs so the
+/// frontend can match working-tree/staged comments against the live diff (inline
+/// review comments). Read-only: reads the in-memory map by CANONICAL key; no
+/// `save_session`, no `session-changed` emit, no snapshot creation (mirrors
+/// `list_session_comments`). No in-memory session → both OIDs `None`, not an error
+/// (the frontend gates inline rendering on session existence separately).
+#[tauri::command]
+pub async fn get_review_snapshots(
+    path: String,
+    state: State<'_, RepoState>,
+    sessions: State<'_, ReviewSessionsState>,
+) -> Result<ReviewSnapshots, String> {
+    let state_map = state.0.lock().unwrap().clone();
+    let canonical = canonical_repo_path(&path, &state_map).map_err(|e| e.to_json())?;
+
+    Ok(read_snapshots(&sessions.0, &canonical))
+}
+
 /// Eagerly resolve every comment's anchor against the live repo (CMT-04, D-06):
 /// one `CommentResolution` per comment so the panel shows orphan badges at load
 /// without a click. Read-only — no `save_session`, no emit (RESEARCH Pitfall 5).
@@ -1869,5 +1917,50 @@ mod tests {
             "a missing-id delete leaves the comment count unchanged"
         );
         assert_eq!(s.comments[0].text, "untouched");
+    }
+
+    // ── Inline review comments: get_review_snapshots (read-only snapshot OIDs) ──
+
+    #[test]
+    fn read_snapshots_returns_the_session_current_oids() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+        {
+            let mut map = sessions.lock().unwrap();
+            let s = map.get_mut(&canonical).unwrap();
+            s.working_tree_snapshot = Some("wt-oid".to_string());
+            s.index_snapshot = Some("idx-oid".to_string());
+        }
+
+        let snapshots = read_snapshots(&sessions, &canonical);
+
+        assert_eq!(snapshots.working_tree_snapshot.as_deref(), Some("wt-oid"));
+        assert_eq!(snapshots.index_snapshot.as_deref(), Some("idx-oid"));
+    }
+
+    #[test]
+    fn read_snapshots_returns_nulls_when_no_session() {
+        let data_dir = TempDir::new().unwrap();
+        let absent = data_dir.path().join("absent");
+        let sessions: Mutex<HashMap<PathBuf, ReviewSession>> = Mutex::new(HashMap::new());
+
+        let snapshots = read_snapshots(&sessions, &absent);
+
+        assert!(snapshots.working_tree_snapshot.is_none());
+        assert!(snapshots.index_snapshot.is_none());
+    }
+
+    #[test]
+    fn read_snapshots_does_not_mutate_the_session() {
+        let data_dir = TempDir::new().unwrap();
+        let (canonical, sessions) = seeded_sessions(&data_dir);
+
+        read_snapshots(&sessions, &canonical);
+
+        let map = sessions.lock().unwrap();
+        let s = map.get(&canonical).unwrap();
+        assert!(s.working_tree_snapshot.is_none());
+        assert!(s.index_snapshot.is_none());
+        assert!(s.comments.is_empty(), "a read must not append a comment");
     }
 }

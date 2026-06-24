@@ -27,6 +27,7 @@ import {
 } from "../lib/store.js";
 import { showToast } from "../lib/toast.svelte.js";
 import type {
+	Comment,
 	CommitDetail,
 	ContentMode,
 	DiffLine,
@@ -56,6 +57,8 @@ interface Props {
 	) => void;
 	ondiffoptionschange?: (options: DiffRequestOptions) => void;
 	loading?: boolean;
+	showInlineComments?: boolean;
+	viewComments?: Comment[];
 }
 
 let {
@@ -69,6 +72,8 @@ let {
 	onfileemptied,
 	ondiffoptionschange,
 	loading = false,
+	showInlineComments = true,
+	viewComments = [],
 }: Props = $props();
 
 let contentMode = $state<ContentMode>("hunk");
@@ -852,6 +857,8 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		oncommenthunk={handleCommentHunk}
 		{commitOid}
 		{repoPath}
+		{showInlineComments}
+		{viewComments}
 		oncommentfullfile={handleCommentFullFile}
 		bind:fullFileView
 	/>

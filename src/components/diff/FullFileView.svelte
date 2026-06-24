@@ -1,9 +1,18 @@
 <script lang="ts">
 import {
+	commentsForLine,
+	spannedByComment,
+} from "../../lib/comment-matching.js";
+import {
 	splitInvisibles,
 	trailingWhitespaceStart,
 } from "../../lib/diff-utils.js";
-import type { DiffLine, FileDiff } from "../../lib/types.js";
+import {
+	deleteComment,
+	editComment,
+} from "../../lib/review-comment-actions.js";
+import type { Comment, DiffLine, FileDiff } from "../../lib/types.js";
+import CommentCard from "../CommentCard.svelte";
 
 interface Props {
 	fileDiffs: FileDiff[];
@@ -17,15 +26,20 @@ interface Props {
 	// hunks.flatMap(h => h.lines)) up to the DiffPanel host when the user clicks
 	// the Comment affordance.
 	oncommentfullfile: (filePath: string, selectedIndices: Set<number>) => void;
+	showInlineComments?: boolean;
+	viewComments?: Comment[];
 }
 
 let {
 	fileDiffs,
 	showInvisibles,
 	wordWrap,
+	repoPath = "",
 	diffKind,
 	isMerge,
 	oncommentfullfile,
+	showInlineComments = true,
+	viewComments = [],
 }: Props = $props();
 
 // Net-new contiguous selection state (D-01): a click sets a single-line anchor;
@@ -153,8 +167,10 @@ function gutterWidth(maxNum: number): string {
         {@const isSelectable = line.new_lineno !== null}
         {@const isSelected = selectedPath === fd.path && selectedIndices.has(lineIdx)}
         {@const trailStart = showInvisibles ? trailingWhitespaceStart(line.content) : line.content.length}
+        {@const lineComments = showInlineComments ? [...commentsForLine(viewComments, 'New', line.new_lineno), ...commentsForLine(viewComments, 'Old', line.old_lineno)] : []}
+        {@const spanned = showInlineComments && (spannedByComment(viewComments, 'New', line.new_lineno) || spannedByComment(viewComments, 'Old', line.old_lineno))}
         <div
-          class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}"
+          class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}{spanned ? ' diff-line-commented' : ''}"
           role={isSelectable ? 'button' : undefined}
           style="
             font-family: monospace;
@@ -174,6 +190,19 @@ function gutterWidth(maxNum: number): string {
           onclick={(e) => isSelectable && selectLine(fd.path, allLines, lineIdx, e.shiftKey)}
           onkeydown={(e) => { if (isSelectable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectLine(fd.path, allLines, lineIdx, e.shiftKey); } }}
         ><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.old_lineno ?? ''}</span><span style="min-width: {gutterW}; text-align: right; color: var(--color-text-muted); padding-right: 8px; user-select: none; flex-shrink: 0;">{line.new_lineno ?? ''}</span><span class="diff-line-content">{#if line.spans.length > 0}{#each line.spans as span}{@const sliced = line.content.slice(span.start, span.end)}{@const spanInTrailing = span.start >= trailStart}{#if showInvisibles}{@const segments = splitInvisibles(sliced, spanInTrailing || span.end > trailStart)}{#each segments as seg}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}{seg.isInvisible ? ' invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}<span class="{span.syntax_class}{span.emphasized ? (line.origin === 'Add' ? ' word-add' : ' word-delete') : ''}">{sliced}</span>{/if}{/each}{:else}{#if showInvisibles}{@const segments = splitInvisibles(line.content, false)}{#each segments as seg}<span class="{seg.isInvisible ? 'invisible-char' : ''}{seg.isTrailing ? ' trailing-ws' : ''}">{seg.text}</span>{/each}{:else}{line.content}{/if}{/if}</span></div>
+        {#if showInlineComments}
+          {#each lineComments as c (c.id)}
+            <div class="comment-row">
+              <CommentCard
+                variant="inline"
+                confirmDelete={false}
+                comment={c}
+                onedit={(id, text) => editComment(repoPath, id, text)}
+                ondelete={(id) => deleteComment(repoPath, id)}
+              />
+            </div>
+          {/each}
+        {/if}
       {/each}
     {/if}
   </div>
@@ -216,6 +245,18 @@ function gutterWidth(maxNum: number): string {
   }
   .diff-line-delete {
     border-left-color: var(--color-diff-delete);
+  }
+  /* Inline-comment gutter accent: a left-edge inset rail in the accent color,
+     layered via box-shadow so it never tints the diff add/delete/context
+     background and never overrides the per-origin change-indicator border. */
+  .diff-line-commented {
+    box-shadow: inset 2px 0 0 0 var(--color-accent);
+  }
+
+  /* Comment rows hang as full-width block siblings directly under their anchored
+     line, indented to clear the change-indicator rail. */
+  .comment-row {
+    padding: 4px 8px 4px 16px;
   }
 
   /* Invisible character styling (Phase 63 -- WHSP-03, D-11) */

@@ -1,16 +1,26 @@
 <script lang="ts">
 import {
+	commentsForLine,
+	spannedByComment,
+} from "../../lib/comment-matching.js";
+import {
 	type PairedRow,
 	pairLines,
 	splitInvisibles,
 	trailingWhitespaceStart,
 } from "../../lib/diff-utils.js";
+import {
+	deleteComment,
+	editComment,
+} from "../../lib/review-comment-actions.js";
 import type {
+	Comment,
 	ContentMode,
 	DiffLine,
 	DiffOrigin,
 	FileDiff,
 } from "../../lib/types.js";
+import CommentCard from "../CommentCard.svelte";
 
 interface Props {
 	contentMode: ContentMode;
@@ -58,6 +68,9 @@ interface Props {
 	ondiscardlines: (filePath: string, hunkIndex: number) => void;
 	oncommentlines: (filePath: string, hunkIndex: number) => void;
 	oncommenthunk: (filePath: string, hunkIndex: number) => void;
+	repoPath?: string;
+	showInlineComments?: boolean;
+	viewComments?: Comment[];
 }
 
 let {
@@ -87,6 +100,9 @@ let {
 	ondiscardlines,
 	oncommentlines,
 	oncommenthunk,
+	repoPath = "",
+	showInlineComments = true,
+	viewComments = [],
 }: Props = $props();
 
 const syncedCols: Set<HTMLElement> = new Set();
@@ -201,6 +217,42 @@ const pairedData = $derived(
 		return { fd, gutterW: gw, sections };
 	}),
 );
+
+// Split a hunk's row-pairs into runs broken at comment boundaries: each run is a
+// two-column block, with a full-width comment row inserted after the row-pair the
+// comment is anchored to. Preserves the existing column scroll-sync (every run's
+// columns join the shared synced set, exactly like the per-hunk columns already do).
+type SplitSegment =
+	| { kind: "run"; rows: PairedRow[] }
+	| { kind: "comments"; comments: Comment[] };
+
+function rowComments(row: PairedRow, comments: Comment[]): Comment[] {
+	return [
+		...commentsForLine(comments, "New", row.right?.line.new_lineno ?? null),
+		...commentsForLine(comments, "Old", row.left?.line.old_lineno ?? null),
+	];
+}
+
+function buildSegments(
+	rows: PairedRow[],
+	comments: Comment[],
+	show: boolean,
+): SplitSegment[] {
+	if (!show) return [{ kind: "run", rows }];
+	const segments: SplitSegment[] = [];
+	let run: PairedRow[] = [];
+	for (const row of rows) {
+		run.push(row);
+		const cs = rowComments(row, comments);
+		if (cs.length > 0) {
+			segments.push({ kind: "run", rows: run });
+			segments.push({ kind: "comments", comments: cs });
+			run = [];
+		}
+	}
+	if (run.length > 0) segments.push({ kind: "run", rows: run });
+	return segments;
+}
 </script>
 
 {#each pairedData as { fd, gutterW, sections } (fd.path)}
@@ -363,17 +415,21 @@ const pairedData = $derived(
             {/if}
           </div>
         {:else}
+          {@const rowSegments = buildSegments(section.rows, viewComments, showInlineComments)}
+          {#each rowSegments as segment}
+          {#if segment.kind === "run"}
           <div class="split-columns">
             <!-- Left column (old content) -->
             <div class="split-column" use:splitColSync>
               <div style="min-width: 100%; width: {wordWrap ? '100%' : 'max-content'};">
-              {#each section.rows as row}
+              {#each segment.rows as row}
                 {#if row.left}
                   {@const line = row.left.line}
                   {@const isSelected = selectedHunkKey === `${fd.path}-${section.hunkIdx}` && selectedLineIndices.has(row.left.lineIdx)}
                   {@const trailStart = showInvisibles ? trailingWhitespaceStart(line.content) : line.content.length}
+                  {@const commented = showInlineComments && spannedByComment(viewComments, 'Old', line.old_lineno)}
                   <div
-                    class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}"
+                    class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}{commented ? ' diff-line-commented' : ''}"
                     style="
                       background: {lineBackground(line.origin, isSelected)};
                       color: {lineColor()};
@@ -389,14 +445,15 @@ const pairedData = $derived(
             <!-- Right column (new content) -->
             <div class="split-column" use:splitColSync>
               <div style="min-width: 100%; width: {wordWrap ? '100%' : 'max-content'};">
-              {#each section.rows as row}
+              {#each segment.rows as row}
                 {#if row.right}
                   {@const line = row.right.line}
                   {@const isSelectable = line.origin === 'Add'}
                   {@const isSelected = selectedHunkKey === `${fd.path}-${section.hunkIdx}` && selectedLineIndices.has(row.right.lineIdx)}
                   {@const trailStart = showInvisibles ? trailingWhitespaceStart(line.content) : line.content.length}
+                  {@const commented = showInlineComments && spannedByComment(viewComments, 'New', line.new_lineno)}
                   <div
-                    class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}"
+                    class="diff-line {line.origin === 'Add' ? 'diff-line-add' : line.origin === 'Delete' ? 'diff-line-delete' : 'diff-line-context'}{commented ? ' diff-line-commented' : ''}"
                     role={isSelectable ? 'button' : undefined}
                     style="
                       background: {lineBackground(line.origin, isSelected)};
@@ -417,6 +474,20 @@ const pairedData = $derived(
               </div>
             </div>
           </div>
+          {:else}
+            <div class="split-comment-row">
+              {#each segment.comments as comment (comment.id)}
+                <CommentCard
+                  variant="inline"
+                  confirmDelete={false}
+                  {comment}
+                  onedit={(id, text) => editComment(repoPath, id, text)}
+                  ondelete={(id) => deleteComment(repoPath, id)}
+                />
+              {/each}
+            </div>
+          {/if}
+          {/each}
         {/if}
       {/each}
     {/if}
@@ -559,6 +630,24 @@ const pairedData = $derived(
   }
   .diff-line-delete {
     border-left-color: var(--color-diff-delete);
+  }
+
+  /* Left-edge accent on lines spanned by an inline comment. Inset box-shadow
+     rather than a background tint so it doesn't fight the add/delete/context
+     row backgrounds; layered over the existing 3px change-indicator border. */
+  .diff-line-commented {
+    box-shadow: inset 3px 0 0 0 var(--color-accent);
+  }
+
+  /* Inline comment row: a plain full-width block sibling spanning both columns
+     (sibling of .split-columns, not inside a single column). */
+  .split-comment-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Invisible character styling */
