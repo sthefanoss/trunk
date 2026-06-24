@@ -217,6 +217,7 @@ function gutterWidth(maxNum: number): string {
                    commit-mode Comment button markup/styles verbatim (no new color).
                    New-side scope + Old-side guard live in the host. Leads the action
                    cluster (260531-l02 UX: Comment to the left of staging). -->
+              {#if showInlineComments}
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
@@ -233,6 +234,7 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment ({selectedCount})
               </button>
+              {/if}
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}
@@ -276,6 +278,7 @@ function gutterWidth(maxNum: number): string {
                    without selecting lines. Reuses the line-level accent button
                    markup verbatim (no new color); host synthesizes the full-hunk
                    selection + applies the New-side guard. Leads the action cluster. -->
+              {#if showInlineComments}
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
@@ -292,6 +295,7 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment
               </button>
+              {/if}
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}
@@ -338,6 +342,7 @@ function gutterWidth(maxNum: number): string {
               <!-- Staged Comment affordance (260531-l02b): anchors to the INDEX
                    snapshot (HEAD→index) — both sides resolve, so no Old-side guard.
                    Reuses the accent button; leads the cluster. -->
+              {#if showInlineComments}
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
@@ -354,6 +359,7 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment ({selectedCount})
               </button>
+              {/if}
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}
@@ -375,6 +381,7 @@ function gutterWidth(maxNum: number): string {
               </button>
             {:else}
               <!-- Whole-hunk staged Comment (260531-l02b): index-snapshot anchored. -->
+              {#if showInlineComments}
               <button
                 style="
                   background: var(--color-accent-bg, var(--color-surface));
@@ -391,6 +398,7 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment
               </button>
+              {/if}
               <button
                 disabled={stagingDisabled}
               title={stagingDisabledTitle}
@@ -415,6 +423,7 @@ function gutterWidth(maxNum: number): string {
             {@const hunkKey = `${fd.path}-${hunkIdx}`}
             {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
             {#if hasSelection}
+              {#if showInlineComments}
               <button
                 disabled={isMerge}
                 title={isMerge ? "Diff comments aren't available on merge commits" : ""}
@@ -434,9 +443,11 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment ({selectedCount})
               </button>
+              {/if}
             {:else}
               <!-- Whole-hunk Comment in commit diffs (260531-l02): same accent
                    button + isMerge disable guard as the line-level commit Comment. -->
+              {#if showInlineComments}
               <button
                 disabled={isMerge}
                 title={isMerge ? "Diff comments aren't available on merge commits" : ""}
@@ -456,6 +467,7 @@ function gutterWidth(maxNum: number): string {
               >
                 Comment
               </button>
+              {/if}
             {/if}
           {/if}
         </div>

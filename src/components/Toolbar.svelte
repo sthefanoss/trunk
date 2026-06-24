@@ -285,6 +285,19 @@ async function handleBranchCreate(values: Record<string, string>) {
     border-color: var(--accent-hi);
   }
 
+  /* Subtle "on" state for view-preference toggles (e.g. inline comments) —
+     accent tint + accent icon, matching the diff-toolbar view toggles, rather
+     than the loud solid fill the labeled Review button uses. */
+  .toolbar-btn.toolbar-btn-toggle-on {
+    background: var(--color-accent-bg);
+    border-color: var(--color-accent-border);
+    color: var(--accent);
+  }
+  .toolbar-btn.toolbar-btn-toggle-on:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--accent) 14%, transparent);
+    border-color: var(--color-accent-border);
+  }
+
   .toolbar-btn-badged {
     position: relative;
   }
@@ -363,7 +376,7 @@ async function handleBranchCreate(values: Record<string, string>) {
   <div class="toolbar-group">
     <button
       class="toolbar-btn toolbar-btn-badged"
-      class:toolbar-btn-active={showInlineComments}
+      class:toolbar-btn-toggle-on={showInlineComments}
       aria-pressed={showInlineComments}
       aria-label="Toggle inline comments"
       onclick={ontoggleinlinecomments}

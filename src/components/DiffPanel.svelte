@@ -817,6 +817,7 @@ async function handleDiscardLines(filePath: string, hunkIndex: number) {
 		{ignoreWhitespace}
 		{showInvisibles}
 		{wordWrap}
+		{showInlineComments}
 		onignorewhitespacechange={handleIgnoreWhitespaceChange}
 		onshowinvisibleschange={handleShowInvisiblesChange}
 		onwordwrapchange={handleWordWrapChange}

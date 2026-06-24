@@ -286,7 +286,24 @@ describe("Toolbar", () => {
 		const btn = screen.getByRole("button", {
 			name: /Toggle inline comments/,
 		});
-		expect(btn).toHaveClass("toolbar-btn-active");
+		expect(btn).toHaveClass("toolbar-btn-toggle-on");
 		expect(btn).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("shows inactive state when showInlineComments is false", () => {
+		render(Toolbar, {
+			props: {
+				repoPath: "/test/repo",
+				remoteState: makeRemoteState(),
+				undoRedo: makeUndoRedo(),
+				reviewActive: false,
+				showInlineComments: false,
+			},
+		});
+		const btn = screen.getByRole("button", {
+			name: /Toggle inline comments/,
+		});
+		expect(btn).not.toHaveClass("toolbar-btn-toggle-on");
+		expect(btn).toHaveAttribute("aria-pressed", "false");
 	});
 });

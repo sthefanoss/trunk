@@ -67,7 +67,7 @@ let activeReviewPanelShowing = $state(true);
 // Inline review comments: App owns the persisted global toggle; RepoView reports a
 // per-tab badge count up. The badge reflects only the ACTIVE tab's count (mirrors the
 // per-tab `reviewActive` scoping), so the map is keyed by tab id.
-let showInlineComments = $state(true);
+let showInlineComments = $state(false);
 let inlineCommentCounts = $state<Map<string, number>>(new Map());
 
 function setInlineCommentCount(tabId: string, count: number) {

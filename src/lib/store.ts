@@ -250,11 +250,12 @@ export async function setTreeViewEnabled(enabled: boolean): Promise<void> {
 	await store.save();
 }
 
-// Inline review comments preference
+// Review mode preference (gates inline comment cards + in-diff Comment buttons).
+// Default off so diffs are clean/read-only until the user turns review on.
 const SHOW_INLINE_COMMENTS_KEY = "show_inline_comments";
 
 export async function getShowInlineComments(): Promise<boolean> {
-	return (await store.get<boolean>(SHOW_INLINE_COMMENTS_KEY)) ?? true;
+	return (await store.get<boolean>(SHOW_INLINE_COMMENTS_KEY)) ?? false;
 }
 
 export async function setShowInlineComments(show: boolean): Promise<void> {

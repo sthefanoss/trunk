@@ -21,6 +21,7 @@ interface Props {
 	ignoreWhitespace: boolean;
 	showInvisibles: boolean;
 	wordWrap: boolean;
+	showInlineComments?: boolean;
 	onignorewhitespacechange: (value: boolean) => void;
 	onshowinvisibleschange: (value: boolean) => void;
 	onwordwrapchange: (value: boolean) => void;
@@ -41,6 +42,7 @@ let {
 	ignoreWhitespace,
 	showInvisibles,
 	wordWrap,
+	showInlineComments = true,
 	onignorewhitespacechange,
 	onshowinvisibleschange,
 	onwordwrapchange,
@@ -107,15 +109,18 @@ let {
 
   <!-- One-click whole-file Comment (260531-l02e/l02f): comments every change in the
        file in one click. Available for every diff kind — commit diffs as well as the
-       dirty tree (selectedPath is always set when this toolbar renders). Leads the
-       staging action like the hunk toolbar's Comment; never gated on
+       dirty tree (selectedPath is always set when this toolbar renders). Gated on
+       review mode (showInlineComments) like the hunk toolbar's Comment buttons, so a
+       clean read-only diff shows no comment affordances; never gated on
        whitespace-ignore since it never stages. -->
+  {#if showInlineComments}
   <button
     class="action-btn comment-btn"
     onclick={oncommentfile}
   >
     Comment File
   </button>
+  {/if}
 
   {#if diffKind === 'unstaged'}
     <button

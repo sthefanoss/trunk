@@ -314,11 +314,13 @@ function buildSegments(
                      commit-mode accent button class verbatim (no new color).
                      New-side scope + Old-side guard live in the host. Leads the
                      action cluster (260531-l02 UX: Comment left of staging). -->
+                {#if showInlineComments}
                 <button
                   class="staging-btn accent-btn"
                   style="cursor: pointer;"
                   onclick={() => oncommentlines(fd.path, section.hunkIdx)}
                 >Comment ({selectedCount})</button>
+                {/if}
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}
@@ -338,11 +340,13 @@ function buildSegments(
                      without selecting lines. Reuses the accent button class
                      verbatim (no new color); host applies the New-side guard.
                      Leads the action cluster. -->
+                {#if showInlineComments}
                 <button
                   class="staging-btn accent-btn"
                   style="cursor: pointer;"
                   onclick={() => oncommenthunk(fd.path, section.hunkIdx)}
                 >Comment</button>
+                {/if}
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}
@@ -364,11 +368,13 @@ function buildSegments(
               {#if hasSelection}
                 <!-- Staged Comment (260531-l02b): index-snapshot anchored, both sides
                      resolve (no Old-side guard). Leads the cluster. -->
+                {#if showInlineComments}
                 <button
                   class="staging-btn accent-btn"
                   style="cursor: pointer;"
                   onclick={() => oncommentlines(fd.path, section.hunkIdx)}
                 >Comment ({selectedCount})</button>
+                {/if}
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}
@@ -377,11 +383,13 @@ function buildSegments(
                   onclick={() => onunstagelines(fd.path, section.hunkIdx)}
                 >Unstage Lines ({selectedCount})</button>
               {:else}
+                {#if showInlineComments}
                 <button
                   class="staging-btn accent-btn"
                   style="cursor: pointer;"
                   onclick={() => oncommenthunk(fd.path, section.hunkIdx)}
                 >Comment</button>
+                {/if}
                 <button
                   disabled={stagingDisabled}
                   title={stagingDisabledTitle}
@@ -394,6 +402,7 @@ function buildSegments(
               {@const hunkKey = `${fd.path}-${section.hunkIdx}`}
               {@const hasSelection = selectedHunkKey === hunkKey && selectedCount > 0}
               {#if hasSelection}
+                {#if showInlineComments}
                 <button
                   disabled={isMerge}
                   title={isMerge ? "Diff comments aren't available on merge commits" : ""}
@@ -401,9 +410,11 @@ function buildSegments(
                   style="cursor: {isMerge ? 'not-allowed' : 'pointer'}; opacity: {isMerge ? 0.4 : 1};"
                   onclick={() => oncommentlines(fd.path, section.hunkIdx)}
                 >Comment ({selectedCount})</button>
+                {/if}
               {:else}
                 <!-- Whole-hunk Comment in commit diffs (260531-l02): same accent
                      class + isMerge disable guard as the line-level commit Comment. -->
+                {#if showInlineComments}
                 <button
                   disabled={isMerge}
                   title={isMerge ? "Diff comments aren't available on merge commits" : ""}
@@ -411,6 +422,7 @@ function buildSegments(
                   style="cursor: {isMerge ? 'not-allowed' : 'pointer'}; opacity: {isMerge ? 0.4 : 1};"
                   onclick={() => oncommenthunk(fd.path, section.hunkIdx)}
                 >Comment</button>
+                {/if}
               {/if}
             {/if}
           </div>
