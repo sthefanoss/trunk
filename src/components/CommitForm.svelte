@@ -15,6 +15,7 @@ let { repoPath, stagedCount, onsubjectchange, clearRedoStack }: Props =
 
 let subject = $state("");
 let body = $state("");
+let userEdited = $state(false);
 let mode = $state<"commit" | "amend" | "stash">("commit");
 let committing = $state(false);
 let subjectError = $state("");
@@ -41,8 +42,18 @@ $effect(() => {
 
 async function handleModeSwitch(newMode: "commit" | "amend" | "stash") {
 	if (newMode === mode) return;
+	const leavingAmend = mode === "amend";
 	mode = newMode;
+
 	if (newMode === "amend") {
+		// A non-empty draft must survive a misclick onto Amend — never overwrite
+		// typed text with the previous commit message. An empty field has no
+		// draft to protect, so prefill even if it was typed-then-cleared.
+		const hasDraft = subject.trim() !== "" || body.trim() !== "";
+		if (hasDraft) return;
+		// The prefill we inject is not user-authored, so leaving amend later
+		// clears it (programmatic assignment doesn't fire input).
+		userEdited = false;
 		try {
 			const msg = await safeInvoke<HeadCommitMessage>(
 				"get_head_commit_message",
@@ -55,8 +66,24 @@ async function handleModeSwitch(newMode: "commit" | "amend" | "stash") {
 		} catch (e) {
 			console.error("Failed to get HEAD commit message:", e);
 		}
+		return;
 	}
-	// Switching away from amend or between commit/stash: keep current values (don't clear)
+
+	if (leavingAmend) {
+		if (userEdited) {
+			// Edited amend text is kept; resync the WIP label, which was gated
+			// off while in amend mode.
+			onsubjectchange?.(subject);
+		} else {
+			// Discard the injected prev-commit message we prefilled.
+			subject = "";
+			body = "";
+			onsubjectchange?.("");
+		}
+		return;
+	}
+
+	// commit <-> stash: shared draft, keep current values.
 }
 
 async function handleSubmit() {
@@ -104,6 +131,7 @@ async function handleSubmit() {
 		subject = "";
 		onsubjectchange?.("");
 		body = "";
+		userEdited = false;
 		mode = "commit"; // Always reset to commit mode after any successful operation
 	} catch (e) {
 		const err = e as { message?: string };
@@ -155,7 +183,7 @@ async function handleSubmit() {
     type="text"
     bind:value={subject}
     placeholder={mode === 'stash' ? 'Stash name (optional)' : 'Summary (required)'}
-    oninput={(e) => { if (subjectError) subjectError = ''; onsubjectchange?.((e.target as HTMLInputElement).value); }}
+    oninput={(e) => { userEdited = true; if (subjectError) subjectError = ''; if (mode !== 'amend') onsubjectchange?.((e.target as HTMLInputElement).value); }}
     style="
       width: 100%;
       box-sizing: border-box;
@@ -176,6 +204,7 @@ async function handleSubmit() {
     bind:value={body}
     rows={3}
     placeholder="Description (optional)"
+    oninput={() => { userEdited = true; }}
     style="
       width: 100%;
       box-sizing: border-box;
