@@ -6,8 +6,9 @@ import {
 	LANE_WIDTH,
 	ROW_HEIGHT,
 } from "../lib/graph-constants.js";
+import { STATUS_BADGES, WIP_BADGE_ORDER } from "../lib/status-badges.js";
 import type { ColumnVisibility, ColumnWidths } from "../lib/store.js";
-import type { GraphCommit } from "../lib/types.js";
+import type { GraphCommit, WipStats } from "../lib/types.js";
 import Avatar from "./Avatar.svelte";
 import CommentBadge from "./CommentBadge.svelte";
 
@@ -36,6 +37,8 @@ interface Props {
 	/** Review-comment count anchored to this commit (line comments + notes).
 	 *  Parent zeroes it to enforce the toggle/active gate; badge self-hides at 0. */
 	commentCount?: number;
+	/** File-status breakdown for the synthetic WIP row (only set when isWip). */
+	wipStats?: WipStats;
 }
 
 let {
@@ -54,6 +57,7 @@ let {
 	inSession = false,
 	isPendingBase = false,
 	commentCount = 0,
+	wipStats,
 }: Props = $props();
 
 function relativeDate(ts: number): string {
@@ -71,6 +75,18 @@ function relativeDate(ts: number): string {
 const isWip = $derived(commit.oid === "__wip__");
 const isStash = $derived(commit.is_stash);
 const parsed = $derived(parseSummary(commit.summary));
+
+// WIP row file-status badges. Letters/colors/titles come from the shared
+// STATUS_BADGES map so they stay in lockstep with FileRow.
+const wipFileBadges = $derived.by(() => {
+	const stats = wipStats;
+	if (!isWip || !stats) return [];
+	return WIP_BADGE_ORDER.flatMap(({ key, status }) => {
+		const count = stats[key];
+		if (count <= 0) return [];
+		return [{ ...STATUS_BADGES[status], count }];
+	});
+});
 
 // D-04 in-session + D-01 pending-base markers: theme-variable inset accents on
 // distinct edges so they compose with the background ternaries (and each other)
@@ -116,9 +132,20 @@ const rowShadow = $derived(
     </div>
   {/if}
 
-  <!-- Column 3: Message (flex-1, always visible) + trailing comment badge -->
+  <!-- Column 3: Message (flex-1, always visible) + WIP file badges + trailing comment badge -->
   <div class="flex-1 flex items-center gap-2 overflow-hidden" style="padding: 0 {COLUMN_PADDING_X}px;">
-    {#if isWip || isStash}
+    {#if isWip}
+      <div data-testid="commit-row-summary" class="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+        <span class="overflow-hidden text-ellipsis italic rounded px-2 py-0.5" style="min-width: 6rem; background: var(--bg-2); color: var(--color-text-muted);">{commit.summary}</span>
+        {#if wipFileBadges.length}
+          <span class="flex items-center gap-2 flex-shrink-0 font-mono text-[11px]">
+            {#each wipFileBadges as b}
+              <span title={b.title} style="color: {b.color};">{b.letter} {b.count}</span>
+            {/each}
+          </span>
+        {/if}
+      </div>
+    {:else if isStash}
       <span data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic" style="color: var(--color-text-muted);">{commit.summary}</span>
     {:else}
       <span data-testid="commit-row-summary" class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
