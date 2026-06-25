@@ -148,12 +148,10 @@ pub fn walk_commits(
     let mut next_color: usize = 1; // 0 reserved for HEAD chain
     let mut lane_colors: HashMap<usize, usize> = HashMap::new();
 
-    // Pre-compute HEAD's first-parent chain and tip OID
+    // Pre-compute HEAD's first-parent chain
     let mut head_chain: HashSet<git2::Oid> = HashSet::new();
-    let mut head_tip: Option<git2::Oid> = None;
     if let Ok(head_ref) = repo.head() {
         if let Some(oid) = head_ref.target() {
-            head_tip = Some(oid);
             let mut current = Some(oid);
             while let Some(c_oid) = current {
                 head_chain.insert(c_oid);
@@ -186,41 +184,26 @@ pub fn walk_commits(
             pending_parents.remove(&oid);
             c
         } else {
-            // New chain (regular branch tip OR stash).
+            // New chain (regular branch tip OR stash). Stashes use the exact
+            // same placement as any other branch tip: a free column near the
+            // parent, with a new color. The only stash-specific behavior is
+            // visual (dashed square + dashed edges) and parent filtering. This
+            // makes stashes fork off to their own side column with a dashed
+            // ForkRight on the parent, rather than sitting inline in the
+            // parent's lane (see COMMIT-GRAPH-ARCHITECTURE.md "Stash rendering").
             let min_col = if !head_chain.is_empty() { 1 } else { 0 };
             let parent_col = commit
                 .parent_id(0)
                 .ok()
                 .and_then(|pid| pending_parents.get(&pid).copied());
-            let parent_oid = commit.parent_id(0).ok();
 
-            // Inline stash placement: if the stash's parent column is free and
-            // no intermediate commits will occupy it, place inline (same column
-            // as parent) with a straight dashed line — like GitKraken.
-            // Safe when: parent is HEAD tip (no HEAD chain members between stash
-            // and parent) or parent is not in the HEAD chain (no pre-reserved
-            // commits at that column).
-            let can_inline = is_stash
-                && parent_col.is_some()
-                && parent_oid.is_some_and(|p| !head_chain.contains(&p) || head_tip == Some(p))
-                && parent_col
-                    .is_some_and(|pcol| pcol >= active_lanes.len() || active_lanes[pcol].is_none());
-
-            if can_inline {
-                let c = parent_col.unwrap();
-                if c >= active_lanes.len() {
-                    active_lanes.resize(c + 1, None);
-                }
-                c
-            } else {
-                // Normal placement: find free column near parent's column.
-                let target = parent_col.unwrap_or(0).max(min_col);
-                let c = find_free_column_near(&mut active_lanes, target, min_col);
-                // New branch gets a new color
-                lane_colors.insert(c, next_color);
-                next_color += 1;
-                c
-            }
+            // Find free column near parent's column.
+            let target = parent_col.unwrap_or(0).max(min_col);
+            let c = find_free_column_near(&mut active_lanes, target, min_col);
+            // New branch gets a new color
+            lane_colors.insert(c, next_color);
+            next_color += 1;
+            c
         };
 
         // Ensure active_lanes is large enough for this column
