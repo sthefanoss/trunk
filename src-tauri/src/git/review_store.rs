@@ -154,6 +154,28 @@ pub fn load_session(data_dir: &Path, canonical: &Path) -> Result<LoadOutcome, Tr
     Ok(LoadOutcome::Loaded(session))
 }
 
+/// Side-effect-free peek for eager hydration on `open_repo`. Returns the session
+/// ONLY when the on-disk file is already clean, current-schema, and fully formed —
+/// exactly the case `load_session` would return `Loaded` for, but WITHOUT touching
+/// disk. Every case `load_session` recovers by mutating disk — quarantining a
+/// corrupt/wrong-shape file (D-15), re-saving a v1 migration — yields `None` here
+/// instead, leaving the file byte-unchanged for the explicit resume path, which
+/// alone surfaces the recovery/refusal toast. This never renames and never writes.
+pub fn peek_clean_session(data_dir: &Path, canonical: &Path) -> Option<ReviewSession> {
+    let raw = fs::read_to_string(session_path(data_dir, canonical)).ok()?;
+    let session = serde_json::from_str::<ReviewSession>(&raw).ok()?;
+    // Anything load_session would migrate or refuse is left for the resume path: a
+    // non-current schema (newer = refused D-16, older = migration), or a v1 comment
+    // still missing its backfilled id (a re-save load_session would perform).
+    if session.schema_version != CURRENT_SCHEMA_VERSION {
+        return None;
+    }
+    if session.comments.iter().any(|c| c.id.is_empty()) {
+        return None;
+    }
+    Some(session)
+}
+
 /// Hard-delete the per-repo session file (SESS-03 / D-13). NotFound is treated
 /// as idempotent success, so end-and-clear is safe to call repeatedly.
 pub fn delete_session(data_dir: &Path, canonical: &Path) -> Result<(), TrunkError> {
@@ -331,6 +353,98 @@ mod tests {
         assert!(
             corrupt_sidecar_path(dir.path(), canonical).exists(),
             "a .corrupt sidecar must be created (D-15)",
+        );
+    }
+
+    // ── peek_clean_session: side-effect-free hydration peek ───────────────────
+
+    #[test]
+    fn peek_returns_a_clean_v2_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let canonical = Path::new("/repos/trunk");
+        let v2 = r#"{
+            "schema_version": 2,
+            "commits": [],
+            "comments": [
+                { "id": "keep-me", "text": "one", "anchor": null, "cached_excerpt": null, "commit_oid": null }
+            ],
+            "draft_comment": null
+        }"#;
+        seed_session_file(dir.path(), canonical, v2);
+
+        let session = peek_clean_session(dir.path(), canonical)
+            .expect("a clean, current-schema session must hydrate");
+        assert_eq!(session.comments[0].id, "keep-me");
+    }
+
+    #[test]
+    fn peek_returns_none_for_a_missing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(peek_clean_session(dir.path(), Path::new("/repos/trunk")).is_none());
+    }
+
+    #[test]
+    fn peek_does_not_quarantine_a_corrupt_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let canonical = Path::new("/repos/trunk");
+        seed_session_file(dir.path(), canonical, "{ this is not valid json ]");
+        let before = fs::read(session_path(dir.path(), canonical)).unwrap();
+
+        assert!(
+            peek_clean_session(dir.path(), canonical).is_none(),
+            "a corrupt file must not hydrate",
+        );
+        assert!(
+            !corrupt_sidecar_path(dir.path(), canonical).exists(),
+            "peek must NOT quarantine — that side effect belongs to the resume path (D-15)",
+        );
+        assert_eq!(
+            before,
+            fs::read(session_path(dir.path(), canonical)).unwrap(),
+            "the corrupt file must be left byte-unchanged",
+        );
+    }
+
+    #[test]
+    fn peek_leaves_a_newer_schema_file_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let canonical = Path::new("/repos/trunk");
+        let v3 = r#"{ "schema_version": 3, "commits": [], "comments": [], "draft_comment": null }"#;
+        seed_session_file(dir.path(), canonical, v3);
+        let before = fs::read(session_path(dir.path(), canonical)).unwrap();
+
+        assert!(
+            peek_clean_session(dir.path(), canonical).is_none(),
+            "a newer-schema file must not hydrate (D-16)",
+        );
+        assert_eq!(
+            before,
+            fs::read(session_path(dir.path(), canonical)).unwrap(),
+            "the newer file must be left byte-unchanged (D-16)",
+        );
+    }
+
+    #[test]
+    fn peek_does_not_hydrate_or_migrate_a_v1_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let canonical = Path::new("/repos/trunk");
+        let v1 = r#"{
+            "schema_version": 1,
+            "commits": [],
+            "comments": [ { "text": "one", "anchor": null, "cached_excerpt": null } ],
+            "draft_comment": null
+        }"#;
+        seed_session_file(dir.path(), canonical, v1);
+        let before = fs::read(session_path(dir.path(), canonical)).unwrap();
+
+        assert!(
+            peek_clean_session(dir.path(), canonical).is_none(),
+            "a migration-pending v1 file is left for the resume path, not hydrated",
+        );
+        assert_eq!(
+            before,
+            fs::read(session_path(dir.path(), canonical)).unwrap(),
+            "peek must not re-save (migrate) the v1 file",
         );
     }
 }
