@@ -54,6 +54,44 @@ describe("CommitForm", () => {
 		).toBeInTheDocument();
 	});
 
+	describe("summary char counter", () => {
+		function typeSubject(length: number): Promise<boolean> {
+			return fireEvent.input(screen.getByTestId("commit-form-subject"), {
+				target: { value: "a".repeat(length) },
+			});
+		}
+
+		it("drops the staged-count footer", () => {
+			render(CommitForm, { props: defaultProps });
+			expect(screen.queryByText(/staged/i)).not.toBeInTheDocument();
+		});
+
+		it("hides the counter below 60 chars", async () => {
+			render(CommitForm, { props: defaultProps });
+			await typeSubject(59);
+			expect(screen.queryByTestId("subject-counter")).not.toBeInTheDocument();
+		});
+
+		it("shows the counter at 60 chars", async () => {
+			render(CommitForm, { props: defaultProps });
+			await typeSubject(60);
+			const counter = screen.getByTestId("subject-counter");
+			expect(counter).toHaveTextContent("60/72");
+			expect(counter).toHaveAttribute("data-over", "false");
+		});
+
+		it.each([
+			{ length: 72, over: false },
+			{ length: 73, over: true },
+		])("flags over-limit at $length chars", async ({ length, over }) => {
+			render(CommitForm, { props: defaultProps });
+			await typeSubject(length);
+			const counter = screen.getByTestId("subject-counter");
+			expect(counter).toHaveTextContent(`${length}/72`);
+			expect(counter).toHaveAttribute("data-over", String(over));
+		});
+	});
+
 	it("shows all three mode tabs", () => {
 		render(CommitForm, { props: defaultProps });
 		const buttons = screen.getAllByRole("button");

@@ -21,6 +21,9 @@ let committing = $state(false);
 let subjectError = $state("");
 let stagedError = $state("");
 
+let counterVisible = $derived(subject.length >= 60);
+let subjectOverLimit = $derived(subject.length > 72);
+
 let buttonLabel = $derived.by(() => {
 	if (committing) {
 		return mode === "commit"
@@ -178,23 +181,41 @@ async function handleSubmit() {
   </div>
 
   <!-- Subject field -->
-  <input
-    data-testid="commit-form-subject"
-    type="text"
-    bind:value={subject}
-    placeholder={mode === 'stash' ? 'Stash name (optional)' : 'Summary (required)'}
-    oninput={(e) => { userEdited = true; if (subjectError) subjectError = ''; if (mode !== 'amend') onsubjectchange?.((e.target as HTMLInputElement).value); }}
-    style="
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid var(--line);
-      background: var(--bg-0);
-      color: var(--fg-1);
-      border-radius: var(--radius-m);
-      padding: 8px 10px;
-      font-size: 12px;
-    "
-  />
+  <div style="position: relative;">
+    <input
+      data-testid="commit-form-subject"
+      type="text"
+      bind:value={subject}
+      placeholder={mode === 'stash' ? 'Stash name (optional)' : 'Summary (required)'}
+      oninput={(e) => { userEdited = true; if (subjectError) subjectError = ''; if (mode !== 'amend') onsubjectchange?.((e.target as HTMLInputElement).value); }}
+      style="
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--line);
+        background: var(--bg-0);
+        color: var(--fg-1);
+        border-radius: var(--radius-m);
+        padding: 8px 44px 8px 10px;
+        font-size: 12px;
+      "
+    />
+    {#if counterVisible}
+      <span
+        data-testid="subject-counter"
+        data-over={subjectOverLimit}
+        style="
+          position: absolute;
+          top: 50%;
+          right: 10px;
+          transform: translateY(-50%);
+          pointer-events: none;
+          font-family: var(--font-mono);
+          font-size: 10.5px;
+          color: {subjectOverLimit ? 'var(--color-danger)' : 'var(--fg-3)'};
+        "
+      >{subject.length}/72</span>
+    {/if}
+  </div>
   {#if subjectError}
     <span class="error-text" style="font-size: 11px;">{subjectError}</span>
   {/if}
@@ -245,21 +266,6 @@ async function handleSubmit() {
       opacity: {committing ? 0.6 : 1};
     "
   >{buttonLabel}{#if !committing}<span style="font-family: var(--font-mono); font-weight: 600; font-size: 11px; opacity: 0.85;">⌘↵</span>{/if}</button>
-
-  <!-- Commit context hints -->
-  <div style="
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--fg-3);
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 10.5px;
-  ">
-    <span>{stagedCount} staged</span>
-    <span>·</span>
-    <span>{subject.length}/72</span>
-  </div>
 </div>
 
 <style>
