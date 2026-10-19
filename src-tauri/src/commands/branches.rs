@@ -3,9 +3,10 @@ use crate::state::{CommitCache, GraphCache, OpenRepos, RepoState};
 use crate::types::{BranchInfo, RefsResponse, StashEntry};
 use crate::watcher::RepoChanged;
 use git2::BranchType;
-use tauri::{AppHandle, Emitter, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use trunk_git::error::TrunkError;
 use trunk_git::types::{RefLabel, RefType};
+use trunk_git::worktree::{BranchHold, WorktreeRemoval};
 
 /// Inner implementation of `list_refs` — separated for testability without Tauri state.
 ///
@@ -126,18 +127,22 @@ pub fn list_refs_inner(path: &str, state_map: &OpenRepos) -> Result<RefsResponse
     })
 }
 
-/// Delete a local branch and rebuild the graph cache.
+/// Delete a local branch and rebuild the graph cache, first removing the linked
+/// worktree that holds it when `worktree` names the one the user agreed to remove.
 ///
 /// Rejects deletion of the currently checked-out (HEAD) branch.
 ///
 /// # Errors
 ///
 /// Returns `not_open` when `path` names no open repository, `cannot_delete_head` when
-/// `branch_name` is the checked-out branch, and the git error when the branch
-/// is missing or will not delete.
+/// `branch_name` is the checked-out branch, the git error when the branch is missing or
+/// will not delete, every error `trunk_git::worktree::remove` names, `worktree_changed`
+/// when no removal was accepted and a linked worktree now holds the branch, and
+/// `branch_not_deleted` when the worktree went but the branch would not.
 pub fn delete_branch_inner(
     path: &str,
     branch_name: &str,
+    worktree: Option<&WorktreeRemoval>,
     state_map: &OpenRepos,
     cache_map: &mut GraphCache,
     visibility: &trunk_git::graph_input::RefVisibility,
@@ -158,7 +163,22 @@ pub fn delete_branch_inner(
     }
 
     let mut branch = repo.find_branch(branch_name, BranchType::Local)?;
-    branch.delete()?;
+    if let Some(worktree) = worktree {
+        trunk_git::worktree::remove(&repo, branch_name, worktree, &open_tabs(state_map))?;
+        branch.delete().map_err(|error| {
+            TrunkError::new(
+                "branch_not_deleted",
+                format!(
+                    "the worktree at {} was removed but the branch could not be deleted: {}",
+                    worktree.path,
+                    error.message()
+                ),
+            )
+        })?;
+    } else {
+        trunk_git::worktree::ensure_no_linked_holder(&repo, branch_name, &open_tabs(state_map))?;
+        branch.delete()?;
+    }
     drop(branch);
     drop(repo);
 
@@ -168,6 +188,28 @@ pub fn delete_branch_inner(
     cache_map.insert_read(path.to_owned(), read, visibility.clone());
 
     Ok(())
+}
+
+/// Which worktree holds local branch `branch_name`, so Delete can offer to remove it.
+///
+/// # Errors
+///
+/// Returns `not_open` when `path` names no open repository, and the git error when the
+/// repository will not open or its worktrees will not list.
+pub fn branch_hold_inner(
+    path: &str,
+    branch_name: &str,
+    state_map: &OpenRepos,
+) -> Result<BranchHold, TrunkError> {
+    let repo = state_map.open(path)?;
+    trunk_git::worktree::assess(&repo, branch_name, &open_tabs(state_map))
+}
+
+fn open_tabs(state_map: &OpenRepos) -> Vec<std::path::PathBuf> {
+    state_map
+        .locations()
+        .filter_map(|(_, location)| location.canonicalize().ok())
+        .collect()
 }
 
 /// Rename a local branch. Fails if `new_name` already exists.
@@ -523,21 +565,52 @@ pub async fn create_branch<R: Runtime>(
 ///
 /// Panics when one of the shared state locks it takes is poisoned.
 #[tauri::command]
-pub async fn delete_branch<R: Runtime>(
+pub async fn branch_hold(
     path: String,
     branch_name: String,
     state: State<'_, RepoState>,
+) -> Result<BranchHold, String> {
+    let state_map = state.snapshot();
+    tauri::async_runtime::spawn_blocking(move || branch_hold_inner(&path, &branch_name, &state_map))
+        .await
+        .map_err(|e| TrunkError::new("spawn_error", e.to_string()).to_json())?
+        .map_err(|e| e.to_json())
+}
+
+/// # Errors
+///
+/// Returns the inner error as JSON, which is what the frontend parses, or
+/// `spawn_error` when the blocking task cannot be joined.
+///
+/// # Panics
+///
+/// Panics when one of the shared state locks it takes is poisoned.
+#[tauri::command]
+pub async fn delete_branch<R: Runtime>(
+    path: String,
+    branch_name: String,
+    worktree: Option<WorktreeRemoval>,
     cache: State<'_, CommitCache>,
     ref_visibility: State<'_, crate::state::RefVisibilityState>,
     app: AppHandle<R>,
 ) -> Result<(), String> {
-    let state_map = state.snapshot();
     let path_clone = path.clone();
     let rebuild = crate::state::GraphRebuild::new(&cache, &ref_visibility);
+    let tabs = app.clone();
 
     rebuild
         .rebuild_merging(path.clone(), move |visibility, rebuilt| {
-            delete_branch_inner(&path_clone, &branch_name, &state_map, rebuilt, visibility)
+            // Read the open tabs after the gate, not before it, so a tab opened on the
+            // worktree while this delete waited still refuses its removal.
+            let state_map = tabs.state::<RepoState>().snapshot();
+            delete_branch_inner(
+                &path_clone,
+                &branch_name,
+                worktree.as_ref(),
+                &state_map,
+                rebuilt,
+                visibility,
+            )
         })
         .await
         .map_err(|e| e.to_json())?;

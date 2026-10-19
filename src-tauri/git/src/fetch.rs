@@ -1228,16 +1228,16 @@ fn reject_checked_out_destinations(
         ));
     }
     let mut branches = BTreeSet::new();
-    collect_checked_out_branch(repo, &mut branches)?;
     let common = Repository::open(repo.commondir()).map_err(fetch_error)?;
-    collect_checked_out_branch(&common, &mut branches)?;
+    if !common.is_bare() {
+        collect_held_branches(repo.commondir(), &mut branches);
+    }
     for name in &repo.worktrees().map_err(fetch_error)? {
         let name = name
             .map_err(fetch_error)?
             .ok_or_else(|| unsupported("worktree name is not UTF-8"))?;
-        let worktree = repo.find_worktree(name).map_err(fetch_error)?;
-        let worktree_repo = Repository::open_from_worktree(&worktree).map_err(fetch_error)?;
-        collect_checked_out_branch(&worktree_repo, &mut branches)?;
+        let admin = repo.commondir().join("worktrees").join(name);
+        collect_held_branches(&admin, &mut branches);
     }
     if remote
         .refspecs()
@@ -1252,18 +1252,27 @@ fn reject_checked_out_destinations(
     Ok(())
 }
 
-fn collect_checked_out_branch(
-    repo: &Repository,
-    branches: &mut BTreeSet<String>,
-) -> Result<(), TrunkError> {
-    if repo.is_bare() {
-        return Ok(());
+fn collect_held_branches(admin: &Path, branches: &mut BTreeSet<String>) {
+    if let Some(head) = read_admin_file(&admin.join("HEAD"))
+        && let Some(target) = head.strip_prefix("ref:")
+    {
+        branches.insert(target.trim().into());
     }
-    let head = repo.find_reference("HEAD").map_err(fetch_error)?;
-    if let Some(target) = head.symbolic_target().map_err(fetch_error)? {
-        branches.insert(target.into());
+
+    for rebase in ["rebase-merge", "rebase-apply"] {
+        if let Some(rebasing) = read_admin_file(&admin.join(rebase).join("head-name")) {
+            branches.insert(rebasing.trim().into());
+        }
     }
-    Ok(())
+
+    if let Some(bisecting) = read_admin_file(&admin.join("BISECT_START")) {
+        branches.insert(format!("refs/heads/{}", bisecting.trim()));
+    }
+}
+
+fn read_admin_file(path: &Path) -> Option<String> {
+    let bytes = std::fs::read(path).ok()?;
+    Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 fn record_remote_head(
@@ -1922,6 +1931,210 @@ mod tests {
 
         assert_eq!(error.code, "fetch_destination_checked_out");
         assert_eq!(linked.head().unwrap().target(), Some(fixture.first));
+    }
+
+    #[test]
+    fn fetches_while_a_linked_worktree_directory_is_missing() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        let gone = fixture.linked("gone");
+        std::fs::remove_dir_all(gone.workdir().unwrap()).unwrap();
+        let second = fixture.advance();
+
+        execute(&fixture.request()).unwrap();
+
+        assert_eq!(
+            fixture
+                .local
+                .refname_to_id("refs/remotes/origin/main")
+                .unwrap(),
+            second
+        );
+    }
+
+    #[test]
+    fn refuses_a_destination_checked_out_in_a_linked_worktree_whose_directory_is_missing() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        let gone = fixture.linked("gone");
+        std::fs::remove_dir_all(gone.workdir().unwrap()).unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/gone")
+            .unwrap();
+        fixture.advance();
+
+        let error = execute(&fixture.request()).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/gone").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn refuses_a_destination_whose_linked_worktree_head_omits_the_space_after_ref() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        fixture.linked("held");
+        let head = fixture.local.path().join("worktrees/held/HEAD");
+        std::fs::write(&head, "ref:refs/heads/held\n").unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/held")
+            .unwrap();
+        fixture.advance();
+
+        let error = execute(&fixture.request()).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/held").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn refuses_a_destination_a_linked_worktree_is_rebasing() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        fixture.linked("held");
+        let admin = fixture.local.path().join("worktrees/held");
+        std::fs::write(admin.join("HEAD"), format!("{}\n", fixture.first)).unwrap();
+        std::fs::create_dir(admin.join("rebase-merge")).unwrap();
+        std::fs::write(admin.join("rebase-merge/head-name"), "refs/heads/held\n").unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/held")
+            .unwrap();
+        fixture.advance();
+
+        let error = execute(&fixture.request()).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/held").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn refuses_a_destination_a_linked_worktree_is_rebasing_with_the_apply_backend() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        fixture.linked("held");
+        let admin = fixture.local.path().join("worktrees/held");
+        std::fs::write(admin.join("HEAD"), format!("{}\n", fixture.first)).unwrap();
+        std::fs::create_dir(admin.join("rebase-apply")).unwrap();
+        std::fs::write(admin.join("rebase-apply/head-name"), "refs/heads/held\n").unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/held")
+            .unwrap();
+        fixture.advance();
+
+        let error = execute(&fixture.request()).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/held").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn refuses_a_destination_a_linked_worktree_is_bisecting() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        fixture.linked("held");
+        let admin = fixture.local.path().join("worktrees/held");
+        std::fs::write(admin.join("HEAD"), format!("{}\n", fixture.first)).unwrap();
+        std::fs::write(admin.join("BISECT_START"), "held\n").unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/held")
+            .unwrap();
+        fixture.advance();
+
+        let error = execute(&fixture.request()).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/held").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn refuses_from_a_linked_worktree_a_destination_the_main_worktree_is_rebasing() {
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        let linked = fixture.linked("linked");
+        fixture
+            .local
+            .reference("refs/heads/rebased", fixture.first, false, "rebased")
+            .unwrap();
+        std::fs::write(
+            fixture.local.path().join("HEAD"),
+            format!("{}\n", fixture.first),
+        )
+        .unwrap();
+        std::fs::create_dir(fixture.local.path().join("rebase-merge")).unwrap();
+        std::fs::write(
+            fixture.local.path().join("rebase-merge/head-name"),
+            "refs/heads/rebased\n",
+        )
+        .unwrap();
+        fixture
+            .local
+            .config()
+            .unwrap()
+            .set_str("remote.origin.fetch", "+refs/heads/main:refs/heads/rebased")
+            .unwrap();
+        fixture.advance();
+        let mut request = fixture.request();
+        request.path = linked.workdir().unwrap().to_string_lossy().into_owned();
+
+        let error = execute(&request).unwrap_err();
+
+        assert_eq!(error.code, "fetch_destination_checked_out");
+        assert_eq!(
+            fixture.local.refname_to_id("refs/heads/rebased").unwrap(),
+            fixture.first
+        );
+    }
+
+    #[test]
+    fn fetches_while_a_linked_worktree_head_cannot_be_read() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = FetchFixture::new();
+        execute(&fixture.request()).unwrap();
+        fixture.linked("sealed");
+        let head = fixture.local.path().join("worktrees/sealed/HEAD");
+        std::fs::set_permissions(&head, std::fs::Permissions::from_mode(0o000)).unwrap();
+        let second = fixture.advance();
+
+        execute(&fixture.request()).unwrap();
+
+        assert_eq!(
+            fixture
+                .local
+                .refname_to_id("refs/remotes/origin/main")
+                .unwrap(),
+            second
+        );
     }
 
     #[test]

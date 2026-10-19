@@ -1,6 +1,5 @@
 import { type TauriFake, UnknownFakeCommand } from "./index.js";
 
-const YES_NO = "YesNo";
 const DEFAULT_OK = "Yes";
 const DISMISSED = "";
 
@@ -12,21 +11,37 @@ const DISMISSED = "";
 export class FakeDialog implements TauriFake {
 	readonly plugin = "dialog";
 	private readonly messages: string[] = [];
+	private readonly asked: string[] = [];
 	private confirming = false;
 	private chosen: string | null = null;
+	private whileOpen: ((question: string) => void) | null = null;
 
 	/** Every message the application has put in front of the user, oldest first. */
 	get shown(): readonly string[] {
 		return this.messages;
 	}
 
-	/** The next question is answered with its confirming button. */
+	/** The messages that offered a choice, oldest first. The rest could only be
+	 *  acknowledged. */
+	get questions(): readonly string[] {
+		return this.asked;
+	}
+
+	/** Every question from now on is answered with its confirming button, until
+	 *  `dismisses()`. */
 	confirms(): void {
 		this.confirming = true;
 	}
 
 	dismisses(): void {
 		this.confirming = false;
+	}
+
+	/** Runs `effect` while the next question is open, before it is answered, as a
+	 *  user who changes something in another window before clicking would. A message
+	 *  that offers no choice leaves it waiting. */
+	whileAsking(effect: (question: string) => void): void {
+		this.whileOpen = effect;
 	}
 
 	/** The next file dialog returns this path. */
@@ -36,15 +51,26 @@ export class FakeDialog implements TauriFake {
 
 	reset(): void {
 		this.messages.length = 0;
+		this.asked.length = 0;
 		this.confirming = false;
 		this.chosen = null;
+		this.whileOpen = null;
 	}
 
 	answer(command: string, args: Record<string, unknown>): unknown {
 		switch (command) {
-			case "message":
-				this.messages.push(String(args.message));
+			case "message": {
+				const text = String(args.message);
+				this.messages.push(text);
+				if (offersAChoice(args.buttons)) {
+					this.asked.push(text);
+					const effect = this.whileOpen;
+					this.whileOpen = null;
+					effect?.(text);
+				}
+
 				return this.confirming ? okLabelOf(args.buttons) : DISMISSED;
+			}
 			case "open":
 				return this.chosen;
 			default:
@@ -56,13 +82,24 @@ export class FakeDialog implements TauriFake {
 /**
  * `ask()` reports the button the user pressed by comparing the plugin's answer
  * against the label it asked for, so confirming means returning that exact
- * label rather than a boolean.
+ * label rather than a boolean. Custom labels reach the plugin as
+ * `{ OkCancelCustom: [ok, cancel] }` or `{ OkCustom: ok }`.
  */
 function okLabelOf(buttons: unknown): string {
-	if (buttons === YES_NO || buttons === undefined) return DEFAULT_OK;
-	if (typeof buttons === "object" && buttons !== null && "ok" in buttons) {
-		return String((buttons as { ok: unknown }).ok);
+	if (typeof buttons !== "object" || buttons === null) return DEFAULT_OK;
+	if ("OkCancelCustom" in buttons && Array.isArray(buttons.OkCancelCustom)) {
+		return String(buttons.OkCancelCustom[0]);
 	}
+	if ("OkCustom" in buttons) return String(buttons.OkCustom);
 
 	return DEFAULT_OK;
+}
+
+/** `message()` sends no buttons, or one OK button, and `ask()` and `confirm()` send
+ *  a pair. */
+function offersAChoice(buttons: unknown): boolean {
+	if (typeof buttons === "string") return buttons !== "Ok";
+	if (typeof buttons !== "object" || buttons === null) return false;
+
+	return "OkCancelCustom" in buttons || "YesNoCancelCustom" in buttons;
 }
