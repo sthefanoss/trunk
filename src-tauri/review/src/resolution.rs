@@ -607,6 +607,7 @@ mod current_file_tests {
         assert_eq!(resolved[0].reason, Some(OrphanReason::FileGone));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_pin_naming_a_worktree_symlink_reports_file_gone() {
         let (dir, repo) = a_repo_holding("target.txt", "PINNED_BLOCK\n");
@@ -617,6 +618,7 @@ mod current_file_tests {
         assert_eq!(resolved[0].reason, Some(OrphanReason::FileGone));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_pin_below_a_symlinked_parent_reports_file_gone() {
         let (dir, repo) = a_repo_holding("alias/private", "placeholder");

@@ -17,6 +17,32 @@ pub mod word_spans;
 
 use std::sync::Mutex;
 
+/// Blank libgit2's global, XDG, system and `ProgramData` config search paths for this
+/// test process, so the operator's git config cannot reach a test repository.
+///
+/// Git for Windows turns `core.autocrlf` on in its system config, which libgit2
+/// reads and `GIT_CONFIG_NOSYSTEM` does not stop. A repository libgit2 writes
+/// then holds CRLF files, and the `git` CLI the same test runs, which does honor the
+/// variable, reports them modified. Call it before a test opens its first
+/// repository; it applies once per process. Mirrors `trunk_fixtures::isolate`.
+#[cfg(test)]
+pub(crate) fn isolate_libgit2() {
+    static ISOLATED: std::sync::Once = std::sync::Once::new();
+    ISOLATED.call_once(|| {
+        for level in [
+            git2::ConfigLevel::Global,
+            git2::ConfigLevel::XDG,
+            git2::ConfigLevel::System,
+            git2::ConfigLevel::ProgramData,
+        ] {
+            // SAFETY: libgit2's options are process-global and unsynchronised; this runs
+            // once, ahead of any repository the test process opens.
+            unsafe { git2::opts::set_search_path(level, "") }
+                .expect("blank libgit2's config search path");
+        }
+    });
+}
+
 use state::{
     CommitCache, CommitStatsCache, GraphCache, RepoState, ReviewStoreState, RunningOp, StoreSlot,
     TrafficLights,

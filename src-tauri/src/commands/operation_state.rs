@@ -732,6 +732,7 @@ mod tests {
     // Signatures do not satisfy the subprocess `git commit`.
 
     fn make_repo() -> (TempDir, Repository) {
+        crate::isolate_libgit2();
         let dir = TempDir::new().unwrap();
         let repo = Repository::init(dir.path()).unwrap();
         {

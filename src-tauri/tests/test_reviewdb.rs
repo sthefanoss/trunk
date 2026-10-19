@@ -1208,6 +1208,7 @@ fn every_write_bumps_the_revision_except_the_draft_autosave() {
 /// these tests either: `sync` blocks until every ring delivered so far has
 /// been processed, so each assertion below is about what the subscriber did
 /// rather than about how long the test was willing to wait.
+#[cfg(unix)]
 #[test]
 fn store_events_fire_on_a_foreign_commit() {
     let ctx = TestContext::builder()
@@ -1242,6 +1243,7 @@ fn store_events_fire_on_a_foreign_commit() {
 /// runs. Here the doorbell is rung with no write behind it at all. The
 /// module's promise is that a coalesced or spurious ring is verified against
 /// `store_meta.revision` and discarded, so nothing is announced.
+#[cfg(unix)]
 #[test]
 fn store_events_ignore_a_ring_with_no_commit_behind_it() {
     let ctx = TestContext::builder()
@@ -1265,6 +1267,7 @@ fn store_events_ignore_a_ring_with_no_commit_behind_it() {
 /// through. The listener compares against `store_meta.revision` rather than
 /// counting doorbells, so however the two rings interleave with the two
 /// commits, what it reports is where the store actually is.
+#[cfg(unix)]
 #[test]
 fn store_events_announce_where_two_commits_left_the_store() {
     let ctx = TestContext::builder()
@@ -1319,6 +1322,7 @@ fn store_events_announce_where_two_commits_left_the_store() {
 /// separates them is the baseline itself: if nothing was announced, the
 /// commit must already be inside it. `baseline` exposes that, so the two
 /// cases are told apart rather than both waved through.
+#[cfg(unix)]
 #[test]
 fn store_events_survive_a_commit_racing_the_subscribe() {
     let ctx = TestContext::builder()
@@ -1377,6 +1381,7 @@ fn store_events_survive_a_commit_racing_the_subscribe() {
 /// running watch goes deaf without erroring. The read therefore gives up,
 /// and a peer that says nothing in time is treated as the doorbell it
 /// most likely is.
+#[cfg(unix)]
 #[test]
 fn store_events_survive_a_peer_that_connects_and_says_nothing() {
     let ctx = TestContext::builder()
@@ -1438,6 +1443,7 @@ fn store_events_survive_a_peer_that_connects_and_says_nothing() {
 /// than waited on. `UnixStream::connect` sleeps instead on Linux.
 ///
 /// The returned stream is held only to keep its slot in the queue occupied.
+#[cfg(unix)]
 fn nonblocking_connect(path: &std::path::Path) -> std::io::Result<std::os::unix::net::UnixStream> {
     use std::os::fd::FromRawFd;
 
@@ -1494,6 +1500,7 @@ fn nonblocking_connect(path: &std::path::Path) -> std::io::Result<std::os::unix:
 /// The backlog is filled deliberately rather than waited on: the pending
 /// connections are the observable state that makes the next connect fail, so
 /// the race is driven, not raced.
+#[cfg(unix)]
 #[test]
 fn store_events_survive_a_doorbell_that_cannot_connect() {
     let ctx = TestContext::builder()
@@ -1561,6 +1568,7 @@ fn store_events_survive_a_doorbell_that_cannot_connect() {
 ///
 /// The queue is left full when `sync` is called, so the race the doorbell test
 /// above only sometimes hits is this test's whole subject.
+#[cfg(unix)]
 #[test]
 fn sync_waits_out_a_full_accept_queue_instead_of_reporting_a_dead_feed() {
     let ctx = TestContext::builder()
@@ -1611,6 +1619,7 @@ fn sync_waits_out_a_full_accept_queue_instead_of_reporting_a_dead_feed() {
 /// orderly exit, so only a crash leaves one — and a crashed owner's path
 /// refuses connections exactly as a busy live one does. The pid in the name
 /// is what tells them apart, so this test names a pid that cannot be running.
+#[cfg(unix)]
 #[test]
 fn store_events_reclaim_a_socket_whose_owner_is_gone() {
     let ctx = TestContext::builder()
@@ -1659,6 +1668,7 @@ fn store_events_reclaim_a_socket_whose_owner_is_gone() {
 /// what saves the socket. Here nothing has ever accepted and the connect
 /// succeeds outright, which is the stronger guarantee and the one the doc
 /// comment claims.
+#[cfg(unix)]
 #[test]
 fn a_doorbell_is_queued_by_a_socket_that_is_bound_but_not_yet_accepting() {
     let ctx = TestContext::builder()
@@ -1700,6 +1710,7 @@ fn a_doorbell_is_queued_by_a_socket_that_is_bound_but_not_yet_accepting() {
         .expect("the doorbell queued during the window must still be waiting");
 }
 
+#[cfg(unix)]
 #[test]
 fn store_events_stay_silent_for_a_draft_autosave() {
     let ctx = TestContext::builder()
@@ -4933,6 +4944,7 @@ fn reconciliation_never_reclaims_a_current_pin() {
 /// A ref that will not delete — locked by a concurrent gc, or a permission
 /// problem — must not strand the rest of the batch. Those would keep their refs
 /// with no record, needing another reconciliation pass to be seen again.
+#[cfg(unix)]
 #[test]
 fn one_undeletable_ref_does_not_strand_the_rest_of_the_batch() {
     let ctx = TestContext::builder()
@@ -6773,6 +6785,7 @@ fn a_current_file_thread_whose_block_is_still_there_is_not_stale() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn a_current_file_thread_on_a_worktree_symlink_is_stale() {
     let (ctx, store) = a_repo_with_a_pinned_block("a.txt", "PINNED_BLOCK\n", "PINNED_BLOCK", 0);
@@ -6787,6 +6800,7 @@ fn a_current_file_thread_on_a_worktree_symlink_is_stale() {
     assert!(only_thread(&store, &canonical).stale);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_current_file_thread_below_a_symlinked_parent_is_stale() {
     let (ctx, store) =
@@ -6906,6 +6920,7 @@ fn pinning_refuses_a_path_the_index_does_not_hold() {
 
 /// A symlink the index tracks points wherever it likes, and the read follows it.
 /// The index mode is what tells a regular file from one.
+#[cfg(unix)]
 #[test]
 fn pinning_refuses_a_tracked_symlink() {
     let ctx = TestContext::builder()
@@ -6942,6 +6957,7 @@ fn pinning_refuses_a_tracked_symlink() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn pinning_refuses_a_regular_index_entry_replaced_by_a_symlink_before_writing() {
     let ctx = TestContext::builder()
@@ -6973,6 +6989,7 @@ fn pinning_refuses_a_regular_index_entry_replaced_by_a_symlink_before_writing() 
     assert_eq!(thread_count(&store, &canonical), 0);
 }
 
+#[cfg(unix)]
 #[test]
 fn pinning_refuses_a_regular_index_entry_below_a_symlinked_parent_before_writing() {
     let ctx = TestContext::builder()

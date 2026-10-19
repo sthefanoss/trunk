@@ -2128,6 +2128,7 @@ mod tests {
     /// Canonicalizing here is what makes a repo opened through a symlink reach
     /// the same reviews — every `_inner` test canonicalizes in its own body, so
     /// this seam is the one place the behavior is observable.
+    #[cfg(unix)]
     #[test]
     fn a_symlinked_repo_resolves_to_the_same_key() {
         let dir = tempfile::tempdir().unwrap();

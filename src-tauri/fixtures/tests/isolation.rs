@@ -10,7 +10,6 @@
 //! opened a repository would prove nothing (doc-45 §7).
 
 use std::ffi::OsStr;
-use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 
 use trunk_fixtures::fingerprint;
@@ -20,6 +19,17 @@ mod common;
 use common::{case, fixtures_command, oracle, report};
 
 const CASES_UNDER_TEST: [&str; 3] = ["09-kitchen-sink", "06-stash-lanes", "04-graph-lanes"];
+
+#[cfg(unix)]
+fn make_executable(path: &Path) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+/// Windows has no executable bit; the hook is a shell script there either way.
+#[cfg(not(unix))]
+fn make_executable(_: &Path) {}
 
 /// A HOME carrying the settings the shell corpus's isolation suite guarded against. Two of
 /// them reach libgit2 and would move the corpus: `core.excludesFile` in `.gitconfig`,
@@ -37,7 +47,7 @@ fn hostile_home(home: &Path) {
         "#!/bin/sh\necho hooked > hooked.txt\ngit add hooked.txt\n",
     )
     .unwrap();
-    std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+    make_executable(&hook);
     std::fs::write(
         home.join(".gitconfig"),
         format!(

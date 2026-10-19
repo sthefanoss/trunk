@@ -2,6 +2,7 @@ mod common;
 
 use common::context::TestContext;
 use common::repository_manifest::repository_manifest;
+#[cfg(unix)]
 use std::path::Path;
 use trunk_review::snapshot::{in_memory_workdir_tree_oid, tree_matches_index, workdir_tree_oid};
 

@@ -814,21 +814,32 @@ impl Repo {
 /// The index mode and blob bytes git stores for an untracked path: a symlink as its
 /// target text, an executable as 100755, anything else as 100644.
 fn untracked_blob(path: &Path) -> (u32, Vec<u8>) {
-    use std::os::unix::fs::PermissionsExt as _;
-
     let metadata = std::fs::symlink_metadata(path).expect("stat the untracked path");
     if metadata.file_type().is_symlink() {
         let target = std::fs::read_link(path).expect("read the symlink target");
         return (0o120000, target.as_os_str().as_encoded_bytes().to_vec());
     }
     let bytes = std::fs::read(path).expect("read the untracked file");
-    let mode = if metadata.permissions().mode() & 0o111 != 0 {
+    let mode = if is_executable(&metadata) {
         0o100755
     } else {
         0o100644
     };
 
     (mode, bytes)
+}
+
+#[cfg(unix)]
+fn is_executable(metadata: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    metadata.permissions().mode() & 0o111 != 0
+}
+
+/// Windows has no executable bit; git records every file as 100644 there.
+#[cfg(not(unix))]
+const fn is_executable(_: &std::fs::Metadata) -> bool {
+    false
 }
 
 /// An index entry with no stat data, as `git update-index --cacheinfo` writes one.

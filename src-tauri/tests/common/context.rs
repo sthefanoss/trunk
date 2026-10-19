@@ -18,6 +18,7 @@ impl TestContext {
 
     /// Create a minimal context with an empty git repo (no commits)
     pub fn new_empty() -> Self {
+        crate::common::isolate();
         let dir = tempfile::tempdir().expect("failed to create tempdir");
         let data_dir = tempfile::tempdir().expect("failed to create data_dir tempdir");
         let repo = git2::Repository::init(dir.path()).expect("failed to init repo");

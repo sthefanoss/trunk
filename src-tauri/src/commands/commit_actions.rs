@@ -904,6 +904,7 @@ mod tests {
     // out to `git`, so the repo config must carry a committer identity.
 
     fn make_repo() -> (TempDir, Repository) {
+        crate::isolate_libgit2();
         let dir = TempDir::new().unwrap();
         let repo = Repository::init(dir.path()).unwrap();
         {

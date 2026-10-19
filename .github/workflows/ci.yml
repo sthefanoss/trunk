@@ -236,6 +236,33 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: mise exec -- cargo test --manifest-path src-tauri/Cargo.toml --test test_current_file_links_windows
 
+  # The whole Rust workspace on Windows, through nextest like `just cargo-test`: several
+  # tests set process-wide state (TRUNK_DATA_DIR) and rely on one process per test.
+  # Git for Windows turns core.autocrlf on in its system config; the tests compare
+  # against LF, so the job reads no git config (what `just rust` does with
+  # GIT_CONFIG_GLOBAL=/dev/null; libgit2 is isolated in the test setup itself).
+  windows-rust:
+    name: Windows Rust Tests
+    needs: [biome, cargo-fmt, graph-sweep-check, svelte-check]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      GIT_CONFIG_NOSYSTEM: "1"
+      GIT_CONFIG_GLOBAL: NUL
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.11
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "src-tauri -> target"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-nextest
+      - run: mise exec -- cargo nextest run --workspace --manifest-path src-tauri/Cargo.toml --no-fail-fast
+
   app-test:
     name: Application Harness
     needs: [biome, cargo-fmt, graph-sweep-check, svelte-check]

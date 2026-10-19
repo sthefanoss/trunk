@@ -128,7 +128,7 @@ fn invoke(
             cmd: command.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "tauri://localhost".parse().unwrap(),
+            url: common::WEBVIEW_URL.parse().unwrap(),
             body: InvokeBody::Json(args),
             headers: tauri::http::HeaderMap::default(),
             invoke_key: INVOKE_KEY.to_string(),

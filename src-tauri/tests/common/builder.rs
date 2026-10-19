@@ -217,6 +217,7 @@ impl TestContextBuilder {
     }
 
     pub fn build(&self) -> TestContext {
+        crate::common::isolate();
         let dir = tempfile::tempdir().expect("failed to create tempdir");
         let mut repo = git2::Repository::init(dir.path()).expect("failed to init repo");
         // Every commit-producing step takes the next day off this clock. `repo.signature()`

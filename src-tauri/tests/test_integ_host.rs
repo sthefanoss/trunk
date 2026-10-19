@@ -12,9 +12,7 @@ use tauri::{App, Listener, Manager, WebviewWindow};
 use trunk_lib::state::{CommitCache, RepoState, TrafficLights};
 use trunk_lib::watcher::WatcherState;
 
-/// Invariant 2: `http://tauri.localhost` is refused by the real capability set, and
-/// the refusal reads like a missing plugin.
-const WEBVIEW_URL: &str = "tauri://localhost";
+use common::WEBVIEW_URL;
 
 fn request(cmd: &str, args: Value) -> InvokeRequest {
     InvokeRequest {

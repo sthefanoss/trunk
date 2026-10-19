@@ -2211,9 +2211,11 @@ mod tests {
 
         let md = render_minimal(&repo);
 
-        let root = dir.path().display().to_string();
+        // libgit2 names a working directory with forward slashes on every platform
+        // (`C:/Users/.../repo/` on Windows), and the doc prints it that way.
+        let root = dir.path().display().to_string().replace('\\', "/");
         assert!(
-            md.contains(&root),
+            md.replace('\\', "/").contains(&root),
             "paths must resolve against the repo root, not the agent's cwd; \
              expected `{root}` in: {md}"
         );

@@ -284,6 +284,7 @@ fn cli_answers_an_archived_reviews_thread_exactly_as_missing() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn discovery_from_a_subdirectory_and_a_symlink_matches_the_app() {
     let ctx = TestContext::builder()
@@ -1017,6 +1018,7 @@ fn cli_show_leaves_out_a_held_reply() {
     assert!(!String::from_utf8_lossy(&out.stdout).contains("HELD_REPLY_BODY"));
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_review_added_when_its_first_thread_is_sent() {
     let ctx = TestContext::new_empty();
@@ -1060,6 +1062,7 @@ fn watch_json_reports_a_review_added_when_its_first_thread_is_sent() {
     assert_eq!(content["thread"], thread.as_str());
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_held_comment_only_once_its_batch_is_sent() {
     let ctx = TestContext::new_empty();
@@ -2041,6 +2044,7 @@ fn mutating_one_review_leaves_anothers_cli_output_byte_identical() {
     );
 }
 
+#[cfg(unix)]
 /// A running `trunk review watch` child whose stdout arrives line by line
 /// over a channel, so a test can wait on output with a deadline while the
 /// process itself blocks on the store's doorbell.
@@ -2049,6 +2053,7 @@ struct WatchChild {
     lines: std::sync::mpsc::Receiver<String>,
 }
 
+#[cfg(unix)]
 impl WatchChild {
     fn spawn(ctx: &TestContext) -> Self {
         Self::spawn_with(ctx, &["review", "watch"])
@@ -2096,6 +2101,7 @@ impl WatchChild {
     }
 }
 
+#[cfg(unix)]
 impl Drop for WatchChild {
     fn drop(&mut self) {
         let _ = self.child.kill();
@@ -2103,6 +2109,7 @@ impl Drop for WatchChild {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_emits_the_review_id_when_a_published_review_changes() {
     let ctx = TestContext::builder()
@@ -2127,6 +2134,7 @@ fn watch_emits_the_review_id_when_a_published_review_changes() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_stays_silent_for_unsent_changes_and_drafts() {
     let ctx = TestContext::builder()
@@ -2189,6 +2197,7 @@ fn watch_stays_silent_for_unsent_changes_and_drafts() {
 
 /// Unread is the app's own bookkeeping, so marking a reply seen rings the
 /// store but tells the agent nothing.
+#[cfg(unix)]
 #[test]
 fn watch_stays_silent_when_the_app_marks_a_reply_seen() {
     let ctx = TestContext::new_empty();
@@ -2280,6 +2289,7 @@ fn thread_json_reads_the_same_once_the_app_has_shown_its_reply() {
     );
 }
 
+#[cfg(unix)]
 /// A published review holding one thread anchored to a fresh workdir snapshot
 /// of an edited `a.txt`. Returns the review id and the snapshot oid.
 fn a_published_thread_on_uncommitted_work(ctx: &TestContext) -> (String, String) {
@@ -2324,6 +2334,7 @@ fn a_published_thread_on_uncommitted_work(ctx: &TestContext) -> (String, String)
 
 /// The `thread_stale_changed` event was unreachable until something computed
 /// the flag: nothing wrote `stale`, so no poll could ever see it differ.
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_thread_going_stale() {
     use trunk_lib::commands::review::{ensure_review_snapshot_inner, recompute_staleness};
@@ -2354,6 +2365,7 @@ fn watch_json_reports_a_thread_going_stale() {
     assert_eq!(event["stale"], true);
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_review_going_stale_with_its_last_open_thread() {
     use trunk_lib::commands::review::{ensure_review_snapshot_inner, recompute_staleness};
@@ -2404,6 +2416,7 @@ fn watch_json_reports_a_review_going_stale_with_its_last_open_thread() {
 /// is unrecoverable, so the marker must not flicker back off. Non-reversal is
 /// asserted as the recompute's own count rather than as a silence over some
 /// duration, which would decide pass or fail on a wait.
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_collected_anchor_stale_and_keeps_it_stale() {
     use trunk_lib::commands::review::recompute_staleness;
@@ -2437,6 +2450,7 @@ fn watch_json_reports_a_collected_anchor_stale_and_keeps_it_stale() {
 
 /// `--json` exists so a harness never refetches and rediffs: each line is one
 /// self-contained event carrying the change's full data.
+#[cfg(unix)]
 #[test]
 fn watch_json_streams_the_events_full_data() {
     let ctx = TestContext::builder()
@@ -2508,6 +2522,7 @@ fn watch_json_streams_the_events_full_data() {
     assert!(event.get("content_pin").is_none(), "{event:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_deleted_reply_and_thread() {
     let ctx = TestContext::builder()
@@ -2564,6 +2579,7 @@ fn watch_json_reports_a_deleted_reply_and_thread() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_a_review_gone_once_its_last_sent_thread_is_deleted() {
     let ctx = TestContext::builder()
@@ -2588,6 +2604,7 @@ fn watch_json_reports_a_review_gone_once_its_last_sent_thread_is_deleted() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_reports_an_archived_review_and_unrolls_it_once_unarchived() {
     let ctx = TestContext::builder()
@@ -2623,6 +2640,7 @@ fn watch_json_reports_an_archived_review_and_unrolls_it_once_unarchived() {
     assert_eq!(thread["thread"], thread_id.as_str());
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_locates_a_current_file_thread_by_its_content_pin() {
     let ctx = TestContext::builder()
@@ -2655,6 +2673,7 @@ fn watch_json_locates_a_current_file_thread_by_its_content_pin() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_marks_a_whole_file_thread_and_leaves_out_the_file() {
     let ctx = TestContext::builder()
@@ -2682,6 +2701,7 @@ fn watch_json_marks_a_whole_file_thread_and_leaves_out_the_file() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_json_omits_the_content_pin_on_commit_level_and_target_less_threads() {
     let ctx = TestContext::builder()
@@ -2762,6 +2782,7 @@ fn watch_json_omits_the_content_pin_on_commit_level_and_target_less_threads() {
     );
 }
 
+#[cfg(unix)]
 /// `watch` driven straight through `run`'s sink on a background thread, with
 /// no child process: the split that gave every verb a sink (TRUNK-182.2) is
 /// what makes this possible, where before `watch` only ever wrote to the
@@ -2771,6 +2792,7 @@ struct WatchThread {
     handle: Option<std::thread::JoinHandle<()>>,
 }
 
+#[cfg(unix)]
 impl WatchThread {
     fn spawn(ctx: &TestContext, canonical: &Path, json: bool) -> Self {
         let (reader, mut writer) = std::io::pipe().unwrap();
@@ -2810,6 +2832,7 @@ impl WatchThread {
     }
 }
 
+#[cfg(unix)]
 impl Drop for WatchThread {
     fn drop(&mut self) {
         // `watch` blocks on `recv()` forever absent a `Refused` event, so the
@@ -2820,6 +2843,7 @@ impl Drop for WatchThread {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn watch_can_be_driven_to_completion_through_its_sink_with_no_process() {
     let ctx = TestContext::builder()

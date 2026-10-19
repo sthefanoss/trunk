@@ -3,3 +3,13 @@
 # watcher tests stay below one 30s slow period.
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 4 }
+
+# Building the fixture corpus writes thousands of small files, which Windows does far
+# slower than macOS or Linux: `every_built_repository_carries_its_document` builds all of
+# it in one test and did not finish in 120s, and `deep_history_matches_its_oracle` takes
+# about 73s alone. Those are slow disks, not hangs, so the ceiling for this crate is
+# higher there. Every other platform and crate keeps the strict one above.
+[[profile.default.overrides]]
+filter = "package(trunk-fixtures)"
+platform = "cfg(windows)"
+slow-timeout = { period = "60s", terminate-after = 10 }

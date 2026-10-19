@@ -1787,6 +1787,7 @@ mod current_file_tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_tracked_symlink_into_the_repository_cannot_read_an_ignored_file() {
         let dir = TempDir::new().unwrap();
@@ -1807,6 +1808,7 @@ mod current_file_tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_regular_index_entry_replaced_by_a_worktree_symlink_is_refused() {
         let (dir, repo) = repo_with_file("leak.txt", "tracked\n");
@@ -1820,6 +1822,7 @@ mod current_file_tests {
         assert!(!err.message.contains("DUMMY_SECRET"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_regular_index_entry_below_a_symlinked_parent_is_refused() {
         let (dir, repo) = repo_with_file("alias/private", "tracked\n");

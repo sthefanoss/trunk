@@ -319,7 +319,7 @@ fn rebase_skip_with_a_later_reword_completes() {
         .current_dir(ctx.repo_path())
         .env(
             "GIT_SEQUENCE_EDITOR",
-            format!("sh {}", seq_editor.display()),
+            format!("sh {}", trunk_git::editor::shell_path(&seq_editor)),
         )
         .env("GIT_EDITOR", "true")
         .output()
