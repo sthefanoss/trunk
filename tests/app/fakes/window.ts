@@ -5,6 +5,7 @@ export class FakeWindow implements TauriFake {
 	readonly plugin = "window";
 	private fullscreen = false;
 	private focused = true;
+	private windowTitle = "";
 
 	enterFullscreen(): void {
 		this.fullscreen = true;
@@ -12,6 +13,11 @@ export class FakeWindow implements TauriFake {
 
 	leaveFullscreen(): void {
 		this.fullscreen = false;
+	}
+
+	/** The title the app last set, which the real window would show. */
+	get title(): string {
+		return this.windowTitle;
 	}
 
 	focus(): void {
@@ -25,14 +31,18 @@ export class FakeWindow implements TauriFake {
 	reset(): void {
 		this.fullscreen = false;
 		this.focused = true;
+		this.windowTitle = "";
 	}
 
-	answer(command: string): unknown {
+	answer(command: string, args: Record<string, unknown> = {}): unknown {
 		switch (command) {
 			case "is_fullscreen":
 				return this.fullscreen;
 			case "is_focused":
 				return this.focused;
+			case "set_title":
+				this.windowTitle = String(args.value);
+				return null;
 			default:
 				throw new UnknownFakeCommand(this.plugin, command);
 		}
