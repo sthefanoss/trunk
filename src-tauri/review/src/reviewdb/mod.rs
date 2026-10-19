@@ -53,6 +53,11 @@ pub struct Store {
 /// (§5.2). It is the one sanctioned escape from the identifier: a test-built
 /// binary carries the prod identifier and would otherwise read the
 /// developer's real store.
+///
+/// # Panics
+///
+/// Panics when the variable the platform derives the directory from is unset
+/// (`APPDATA` on Windows, `HOME` elsewhere) and `TRUNK_DATA_DIR` does not name it.
 #[must_use]
 pub fn data_dir_for(identifier: &str) -> PathBuf {
     if let Some(dir) = std::env::var_os("TRUNK_DATA_DIR") {

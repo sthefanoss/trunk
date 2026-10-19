@@ -351,6 +351,8 @@ pub fn stash_save_inner(
                 }
                 #[cfg(not(unix))]
                 {
+                    // No mode bits to restore, and no symlink to recreate from them.
+                    let _ = mode;
                     std::fs::write(&target, &content)
                         .map_err(|e| TrunkError::new("stash_incomplete", incomplete_message(&e)))?;
                 }

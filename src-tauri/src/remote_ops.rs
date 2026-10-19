@@ -6,6 +6,13 @@ use trunk_git::error::TrunkError;
 #[derive(Clone, Copy, Debug)]
 pub struct RemoteProcess {
     pub pid: u32,
+    #[cfg_attr(
+        windows,
+        expect(
+            dead_code,
+            reason = "Windows has one way to stop a process tree, `taskkill /F`, so it never reads which kind of stop was asked for"
+        )
+    )]
     termination: Termination,
 }
 

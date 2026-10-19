@@ -329,7 +329,8 @@ fn is_refused_link(error: &io::Error) -> bool {
 
 #[cfg(windows)]
 fn is_refused_link(error: &io::Error) -> bool {
-    error.raw_os_error() == Some(windows_sys::Win32::Foundation::ERROR_STOPPED_ON_SYMLINK as i32)
+    error.raw_os_error()
+        == Some(windows_sys::Win32::Foundation::ERROR_STOPPED_ON_SYMLINK.cast_signed())
 }
 
 fn not_found(file_path: &str) -> TrunkError {
