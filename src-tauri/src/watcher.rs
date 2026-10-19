@@ -255,9 +255,9 @@ fn route_changes<R: Runtime>(
     let mut worktree = changed.is_empty();
     let ignore_context = OnceCell::new();
 
-    // A path reported under a canonicalized root is verbatim on Windows, and the
-    // directories and roots it is matched against are plain (see `canonical`).
-    for path in changed.into_iter().map(strip_verbatim) {
+    // The git directories and roots a path is matched against are canonical (see
+    // `canonical`), so a reported path is brought to that form first.
+    for path in changed.into_iter().map(normalize_event_path) {
         match git.map_or(GitChange::Worktree, |git| git.classify(&path)) {
             GitChange::Bookkeeping => {}
             GitChange::Refs => relevant.push(path),
@@ -564,6 +564,44 @@ fn root_forms(path: &Path) -> Vec<PathBuf> {
 /// fetch bookkeeping in `.git` included.
 fn canonical(path: &Path) -> std::io::Result<PathBuf> {
     path.canonicalize().map(strip_verbatim)
+}
+
+/// A reported path in the form `canonical` gives the directories it is matched against.
+///
+/// `notify` reports an event under the path it was asked to watch, spelled however that
+/// path was spelled, and Windows spells one directory several ways: `\\?\C:\...`, and an
+/// 8.3 short name such as `C:\Users\RUNNER~1\...` where the canonical form says
+/// `runneradmin`. A short-named ancestor never `strip_prefix`es against the long one, which
+/// filed a fetch's `FETCH_HEAD` as a worktree change. The path itself may be gone by the
+/// time it is read (a lock file), so its nearest existing ancestor is resolved and the
+/// rest put back.
+#[cfg(windows)]
+fn normalize_event_path(path: PathBuf) -> PathBuf {
+    let mut missing = Vec::new();
+    let mut existing = path.as_path();
+    loop {
+        if let Ok(resolved) = canonical(existing) {
+            return missing
+                .iter()
+                .rev()
+                .fold(resolved, |resolved, part: &std::ffi::OsString| {
+                    resolved.join(part)
+                });
+        }
+        match (existing.parent(), existing.file_name()) {
+            (Some(parent), Some(name)) => {
+                missing.push(name.to_owned());
+                existing = parent;
+            }
+            _ => return strip_verbatim(path),
+        }
+    }
+}
+
+/// Only Windows spells one directory several ways.
+#[cfg(not(windows))]
+const fn normalize_event_path(path: PathBuf) -> PathBuf {
+    path
 }
 
 #[cfg(windows)]
