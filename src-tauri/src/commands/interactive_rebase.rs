@@ -170,7 +170,7 @@ pub fn start_interactive_rebase_blocking(
     // terminate the quoted segment. Shared helper lives in `trunk_git::editor`.
     let seq_editor_script = format!(
         "#!/bin/sh\ncp {} \"$1\"\n",
-        trunk_git::editor::shell_single_quote(&todo_path.display().to_string()),
+        trunk_git::editor::shell_single_quote(&trunk_git::editor::shell_path(&todo_path)),
     );
     std::fs::write(&seq_editor_path, &seq_editor_script)
         .map_err(|e| TrunkError::new("io_error", e.to_string()))?;
@@ -216,8 +216,14 @@ pub fn start_interactive_rebase_blocking(
         .args(&args)
         .current_dir(path_buf)
         .env("PATH", shell_env::system_path())
-        .env("GIT_SEQUENCE_EDITOR", seq_editor_path.to_str().unwrap())
-        .env("GIT_EDITOR", editor.script_path())
+        .env(
+            "GIT_SEQUENCE_EDITOR",
+            trunk_git::editor::shell_path(&seq_editor_path),
+        )
+        .env(
+            "GIT_EDITOR",
+            trunk_git::editor::shell_path(editor.script_path()),
+        )
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
 

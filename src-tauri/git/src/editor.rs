@@ -88,7 +88,7 @@ pub fn prepare(message: &str) -> Result<EditorHandle, TrunkError> {
     // shared with interactive_rebase.rs.
     let script_body = format!(
         "#!/bin/sh\ncp {} \"$1\"\n",
-        shell_single_quote(&msg_path.display().to_string()),
+        shell_single_quote(&shell_path(&msg_path)),
     );
 
     let script_path =
@@ -168,6 +168,22 @@ pub fn keyed_rebase_editor() -> Result<KeyedEditor, TrunkError> {
     let script = KEYED_REBASE_EDITOR.replace("@MESSAGE_DIR@", MESSAGE_DIR);
     let script_path = write_executable_temp_file("trunk-rebase-editor-", ".sh", script.as_bytes())?;
     Ok(KeyedEditor { script_path })
+}
+
+/// `path` as git's shell reads it.
+///
+/// Git runs an editor through `sh -c`, which treats the backslashes of a Windows
+/// path as escapes and runs `C:UserssthefAppData…`. Git for Windows accepts forward
+/// slashes everywhere, so Windows paths are handed over that way; elsewhere the
+/// path is unchanged.
+#[must_use]
+pub fn shell_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    if cfg!(windows) {
+        text.replace('\\', "/")
+    } else {
+        text.into_owned()
+    }
 }
 
 /// POSIX-safe single-quoting: wrap in `'…'` and replace embedded `'` with `'\''`.
@@ -264,7 +280,7 @@ mod tests {
             "script must start with shebang, got: {script:?}",
         );
 
-        let msg_path_str = handle.msg_path().display().to_string();
+        let msg_path_str = shell_path(handle.msg_path());
         let expected_cp = format!("cp {} \"$1\"", shell_single_quote(&msg_path_str));
         assert!(
             script.contains(&expected_cp),
@@ -296,6 +312,27 @@ mod tests {
                 & 0o777;
             assert_eq!(mode, 0o755, "git has to be able to execute it");
         }
+    }
+
+    // git hands the editor to `sh -c`, which reads a backslash as an escape and ran
+    // `C:UserssthefAppData…` for every rebase on Windows.
+    #[test]
+    #[cfg(windows)]
+    fn shell_path_gives_git_forward_slashes_on_windows() {
+        let path = Path::new(r"C:\Users\a\AppData\Local\Temp\trunk-seq-editor.sh");
+
+        assert_eq!(
+            shell_path(path),
+            "C:/Users/a/AppData/Local/Temp/trunk-seq-editor.sh"
+        );
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn shell_path_leaves_a_posix_path_alone() {
+        let path = Path::new("/tmp/a b/trunk-seq-editor.sh");
+
+        assert_eq!(shell_path(path), "/tmp/a b/trunk-seq-editor.sh");
     }
 
     #[test]

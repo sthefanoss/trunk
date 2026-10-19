@@ -101,8 +101,8 @@ impl GitDirectories {
     fn open(path: &Path) -> Option<Self> {
         let repo = git2::Repository::open(path).ok()?;
         Some(Self {
-            private: repo.path().canonicalize().ok()?,
-            common: repo.commondir().canonicalize().ok()?,
+            private: canonical(repo.path()).ok()?,
+            common: canonical(repo.commondir()).ok()?,
         })
     }
 
@@ -147,6 +147,12 @@ impl GitDirectories {
             return GitChange::Worktree;
         };
         let relative = relative.to_string_lossy().replace('\\', "/");
+        // Windows reports a directory as modified whenever an entry in it is created,
+        // renamed or removed, so a fetch's `FETCH_HEAD.lock` names the git directory
+        // itself. The entries carry the change; the directory says nothing more.
+        if cfg!(windows) && relative.is_empty() {
+            return GitChange::Bookkeeping;
+        }
         // Stashes change the worktree's graph placement and WIP context. They
         // must remain observable while remote authentication is still blocked.
         if relative == "refs/stash" || relative == "logs/refs/stash" {
@@ -249,7 +255,9 @@ fn route_changes<R: Runtime>(
     let mut worktree = changed.is_empty();
     let ignore_context = OnceCell::new();
 
-    for path in changed {
+    // A path reported under a canonicalized root is verbatim on Windows, and the
+    // directories and roots it is matched against are plain (see `canonical`).
+    for path in changed.into_iter().map(strip_verbatim) {
         match git.map_or(GitChange::Worktree, |git| git.classify(&path)) {
             GitChange::Bookkeeping => {}
             GitChange::Refs => relevant.push(path),
@@ -507,7 +515,7 @@ where
         )
     })?;
     if let Some(git) = git {
-        let canonical_root = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let canonical_root = canonical(path).unwrap_or_else(|_| path.to_path_buf());
         if !git.common.starts_with(&canonical_root) {
             register(&mut debouncer, &git.common).map_err(|_| {
                 TrunkError::new(
@@ -539,13 +547,39 @@ where
 fn root_forms(path: &Path) -> Vec<PathBuf> {
     let mut roots = vec![path.to_path_buf()];
 
-    if let Ok(canonical) = path.canonicalize()
+    if let Ok(canonical) = canonical(path)
         && canonical != path
     {
         roots.push(canonical);
     }
 
     roots
+}
+
+/// `Path::canonicalize` without the `\\?\` prefix Windows puts on its result.
+///
+/// `notify` reports an event under the path it was asked to watch, in plain
+/// `C:\...` form. A verbatim `\\?\C:\...` path never `strip_prefix`es against that,
+/// so every event under a canonicalized root was filed as a change to the worktree,
+/// fetch bookkeeping in `.git` included.
+fn canonical(path: &Path) -> std::io::Result<PathBuf> {
+    path.canonicalize().map(strip_verbatim)
+}
+
+#[cfg(windows)]
+fn strip_verbatim(path: PathBuf) -> PathBuf {
+    let plain = path
+        .to_str()
+        .and_then(|text| text.strip_prefix(r"\\?\"))
+        // `\\?\C:\...` names a drive; `\\?\UNC\...` names a share, which has no plain form.
+        .filter(|rest| rest.as_bytes().get(1) == Some(&b':'))
+        .map(PathBuf::from);
+    plain.unwrap_or(path)
+}
+
+#[cfg(not(windows))]
+const fn strip_verbatim(path: PathBuf) -> PathBuf {
+    path
 }
 
 /// Stop watching `path`. A path with no watcher is not an error.

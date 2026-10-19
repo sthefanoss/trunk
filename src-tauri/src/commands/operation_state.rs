@@ -286,7 +286,10 @@ pub fn rebase_continue_inner(
 
     let editor = trunk_git::editor::keyed_rebase_editor()?;
     let output = rebase_command(path_buf, "--continue")
-        .env("GIT_EDITOR", editor.script_path())
+        .env(
+            "GIT_EDITOR",
+            trunk_git::editor::shell_path(editor.script_path()),
+        )
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {
@@ -315,7 +318,10 @@ pub fn rebase_skip_inner(
     let path_buf = state_map.path_for(path)?;
     let editor = trunk_git::editor::keyed_rebase_editor()?;
     let output = rebase_command(path_buf, "--skip")
-        .env("GIT_EDITOR", editor.script_path())
+        .env(
+            "GIT_EDITOR",
+            trunk_git::editor::shell_path(editor.script_path()),
+        )
         .output()
         .map_err(|e| TrunkError::new("rebase_error", e.to_string()))?;
     if !output.status.success() {
