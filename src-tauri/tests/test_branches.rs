@@ -700,6 +700,7 @@ mod deleting_a_branch_a_linked_worktree_holds {
         vec![RemovalRisk::Locked { reason: None }]
     );
 
+    #[cfg(unix)]
     warns_then_removes_on_the_go_ahead!(
         when_the_lock_cannot_be_read,
         |ctx, _| {
@@ -776,6 +777,7 @@ mod deleting_a_branch_a_linked_worktree_holds {
         .unwrap();
     }
 
+    #[cfg(unix)]
     mod when_a_changed_tracked_file_cannot_be_read {
         use super::*;
         use std::os::unix::fs::PermissionsExt;
@@ -826,6 +828,7 @@ mod deleting_a_branch_a_linked_worktree_holds {
         }
     }
 
+    #[cfg(unix)]
     mod when_a_directory_cannot_be_read {
         use super::*;
         use std::os::unix::fs::PermissionsExt;
@@ -1010,6 +1013,7 @@ mod deleting_a_branch_a_linked_worktree_holds {
             );
         }
 
+        #[cfg(unix)]
         #[test]
         fn when_the_tab_opened_the_worktree_through_a_symlink() {
             let mut ctx = repo_with_branch("wt-branch");
@@ -1096,6 +1100,7 @@ mod deleting_a_branch_a_linked_worktree_holds {
         assert!(path.join("README.md").exists());
     }
 
+    #[cfg(unix)]
     #[test]
     fn leaves_nothing_at_the_path_when_the_recorded_path_is_a_symlink_to_it() {
         let mut ctx = repo_with_branch("wt-branch");
@@ -1196,12 +1201,12 @@ mod deleting_a_branch_a_linked_worktree_holds {
             let admin = admin_dir(&ctx, "wt").canonicalize().unwrap();
             std::fs::write(
                 admin.join("gitdir"),
-                format!("{}\n", relative(&admin, &path.join(".git")).display()),
+                format!("{}\n", gitfile_path(&relative(&admin, &path.join(".git")))),
             )
             .unwrap();
             std::fs::write(
                 path.join(".git"),
-                format!("gitdir: {}\n", relative(&path, &admin).display()),
+                format!("gitdir: {}\n", gitfile_path(&relative(&path, &admin))),
             )
             .unwrap();
 
@@ -1238,6 +1243,12 @@ mod deleting_a_branch_a_linked_worktree_holds {
     }
 
     /// `to` relative to directory `from`, both absolute and canonical.
+    /// A path as git writes it into a gitfile: forward slashes on every platform, which
+    /// libgit2 reads, where the backslashes of a Windows path leave the worktree unfound.
+    fn gitfile_path(path: &std::path::Path) -> String {
+        path.to_string_lossy().replace('\\', "/")
+    }
+
     fn relative(from: &std::path::Path, to: &std::path::Path) -> std::path::PathBuf {
         let from: Vec<_> = from.components().collect();
         let to: Vec<_> = to.components().collect();

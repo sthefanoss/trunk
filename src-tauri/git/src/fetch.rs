@@ -2115,6 +2115,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn fetches_while_a_linked_worktree_head_cannot_be_read() {
         use std::os::unix::fs::PermissionsExt;
