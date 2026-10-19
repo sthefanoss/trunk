@@ -395,6 +395,14 @@ fn setup_app<R: tauri::Runtime>(app: &mut tauri::App<R>) -> Result<(), Box<dyn s
 
     start_review_poll(app);
 
+    // Windows has no overlay title bar: drop the native frame and the menu bar
+    // under it, and the frontend's top bar draws the window controls instead.
+    #[cfg(windows)]
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_decorations(false)?;
+        window.hide_menu()?;
+    }
+
     // Re-inset on every live resize (flicker-free), and position once before
     // the first paint. The frontend reports the restored zoom on mount via
     // set_traffic_light_zoom; other relayouts go through on_window_event.

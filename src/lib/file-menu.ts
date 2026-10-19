@@ -1,3 +1,5 @@
+import { joinPath } from "./path.js";
+
 /** One "copy this path" entry in a file row's context menu. */
 export interface PathMenuEntry {
 	text: string;
@@ -19,7 +21,7 @@ export function pathMenuEntriesOf(
 ): PathMenuEntry[] {
 	const entries = [
 		{ text: "Copy Relative Path", value: path },
-		{ text: "Copy Absolute Path", value: `${repoPath}/${path}` },
+		{ text: "Copy Absolute Path", value: joinPath(repoPath, path) },
 	];
 
 	if (oldPath === null) return entries;
@@ -27,6 +29,6 @@ export function pathMenuEntriesOf(
 	return [
 		...entries,
 		{ text: "Copy Old Relative Path", value: oldPath },
-		{ text: "Copy Old Absolute Path", value: `${repoPath}/${oldPath}` },
+		{ text: "Copy Old Absolute Path", value: joinPath(repoPath, oldPath) },
 	];
 }

@@ -4,12 +4,14 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { tick, untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
+import AppMenu from "./components/AppMenu.svelte";
 import RecentReposPicker from "./components/RecentReposPicker.svelte";
 import RepoView from "./components/RepoView.svelte";
 import TabBar from "./components/TabBar.svelte";
 import Toast from "./components/Toast.svelte";
 import Toolbar from "./components/Toolbar.svelte";
 import WelcomeScreen from "./components/WelcomeScreen.svelte";
+import WindowControls from "./components/WindowControls.svelte";
 import { AutofetchScheduler } from "./lib/autofetch.js";
 import type { FetchReport } from "./lib/autofetch-status.js";
 import { copyText } from "./lib/clipboard.js";
@@ -19,7 +21,9 @@ import {
 } from "./lib/coalesced-task.js";
 import { safeInvoke } from "./lib/invoke.js";
 import { focusInEditable, keyChord } from "./lib/keyboard.js";
+import { pathBasename } from "./lib/path.js";
 import { perfEnabled, record } from "./lib/perf.js";
+import { isMac, isWindows, TRAFFIC_LIGHT_INSET } from "./lib/platform.js";
 import {
 	createRemoteState,
 	type RemoteState,
@@ -559,7 +563,7 @@ $effect(() => {
 			return {
 				id: pt.id,
 				repoPath: pt.repoPath,
-				repoName: pt.repoName,
+				repoName: pt.repoPath ? pathBasename(pt.repoPath) : pt.repoName,
 				dirty: false,
 			};
 		});
@@ -631,6 +635,9 @@ $effect(() => {
 // Track fullscreen state (hide traffic-light padding when fullscreen)
 $effect(() => {
 	const appWindow = getCurrentWindow();
+	// The config hides the title for macOS's overlay bar; elsewhere the native
+	// bar is drawn and would otherwise carry no name.
+	if (!isMac) void appWindow.setTitle("Trunk");
 	appWindow.isFullscreen().then((fs) => {
 		isFullscreen = fs;
 	});
@@ -906,8 +913,11 @@ $effect(() => {
 	<div
 		data-tauri-drag-region
 		class="flex items-center flex-shrink-0 h-topbar bg-surface shadow-hairline"
-		style:padding-left="{isFullscreen ? 0 : 78 / zoomLevel}px"
+		style:padding-left="{isFullscreen ? 0 : TRAFFIC_LIGHT_INSET / zoomLevel}px"
 	>
+		{#if isWindows}
+			<AppMenu />
+		{/if}
 		<TabBar
 			{tabs}
 			{activeTabId}
@@ -943,6 +953,9 @@ $effect(() => {
 				reviewCommentTone={activeReviewCommentTone}
 				onreviewthreadshiddenchange={handleReviewThreadsHiddenChange}
 			/>
+		{/if}
+		{#if isWindows}
+			<WindowControls />
 		{/if}
 	</div>
 

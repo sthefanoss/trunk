@@ -2,7 +2,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { tick } from "svelte";
 import { safeInvoke } from "../lib/invoke.js";
-import { displayPath } from "../lib/path.js";
+import { displayPath, pathBasename } from "../lib/path.js";
 import { filterRecents } from "../lib/recent-filter.js";
 import {
 	clampHighlightedIdx,
@@ -131,7 +131,7 @@ function handleKeydown(e: KeyboardEvent) {
 async function handleOpenDialog() {
 	const selected = await open({ directory: true, multiple: false });
 	if (typeof selected !== "string") return;
-	const name = selected.split("/").at(-1) || selected;
+	const name = pathBasename(selected);
 	onpick(selected, name);
 }
 

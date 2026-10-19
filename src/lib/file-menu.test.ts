@@ -11,6 +11,15 @@ describe("pathMenuEntriesOf", () => {
 		]);
 	});
 
+	it("joins a Windows repository with its own separator", () => {
+		expect(pathMenuEntriesOf("C:\\repo", "src/a.ts", "src/b.ts")).toEqual([
+			{ text: "Copy Relative Path", value: "src/a.ts" },
+			{ text: "Copy Absolute Path", value: "C:\\repo\\src\\a.ts" },
+			{ text: "Copy Old Relative Path", value: "src/b.ts" },
+			{ text: "Copy Old Absolute Path", value: "C:\\repo\\src\\b.ts" },
+		]);
+	});
+
 	// The row names two files, so a menu offering one silently picks for the
 	// user — and it picked the new path, which is the one they can already read
 	// off the row's right-hand side.

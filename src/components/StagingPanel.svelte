@@ -15,6 +15,7 @@ import { resolveViewOid } from "../lib/comment-matching.js";
 import { errorMessage, reportErrorToast } from "../lib/error-report.js";
 import { pathMenuEntriesOf } from "../lib/file-menu.js";
 import { safeInvoke } from "../lib/invoke.js";
+import { joinPath } from "../lib/path.js";
 import { subscribeToRepoChanges } from "../lib/repo-change-subscription.js";
 import type { ReviewCommentsManager } from "../lib/review-comments.svelte.js";
 import { getScheduler } from "../lib/scheduler.js";
@@ -355,7 +356,7 @@ async function showUnstagedContextMenu(
 		"@tauri-apps/api/menu"
 	);
 	const isUntracked = fileStatus === "New";
-	const absPath = `${repoPath}/${filePath}`;
+	const absPath = joinPath(repoPath, filePath);
 	const menu = await Menu.new({
 		items: [
 			await MenuItem.new({
@@ -392,7 +393,7 @@ async function showUnstagedDirContextMenu(_e: MouseEvent, dirPath: string) {
 	const { Menu, MenuItem, PredefinedMenuItem } = await import(
 		"@tauri-apps/api/menu"
 	);
-	const absPath = `${repoPath}/${dirPath}`;
+	const absPath = joinPath(repoPath, dirPath);
 	const files = (status?.unstaged ?? []).filter(
 		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
 	);
@@ -466,7 +467,7 @@ async function showStagedDirContextMenu(_e: MouseEvent, dirPath: string) {
 	const { Menu, MenuItem, PredefinedMenuItem } = await import(
 		"@tauri-apps/api/menu"
 	);
-	const absPath = `${repoPath}/${dirPath}`;
+	const absPath = joinPath(repoPath, dirPath);
 	const files = (status?.staged ?? []).filter(
 		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
 	);
@@ -525,7 +526,7 @@ async function showConflictedContextMenu(_e: MouseEvent, filePath: string) {
 	const { Menu, MenuItem, PredefinedMenuItem } = await import(
 		"@tauri-apps/api/menu"
 	);
-	const absPath = `${repoPath}/${filePath}`;
+	const absPath = joinPath(repoPath, filePath);
 	const menu = await Menu.new({
 		items: [
 			await MenuItem.new({
@@ -584,7 +585,7 @@ async function showConflictedDirContextMenu(_e: MouseEvent, dirPath: string) {
 	const { Menu, MenuItem, PredefinedMenuItem } = await import(
 		"@tauri-apps/api/menu"
 	);
-	const absPath = `${repoPath}/${dirPath}`;
+	const absPath = joinPath(repoPath, dirPath);
 	const files = (status?.conflicted ?? []).filter(
 		(f) => f.path.startsWith(`${dirPath}/`) || f.path === dirPath,
 	);

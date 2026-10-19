@@ -3,7 +3,8 @@ import X from "@lucide/svelte/icons/x";
 import { open } from "@tauri-apps/plugin-dialog";
 import { errorMessage } from "../lib/error-report.js";
 import { safeInvoke } from "../lib/invoke.js";
-import { displayPath } from "../lib/path.js";
+import { displayPath, pathBasename, pathParent } from "../lib/path.js";
+import { isWindows, TRAFFIC_LIGHT_INSET } from "../lib/platform.js";
 import {
 	addRecentRepo,
 	getRecentRepos,
@@ -12,6 +13,8 @@ import {
 } from "../lib/store.js";
 import Button from "../lib/ui/Button.svelte";
 import Row from "../lib/ui/Row.svelte";
+import AppMenu from "./AppMenu.svelte";
+import WindowControls from "./WindowControls.svelte";
 
 interface Props {
 	onopen: (path: string, name: string) => void;
@@ -59,7 +62,7 @@ async function openPath(path: string) {
 	loading = true;
 	try {
 		await safeInvoke("open_repo", { path });
-		const name = path.split("/").at(-1) || path;
+		const name = pathBasename(path);
 		await addRecentRepo({ name, path });
 		recentRepos = await getRecentRepos();
 		onopen(path, name);
@@ -80,9 +83,15 @@ async function handleRemoveRecent(path: string) {
 	<!-- LAYOUT-02: drag region for window movement on welcome screen -->
 	<div
 		data-tauri-drag-region
-		class="flex-shrink-0 h-topbar"
-		style:padding-left="{isFullscreen ? 0 : 78}px"
-	></div>
+		class="flex items-center flex-shrink-0 h-topbar"
+		style:padding-left="{isFullscreen ? 0 : TRAFFIC_LIGHT_INSET}px"
+	>
+		{#if isWindows}
+			<AppMenu />
+			<div data-tauri-drag-region class="flex-1 h-full"></div>
+			<WindowControls />
+		{/if}
+	</div>
 	<div class="flex-1 flex flex-col items-center justify-center gap-6">
 		<div class="flex flex-col items-center gap-4 w-full max-w-welcome px-4">
 			<h1 class="text-display font-semibold text-text">Trunk</h1>
@@ -124,10 +133,9 @@ async function handleRemoveRecent(path: string) {
 								onclick={() => openPath(repo.path)}
 							>
 								<span class="text-body truncate min-w-0 flex-1">
-									<span class="text-text-muted"
-										>{dp.substring(0, dp.lastIndexOf("/"))}/</span
+									<span class="text-text-muted">{pathParent(dp)}</span
 									><span class="font-semibold text-text"
-										>{dp.split("/").at(-1)}</span
+										>{pathBasename(dp)}</span
 									>
 								</span>
 								{#snippet actions()}
