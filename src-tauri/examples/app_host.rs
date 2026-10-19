@@ -26,8 +26,12 @@ use tauri::{App, Emitter, Listener, Manager, WebviewWindow};
 use trunk_lib::state::TrafficLights;
 use trunk_lib::watcher::WatcherState;
 
-/// Invariant 2: `http://tauri.localhost` is refused by the real capability set,
-/// and the refusal reads like a missing plugin.
+/// Invariant 2: the other platform's origin is refused by the real capability set, and
+/// the refusal reads like a missing plugin. Windows serves the app from
+/// `http://tauri.localhost`; everywhere else it is `tauri://localhost`.
+#[cfg(windows)]
+const WEBVIEW_URL: &str = "http://tauri.localhost";
+#[cfg(not(windows))]
 const WEBVIEW_URL: &str = "tauri://localhost";
 
 const LISTEN_COMMAND: &str = "plugin:event|listen";

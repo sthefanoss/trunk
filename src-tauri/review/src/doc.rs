@@ -2214,6 +2214,18 @@ mod tests {
         // libgit2 names a working directory with forward slashes on every platform
         // (`C:/Users/.../repo/` on Windows), and the doc prints it that way.
         let root = dir.path().display().to_string().replace('\\', "/");
+        // Windows may spell an ancestor of the temp directory with its 8.3 short name
+        // (`RUNNER~1`) where libgit2 prints the long one, so there only the directory's
+        // own name is comparable.
+        let root = if cfg!(windows) {
+            dir.path()
+                .file_name()
+                .expect("a temp directory has a name")
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            root
+        };
         assert!(
             md.replace('\\', "/").contains(&root),
             "paths must resolve against the repo root, not the agent's cwd; \

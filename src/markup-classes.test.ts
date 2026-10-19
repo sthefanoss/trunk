@@ -274,7 +274,10 @@ function staticStyleDirectives(file: string): string[] {
 		.map((directive) => `style:${directive.name}`);
 }
 
-const components = files(root, ".svelte").map((file) => relative(root, file));
+// Forward slashes on every platform: `PRIMITIVES` below is matched against the path.
+const components = files(root, ".svelte").map((file) =>
+	relative(root, file).replaceAll("\\", "/"),
+);
 
 /** The primitives live here; everything else draws a control through one of them. */
 const PRIMITIVES = "lib/ui/";
