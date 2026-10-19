@@ -580,7 +580,11 @@ fn normalize_event_path(path: PathBuf) -> PathBuf {
     let mut missing = Vec::new();
     let mut existing = path.as_path();
     loop {
-        if let Ok(resolved) = canonical(existing) {
+        // Never anchor on a filesystem root: a path whose every ancestor but the root is
+        // missing does not exist here, and resolving `/` would move it onto the current drive.
+        if existing.parent().is_some()
+            && let Ok(resolved) = canonical(existing)
+        {
             return missing
                 .iter()
                 .rev()
