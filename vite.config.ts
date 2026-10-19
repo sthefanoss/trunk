@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 
 import { env } from "node:process";
+import { fileURLToPath } from "node:url";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/postcss";
 import { svelteTesting } from "@testing-library/svelte/vite";
@@ -59,7 +60,9 @@ export default defineConfig({
 			// Scan only the frontend tree for class candidates — the repo root
 			// also holds src-tauri/target, which is not source and is huge.
 			plugins: [
-				tailwindcss({ base: new URL("./src", import.meta.url).pathname }),
+				tailwindcss({
+					base: fileURLToPath(new URL("./src", import.meta.url)),
+				}),
 			],
 		},
 	},

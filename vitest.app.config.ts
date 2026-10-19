@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 
+import { fileURLToPath } from "node:url";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/postcss";
 import { svelteTesting } from "@testing-library/svelte/vite";
@@ -14,7 +15,9 @@ export default defineConfig({
 	css: {
 		postcss: {
 			plugins: [
-				tailwindcss({ base: new URL("./src", import.meta.url).pathname }),
+				tailwindcss({
+					base: fileURLToPath(new URL("./src", import.meta.url)),
+				}),
 				// jsdom's cascade walks @import and @media blocks and no other grouping
 				// rule (lib/jsdom/living/css/helpers/computed-style.js, jsdom 30.0.1),
 				// so a utility left inside Tailwind's @layer never reaches
