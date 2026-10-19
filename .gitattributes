@@ -1,0 +1,4 @@
+# Check out text as LF on every platform, whatever core.autocrlf says. The golden
+# corpus, the Biome formatter and the Rust tests all compare bytes against LF text,
+# and Git for Windows turns autocrlf on in its system config.
+* text=auto eol=lf
