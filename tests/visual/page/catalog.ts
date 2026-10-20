@@ -5,6 +5,7 @@
  */
 import { mount } from "svelte";
 import "../../../src/app.css";
+import "../../../src/fonts.js";
 import Catalog from "../../../src/lib/ui/Catalog.svelte";
 
 mount(Catalog, { target: document.getElementById("app") as HTMLElement });

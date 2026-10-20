@@ -13,6 +13,13 @@ under GPLv2 with a linking exception. The exception permits linking libgit2 into
 software released under any license, including proprietary licenses, provided
 recipients can relink against a modified libgit2.
 
+This product ships the Inter typeface (https://github.com/rsms/inter) as web font
+files, from the @fontsource-variable/inter package. Inter is Copyright 2016 The
+Inter Project Authors and is licensed under the SIL Open Font License, Version 1.1
+(https://openfontlicense.org). The license text ships with the package, at
+node_modules/@fontsource-variable/inter/LICENSE. The application uses it on
+platforms without San Francisco; macOS resolves its own system font first.
+
 Remaining bundled dependencies are distributed under permissive licenses (MIT,
 Apache-2.0, BSD, MPL-2.0, Zlib, Unicode-3.0, CC0-1.0). Their texts ship with the
 respective packages listed in src-tauri/Cargo.toml and package.json.

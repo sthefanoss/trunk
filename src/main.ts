@@ -1,6 +1,7 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
 import "./app.css";
+import "./fonts.js";
 import { startAppServices } from "./lib/app-services.js";
 
 const target = document.getElementById("app");

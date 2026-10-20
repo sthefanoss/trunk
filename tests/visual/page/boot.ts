@@ -7,6 +7,7 @@
 import { mount } from "svelte";
 import App from "../../../src/App.svelte";
 import "../../../src/app.css";
+import "../../../src/fonts.js";
 import { startAppServices } from "../../../src/lib/app-services.js";
 import { FakeClipboard } from "../../app/fakes/clipboard.js";
 import { FakeDialog } from "../../app/fakes/dialog.js";
