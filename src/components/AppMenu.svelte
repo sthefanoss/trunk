@@ -1,5 +1,6 @@
 <script lang="ts">
 import MenuIcon from "@lucide/svelte/icons/menu";
+import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { reportErrorToast } from "../lib/error-report.js";
@@ -25,7 +26,6 @@ async function showMenu(x: number, y: number) {
 	const { Menu, MenuItem, PredefinedMenuItem, Submenu } = await import(
 		"@tauri-apps/api/menu"
 	);
-	const { LogicalPosition } = await import("@tauri-apps/api/dpi");
 	const separator = () => PredefinedMenuItem.new({ item: "Separator" });
 
 	const app = await Submenu.new({

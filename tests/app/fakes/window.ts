@@ -38,6 +38,8 @@ export class FakeWindow implements TauriFake {
 		switch (command) {
 			case "is_fullscreen":
 				return this.fullscreen;
+			case "is_maximized":
+				return false;
 			case "is_focused":
 				return this.focused;
 			case "set_title":

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
-import { type Browser, type Page, webkit } from "playwright";
+import { type Browser, chromium, type Page, webkit } from "playwright";
 import {
 	createServer,
 	loadConfigFromFile,
@@ -556,7 +556,7 @@ async function pixelDifference(
 async function openBrowser(
 	opened: Opened,
 ): Promise<{ browser: Browser; origin: string }> {
-	const [vite, browser] = await Promise.allSettled([serve(), launchWebKit()]);
+	const [vite, browser] = await Promise.allSettled([serve(), launchBrowser()]);
 	if (vite.status === "fulfilled") opened.add(() => vite.value.close());
 	if (browser.status === "fulfilled") opened.add(() => browser.value.close());
 	if (vite.status === "rejected") throw vite.reason;
@@ -582,8 +582,22 @@ async function closeAfterFailure(
 }
 
 /** Playwright's own message for a missing browser installs every engine it
- *  ships. The suite needs WebKit alone, at the version this checkout pins. */
-async function launchWebKit(): Promise<Browser> {
+ *  ships. The suite needs one engine, at the version this checkout pins: WebKit,
+ *  which the committed baselines were drawn in, unless `TRUNK_VISUAL_BROWSER=chromium`
+ *  asks for the engine WebView2 runs on Windows. */
+async function launchBrowser(): Promise<Browser> {
+	const engine = process.env.TRUNK_VISUAL_BROWSER ?? "webkit";
+	if (engine === "chromium") {
+		if (!existsSync(chromium.executablePath()))
+			throw new Error(
+				"Playwright's Chromium is not installed. Install it once with: mise exec -- bunx playwright install chromium",
+			);
+		return chromium.launch();
+	}
+	if (engine !== "webkit")
+		throw new Error(
+			`TRUNK_VISUAL_BROWSER must be webkit or chromium, not "${engine}"`,
+		);
 	if (!existsSync(webkit.executablePath()))
 		throw new Error(
 			"Playwright's WebKit is not installed. Install it once with: mise exec -- bunx playwright install webkit",
