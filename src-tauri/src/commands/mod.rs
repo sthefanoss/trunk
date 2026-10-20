@@ -3,7 +3,16 @@ use tauri::{AppHandle, Manager, Runtime};
 use trunk_git::error::TrunkError;
 
 /// Resolve `app_data_dir`, JSON-stringifying the error like the other commands.
+///
+/// `TRUNK_DATA_DIR`, where set, names the directory instead, as it does for the
+/// review store. Tauri resolves `app_data_dir` from the user's profile, which on
+/// Windows no environment variable moves, so a test host that is handed only a
+/// fresh `HOME` would otherwise share the installed app's preferences file with
+/// every other host.
 pub(crate) fn resolve_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    if let Some(dir) = std::env::var_os("TRUNK_DATA_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
     app.path()
         .app_data_dir()
         .map_err(|e| TrunkError::new("app_data_dir", e.to_string()).to_json())
