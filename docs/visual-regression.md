@@ -11,6 +11,17 @@ compare SVG markup, in which an erased rail and a drawn one are identical, and T
 six sessions of green checks against a graph that was empty on screen (revert `409d34b3`).
 A green render golden is not evidence the graph draws. This suite is the one that looks.
 
+## Windows (Chromium)
+
+`TRUNK_VISUAL_BROWSER=chromium` runs the same suite in Playwright's Chromium, the engine WebView2
+runs, against `tests/visual/baselines-chromium/`; the macOS WebKit baselines are never compared
+with it. The CI job `Visual Baselines (Windows Chromium)` runs on `windows-latest` once that folder
+is committed. Record it on the runner, not on a developer's machine: run the CI workflow by hand
+with a reason, download the `baselines-chromium` artifact, review it and commit it. Locally,
+`TRUNK_VISUAL_BROWSER=chromium scripts/visual-accept.sh "<reason>"` does the same, at the user's
+direction only. WebKit cannot run the suite on Windows (no `OffscreenCanvas`).
+
+
 Why it is built this way, what gets a baseline, and why a pixel may drift 24 levels before
 it differs are in
 [decisions/2026-09-26-visual-regression-baselines.md](decisions/2026-09-26-visual-regression-baselines.md).

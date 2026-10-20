@@ -7,7 +7,15 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 
-const BASELINES = join(import.meta.dirname, "baselines");
+/** WebKit on macOS is what Trunk ships and what `baselines` holds. Chromium, the
+ *  engine WebView2 runs on Windows, draws edges and glyphs differently and keeps
+ *  its own folder, so neither engine is ever compared with the other's capture. */
+const BASELINES = join(
+	import.meta.dirname,
+	process.env.TRUNK_VISUAL_BROWSER === "chromium"
+		? "baselines-chromium"
+		: "baselines",
+);
 const DIFFERENCES = join(import.meta.dirname, "differences");
 
 /** Set only by `scripts/visual-accept.sh`, which runs at the user's direction. */

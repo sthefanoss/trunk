@@ -27,7 +27,16 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHANGELOG="$ROOT/docs/visual-baseline-changelog.md"
-BASELINES="tests/visual/baselines"
+# One folder per engine, as tests/visual/baseline.ts picks it.
+if [ "${TRUNK_VISUAL_BROWSER:-webkit}" = "chromium" ]; then
+	BASELINES="tests/visual/baselines-chromium"
+else
+	BASELINES="tests/visual/baselines"
+fi
+# What runs the suite. A runner without `just` on its PATH names the command.
+RUN="${TRUNK_VISUAL_RUN:-just visual}"
+SUM="shasum"
+command -v shasum >/dev/null 2>&1 || SUM="sha1sum"
 
 if [ ! -f "$CHANGELOG" ]; then
 	printf '# Visual baselines: accepted changes\n\nEach entry records a deliberate change to the committed captures, and why it was accepted.\nWritten by `scripts/visual-accept.sh`; see `docs/visual-regression.md`.\n' >"$CHANGELOG"
@@ -37,7 +46,7 @@ fi
 # lines reports a change on every run and records a reason for nothing.
 fingerprint() {
 	[ -d "$ROOT/$BASELINES" ] || return 0
-	find "$ROOT/$BASELINES" -type f -name '*.png' -exec shasum {} + |
+	find "$ROOT/$BASELINES" -type f -name '*.png' -exec "$SUM" {} + |
 		sed "s|$ROOT/||" | sort
 }
 
@@ -46,7 +55,7 @@ BEFORE="$(fingerprint)"
 # A run that fails part way has still rewritten the baselines it reached, so the
 # changelog records them before the failure is reported.
 STATUS=0
-(cd "$ROOT" && TRUNK_ACCEPT_VISUAL_BASELINES=1 just visual) || STATUS=$?
+(cd "$ROOT" && TRUNK_ACCEPT_VISUAL_BASELINES=1 bash -c "$RUN") || STATUS=$?
 
 # `comm`, not `diff`: diff exits 1 when it finds a change, which pipefail turns
 # into an abort before anything is recorded.
