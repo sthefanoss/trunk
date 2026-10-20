@@ -352,8 +352,6 @@ jobs:
   visual-windows:
     name: Visual Baselines (Windows Chromium)
     needs: [biome, cargo-fmt, graph-sweep-check, svelte-check]
-    # Until the first recording is committed there is nothing to compare with.
-    if: github.event_name == 'workflow_dispatch' || hashFiles('tests/visual/baselines-chromium/**') != ''
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -370,8 +368,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium
       - run: cargo build --manifest-path src-tauri/Cargo.toml -p trunk --example app_host -p trunk-fixtures --bin fixtures
+      # Until the first recording is committed there is nothing to compare with.
       - name: Compare with the baselines
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && hashFiles('tests/visual/baselines-chromium/**') != ''
         shell: bash
         run: |
           export TRUNK_APP_HOST="$PWD/src-tauri/target/debug/examples/app_host.exe"
